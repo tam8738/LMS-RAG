@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lms-rag-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: lms_rag
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
