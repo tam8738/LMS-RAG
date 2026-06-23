@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+COPY ai-service/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+COPY ai-service/ ./
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
+  CMD python scripts/check_pgvector.py || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
