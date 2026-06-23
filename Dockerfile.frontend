@@ -3,13 +3,13 @@ WORKDIR /app
 COPY frontend/ ./
 RUN if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
 EXPOSE 5173
-CMD ["sh", "-c", "if [ -f package.json ]; then npm run dev -- --host 0.0.0.0 --port 5173; else echo 'Missing frontend/package.json'; sleep infinity; fi"]
+CMD ["sh", "-c", "if [ -f package.json ]; then npm run dev -- --host 0.0.0.0 --port 5173; else echo 'Missing frontend/package.json' >&2; exit 1; fi"]
 
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY frontend/ ./
 RUN if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
-RUN if [ -f package.json ]; then npm run build; else mkdir -p dist && printf '%s' '<!doctype html><html><body><h1>Frontend not configured</h1></body></html>' > dist/index.html; fi
+RUN if [ -f package.json ]; then npm run build; else echo 'Missing frontend/package.json' >&2; exit 1; fi
 
 FROM nginx:1.27-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
