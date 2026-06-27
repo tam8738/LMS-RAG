@@ -1,13 +1,114 @@
-version: '3.9'
-
 services:
+
+  # =========================
+  # PostgreSQL + pgvector
+  # =========================
   postgres:
     image: pgvector/pgvector:pg16
     container_name: lms-rag-postgres
     restart: always
+
     environment:
-      POSTGRES_DB: lms_rag
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
+      # Tên database
+      POSTGRES_DB: ${DB_NAME}
+
+      # Username đăng nhập database
+      POSTGRES_USER: ${DB_USERNAME}
+
+      # Password database
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
     ports:
-      - "5432:5432"
+      # Port bên ngoài : port bên trong container
+      # Ví dụ 5432:5432
+      - "${DB_PORT}:5432"
+
+    volumes:
+      # Lưu dữ liệu để xóa container không mất database
+      - pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      # Kiểm tra PostgreSQL đã sẵn sàng hay chưa
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+
+  # =========================
+  # Spring Boot Backend
+  # =========================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: lms-rag-backend
+    restart: always
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+
+      # Host là tên service postgres
+      DB_HOST: postgres
+
+      # Port trong docker network
+      DB_PORT: 5432
+
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # JWT
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+
+      # Profile spring
+      SPRING_PROFILES_ACTIVE: docker
+
+    ports:
+      # Backend chạy ở localhost:8080
+      - "8080:8080"
+
+
+
+  # =========================
+  # pgAdmin (Web UI quản lý database)
+  # =========================
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: lms-rag-pgadmin
+    restart: always
+
+    environment:
+      # Tài khoản đăng nhập pgAdmin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+
+    ports:
+      # Truy cập giao diện web tại localhost:5050
+      - "5050:80"
+
+    depends_on:
+      - postgres
+
+    volumes:
+      # Lưu cấu hình server trong pgAdmin
+      - pgadmin_data:/var/lib/pgadmin
+
+
+
+# =========================
+# Docker volumes
+# =========================
+volumes:
+
+  # Lưu dữ liệu PostgreSQL
+  pgdata:
+
+  # Lưu dữ liệu pgAdmin
+  pgadmin_data:
