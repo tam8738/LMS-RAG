@@ -1,34 +1,139 @@
 services:
+
+  # =====================================================
+  # PostgreSQL + pgvector
+  # Database chính của hệ thống
+  # =====================================================
   postgres:
     image: pgvector/pgvector:pg16
     container_name: lms-rag-postgres
+
+    # Tự khởi động lại nếu container bị lỗi.
+    # Nếu developer chủ động "docker stop"
+    # thì sẽ không tự bật lại sau khi restart Docker Desktop.
     restart: unless-stopped
+
     environment:
-      POSTGRES_DB: lms_rag
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Database name
+      POSTGRES_DB: ${DB_NAME}
+
+      # Database username
+      POSTGRES_USER: ${DB_USERNAME}
+
+      # Database password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
     ports:
-      - "5432:5432"
+      # Port máy thật : Port container
+      - "${DB_PORT}:5432"
+
     volumes:
+      # Lưu dữ liệu PostgreSQL
+      # Xóa container không làm mất database
       - pgdata:/var/lib/postgresql/data
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d lms_rag"]
+      # Chỉ báo healthy khi PostgreSQL sẵn sàng nhận kết nối
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
+    networks:
+      - lms-network
+
+
+  # =====================================================
+  # Spring Boot Backend
+  # =====================================================
+  backend:
+
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: lms-rag-backend
+
     restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    ports:
-      - "5050:80"
+
     depends_on:
       postgres:
         condition: service_healthy
 
+    environment:
+
+      # ========= Database =========
+      # Trong Docker, backend truy cập database
+      # thông qua tên service "postgres"
+      DB_HOST: postgres
+      DB_PORT: 5432
+
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # ========= JWT =========
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+
+      # ========= Spring =========
+      SPRING_PROFILES_ACTIVE: docker
+
+    ports:
+      # Truy cập API
+      - "8080:8080"
+
+    networks:
+      - lms-network
+
+
+  # =====================================================
+  # pgAdmin
+  # Web UI quản lý PostgreSQL
+  # http://localhost:5050
+  # =====================================================
+  pgadmin:
+
+    image: dpage/pgadmin4
+    container_name: lms-rag-pgadmin
+
+    restart: unless-stopped
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+
+    ports:
+      - "5050:80"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      # Lưu cấu hình pgAdmin
+      - pgadmin_data:/var/lib/pgadmin
+
+    networks:
+      - lms-network
+
+
+# =====================================================
+# Docker Network
+# Tất cả service trong project sẽ giao tiếp qua network này
+# =====================================================
+networks:
+  lms-network:
+    driver: bridge
+
+
+# =====================================================
+# Docker Volumes
+# =====================================================
 volumes:
+
+  # Lưu dữ liệu PostgreSQL
   pgdata:
+
+  # Lưu cấu hình pgAdmin
+  pgadmin_data:
