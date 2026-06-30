@@ -1,0 +1,17 @@
+/* Aliases to bridge legacy variable names to the theme variables in theme.css */
+
+/* This file should be imported after theme.css so it can reference theme variables. */
+
+:root {
+  --text: var(--foreground);
+  --text-h: var(--color-foreground);
+  --bg: var(--background);
+  --code-bg: var(--input-background);
+  --accent-bg: rgba(0,0,0,0.02);
+  --accent-border: rgba(0,0,0,0.06);
+  --social-bg: rgba(0,0,0,0.04);
+  --shadow: rgba(0, 0, 0, 0.08) 0 10px 15px -3px, rgba(0, 0, 0, 0.03) 0 4px 6px -2px;
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+}
