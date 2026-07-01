@@ -4,16 +4,16 @@ import {
   MOCK_CHAT, STUDENT_ENROLLED_IDS
 } from './data/mockData';
 
-import LoginPage from './components/auth/LoginPage';
+import LoginPage from './pages/auth/LoginPage';
 import AppLayout from './components/layout/AppLayout';
-import TeacherDashboard from './components/teacher/TeacherDashboard';
-import CoursesPage from './components/teacher/CoursesPage';
-import CourseDetailPage from './components/teacher/CourseDetailPage';
-import LectureDetailPage from './components/teacher/LectureDetailPage';
-import StudentDashboard from './components/student/StudentDashboard';
-import StudentCoursesPage from './components/student/StudentCoursesPage';
-import StudentCourseDetailPage from './components/student/StudentCourseDetailPage';
-import LectureViewPage from './components/student/LectureViewPage';
+import TeacherDashboard from './pages/teacher/TeacherDashboard';
+import CoursesPage from './pages/teacher/CoursesPage';
+import CourseDetailPage from './pages/teacher/CourseDetailPage';
+import LectureDetailPage from './pages/teacher/LectureDetailPage';
+import StudentDashboard from './pages/student/StudentDashboard';
+import StudentCoursesPage from './pages/student/StudentCoursesPage';
+import StudentCourseDetailPage from './pages/student/StudentCourseDetailPage';
+import LectureViewPage from './pages/student/LectureViewPage';
 
 const DEFAULT_TEACHER_NOTIFICATIONS = [
   {
