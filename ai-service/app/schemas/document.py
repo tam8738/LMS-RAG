@@ -27,3 +27,14 @@ class ValidatedDocument(BaseModel):
     file_type: DocumentFileType
     media_type: str
     size_bytes: int = Field(ge=0)
+
+
+class ParsedPage(BaseModel):
+    page_number: int | None = Field(default=None, ge=1)
+    content: str = Field(min_length=1)
+
+
+class ParsedDocument(BaseModel):
+    file_type: DocumentFileType
+    page_count: int = Field(ge=1)
+    pages: list[ParsedPage] = Field(min_length=1)
