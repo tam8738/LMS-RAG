@@ -44,7 +44,7 @@ Tạo file `.env` từ `.env.example`:
 Copy-Item .env.example .env
 ```
 
-Nếu cần gọi OpenAI thật, điền `OPENAI_API_KEY` trong file `.env`.
+Điền `OPENAI_API_KEY` để sinh embedding thật và đặt cùng giá trị `INTERNAL_API_KEY` với Backend.
 
 ## Cấu hình database
 
@@ -79,7 +79,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Health check:
 
 ```txt
-GET http://localhost:8000/health
+GET http://localhost:8000/v1/health
 ```
 
 Swagger UI:
@@ -107,11 +107,43 @@ nearest label: sample
 distance: 0.010000
 ```
 
-Có thể kiểm tra qua API khi FastAPI đang chạy:
+Có thể kiểm tra qua API khi FastAPI đang chạy. Endpoint này yêu cầu secret giống Backend:
+
+```powershell
+$headers = @{ "X-Internal-Key" = "your-internal-secret" }
+Invoke-RestMethod `
+  -Uri "http://localhost:8000/v1/health/pgvector" `
+  -Headers $headers
+```
+
+## Xử lý học liệu
+
+Backend gọi endpoint nội bộ:
 
 ```txt
-GET http://localhost:8000/health/pgvector
+POST http://localhost:8000/v1/process-document
+X-Internal-Key: your-internal-secret
 ```
+
+Payload mẫu:
+
+```json
+{
+  "document_id": 12,
+  "lecture_id": 5,
+  "storage_key": "documents/12/source.pdf",
+  "file_type": "PDF",
+  "reprocess": false
+}
+```
+
+AI Service xử lý đồng bộ theo luồng:
+
+```txt
+resolve -> validate -> parse -> clean -> chunk -> embed -> transaction replace
+```
+
+Backend chịu trách nhiệm gọi endpoint trong background, quản lý processing job và cập nhật trạng thái tài liệu.
 
 ## Xử lý lỗi thường gặp
 
@@ -144,5 +176,5 @@ docker compose up -d postgres
 - AI Service không xử lý xác thực hoặc phân quyền người dùng.
 - Frontend không gọi trực tiếp AI Service.
 - Backend kiểm tra quyền truy cập trước, sau đó gọi AI Service qua REST API.
-- Endpoint `/health/pgvector` chỉ dùng để kiểm tra môi trường phát triển; khi triển khai thật có thể giới hạn nội bộ hoặc tắt endpoint này.
+- Endpoint `/v1/health/pgvector` yêu cầu `X-Internal-Key` và chỉ dành cho Backend hoặc kiểm tra nội bộ.
 

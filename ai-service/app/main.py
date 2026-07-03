@@ -1,17 +1,19 @@
 from fastapi import FastAPI
 
-from app.api.routes.health import router as health_router
+from app.api.error_handlers import register_exception_handlers
+from app.api.router import api_router
 from app.core.config import settings
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(
+    application = FastAPI(
         title=settings.app_name,
         description="AI service for document processing and RAG workflows.",
-        version="0.1.0",
+        version="0.2.0",
     )
-    app.include_router(health_router)
-    return app
+    register_exception_handlers(application)
+    application.include_router(api_router)
+    return application
 
 
 app = create_app()

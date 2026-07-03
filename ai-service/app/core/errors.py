@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -53,5 +53,5 @@ class ErrorBody(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    success: bool = False
+    success: Literal[False] = False
     error: ErrorBody
