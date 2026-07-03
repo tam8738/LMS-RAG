@@ -22,6 +22,26 @@ import LectureViewPage from './pages/student/LectureViewPage';
 
 
 
+function NotFoundState({ title, message, actionLabel, onAction }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto my-12 animate-slide-up-fade">
+      <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+        </svg>
+      </div>
+      <h3 className="text-sm font-bold text-slate-800 mb-1">{title}</h3>
+      <p className="text-xs text-slate-500 mb-5 max-w-xs leading-relaxed">{message}</p>
+      <button
+        onClick={onAction}
+        className="bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer border-none"
+      >
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   // ─── Auth state ───────────────────────────────────────────────────────────
   const [view, setView] = useState('login');
@@ -147,7 +167,16 @@ export default function App() {
         case 'teacher-courses':
           return <CoursesPage navigate={navigate} onCreateCourse={handleCreateCourse} />;
         case 'teacher-course-detail':
-          if (!selectedCourse) { navigate('teacher-courses'); return null; }
+          if (!selectedCourse) {
+            return (
+              <NotFoundState
+                title="Không tìm thấy khóa học"
+                message="Khóa học bạn yêu cầu không tồn tại hoặc đã bị xóa khỏi hệ thống."
+                actionLabel="Quay lại danh sách khóa học"
+                onAction={() => navigate('teacher-courses')}
+              />
+            );
+          }
           return (
             <CourseDetailPage
               course={selectedCourse}
@@ -157,7 +186,16 @@ export default function App() {
             />
           );
         case 'teacher-lecture-detail':
-          if (!selectedLecture) { navigate('teacher-course-detail'); return null; }
+          if (!selectedLecture) {
+            return (
+              <NotFoundState
+                title="Không tìm thấy bài giảng"
+                message="Bài giảng bạn yêu cầu không tồn tại hoặc đã bị xóa khỏi khóa học."
+                actionLabel="Quay lại chi tiết khóa học"
+                onAction={() => navigate('teacher-course-detail')}
+              />
+            );
+          }
           return (
             <LectureDetailPage
               lecture={selectedLecture}
@@ -190,7 +228,16 @@ export default function App() {
             />
           );
         case 'student-course-detail': {
-          if (!selectedCourse) { navigate('student-courses'); return null; }
+          if (!selectedCourse) {
+            return (
+              <NotFoundState
+                title="Không tìm thấy khóa học"
+                message="Khóa học bạn yêu cầu không tồn tại hoặc đã bị xóa khỏi hệ thống."
+                actionLabel="Quay lại danh sách khóa học"
+                onAction={() => navigate('student-courses')}
+              />
+            );
+          }
           const cSummaries = summaries.filter(s => courseLectures.some(l => l.id === s.lectureId));
           const cQuizzes = quizzes.filter(q => courseLectures.some(l => l.id === q.lectureId));
           return (
@@ -206,7 +253,16 @@ export default function App() {
         case 'student-lecture-view': {
           const lect = selectedLecture ?? lectures.find(l => l.id === selectedLectureId);
           const lCourse = lect ? courses.find(c => c.id === lect.courseId) ?? null : selectedCourse;
-          if (!lCourse || !lect) { navigate('student-courses'); return null; }
+          if (!lCourse || !lect) {
+            return (
+              <NotFoundState
+                title="Không tìm thấy bài giảng"
+                message="Bài giảng hoặc khóa học liên kết không tồn tại hoặc đã bị gỡ bỏ."
+                actionLabel="Quay lại danh sách khóa học"
+                onAction={() => navigate('student-courses')}
+              />
+            );
+          }
           const lCourseLects = lectures.filter(l => l.courseId === lCourse.id);
           const lIdx = lCourseLects.findIndex(l => l.id === lect.id);
           const nextLect = lCourseLects[lIdx + 1] ?? null;
@@ -234,14 +290,15 @@ export default function App() {
   };
 
   return (
-    <AppLayout 
-      user={user} 
-      currentView={view} 
-      navigate={navigate} 
-      onLogout={handleLogout} 
+    <AppLayout
+      user={user}
+      currentView={view}
+      navigate={navigate}
+      onLogout={handleLogout}
       onUpdateProfile={handleUpdateProfile}
       notifications={notifications}
       setNotifications={setNotifications}
+      courseCount={courses.length}
     >
       {renderContent()}
     </AppLayout>

@@ -13,7 +13,10 @@ export default function useCourses({ navigate } = {}) {
   };
 
   const handleJoinCourse = (courseId) => {
-    setEnrolledIds(prev => [...prev, courseId]);
+    setEnrolledIds(prev => {
+      if (prev.includes(courseId)) return prev;
+      return [...prev, courseId];
+    });
   };
 
   return {
