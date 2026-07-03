@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  MOCK_COURSES, MOCK_LECTURES, MOCK_DOCUMENTS, MOCK_SUMMARIES, MOCK_QUIZZES,
-  MOCK_CHAT, STUDENT_ENROLLED_IDS
+  MOCK_LECTURES, MOCK_DOCUMENTS, MOCK_SUMMARIES, MOCK_QUIZZES,
+  MOCK_CHAT
 } from './data/mockData';
+
+import useCourses from './hooks/useCourses';
+import useNotifications from './hooks/useNotifications';
 
 import LoginPage from './pages/auth/LoginPage';
 import AppLayout from './components/layout/AppLayout';
@@ -15,74 +18,7 @@ import StudentCoursesPage from './pages/student/StudentCoursesPage';
 import StudentCourseDetailPage from './pages/student/StudentCourseDetailPage';
 import LectureViewPage from './pages/student/LectureViewPage';
 
-const DEFAULT_TEACHER_NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: 'BookOpenCheck',
-    color: '#6C4DF6',
-    title: 'Tài liệu đã xử lý xong',
-    desc: 'Bài giảng "Hooks nâng cao" đã sẵn sàng',
-    time: '5 phút trước',
-    read: false
-  },
-  {
-    id: 2,
-    icon: 'MessageSquare',
-    color: '#0EA5E9',
-    title: 'Sinh viên đặt câu hỏi mới',
-    desc: 'Nguyễn Thị A hỏi về useEffect trong Web2024A',
-    time: '20 phút trước',
-    read: false
-  },
-  {
-    id: 3,
-    icon: 'Award',
-    color: '#F59E0B',
-    title: 'Quiz được hoàn thành',
-    desc: '15/28 sinh viên đã nộp Quiz #2',
-    time: '1 giờ trước',
-    read: true
-  },
-  {
-    id: 4,
-    icon: 'BookMarked',
-    color: '#10B981',
-    title: 'Sinh viên mới tham gia',
-    desc: '3 sinh viên đăng ký khóa DSA2024B',
-    time: '2 giờ trước',
-    read: true
-  }
-];
 
-const DEFAULT_STUDENT_NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: 'BookOpenCheck',
-    color: '#6C4DF6',
-    title: 'Tóm tắt mới được đăng',
-    desc: 'GV vừa publish tóm tắt bài "Hooks nâng cao"',
-    time: '10 phút trước',
-    read: false
-  },
-  {
-    id: 2,
-    icon: 'Award',
-    color: '#F59E0B',
-    title: 'Quiz mới đã mở',
-    desc: 'Quiz #3 môn Lập trình Web đang chờ bạn',
-    time: '30 phút trước',
-    read: false
-  },
-  {
-    id: 3,
-    icon: 'MessageSquare',
-    color: '#0EA5E9',
-    title: 'AI đã trả lời',
-    desc: 'Câu hỏi của bạn về useCallback đã có phản hồi',
-    time: '1 giờ trước',
-    read: true
-  }
-];
 
 export default function App() {
   // ─── Auth state ───────────────────────────────────────────────────────────
@@ -93,57 +29,18 @@ export default function App() {
   const [selectedLectureTab, setSelectedLectureTab] = useState(null);
 
   // ─── Data state ───────────────────────────────────────────────────────────
-  const [courses, setCourses] = useState(MOCK_COURSES);
   const [lectures, setLectures] = useState(MOCK_LECTURES);
   const [docs, setDocs] = useState(MOCK_DOCUMENTS);
   const [summaries, setSummaries] = useState(MOCK_SUMMARIES);
   const [quizzes, setQuizzes] = useState(MOCK_QUIZZES);
   const [chatHistory, setChatHistory] = useState(MOCK_CHAT);
-  const [enrolledIds, setEnrolledIds] = useState(STUDENT_ENROLLED_IDS);
 
   // ─── Notifications state & persistence ────────────────────────────────────
-  const [notifications, setNotifications] = useState([]);
-
-  useEffect(() => {
-    if (user) {
-      const savedNotifs = localStorage.getItem(`user_notifications_${user.id}`);
-      if (savedNotifs) {
-        try {
-          setNotifications(JSON.parse(savedNotifs));
-        } catch (e) {
-          console.error('Failed to parse notifications', e);
-          const defaults = user.role === 'teacher' ? DEFAULT_TEACHER_NOTIFICATIONS : DEFAULT_STUDENT_NOTIFICATIONS;
-          setNotifications(defaults);
-        }
-      } else {
-        const defaults = user.role === 'teacher' ? DEFAULT_TEACHER_NOTIFICATIONS : DEFAULT_STUDENT_NOTIFICATIONS;
-        setNotifications(defaults);
-        localStorage.setItem(`user_notifications_${user.id}`, JSON.stringify(defaults));
-      }
-    } else {
-      setNotifications([]);
-    }
-  }, [user?.id, user?.role]);
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`user_notifications_${user.id}`, JSON.stringify(notifications));
-    }
-  }, [notifications, user?.id]);
-
-  const addNotification = (title, desc, icon, color) => {
-    if (!user) return;
-    const newNotif = {
-      id: Date.now(),
-      icon,
-      color,
-      title,
-      desc,
-      time: 'Vừa xong',
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  };
+  const {
+    notifications,
+    setNotifications,
+    addNotification
+  } = useNotifications(user);
 
   // ─── Navigation ───────────────────────────────────────────────────────────
   const navigate = (v, params) => {
@@ -154,6 +51,13 @@ export default function App() {
       if ('lectureTab' in params) setSelectedLectureTab(params.lectureTab ?? null);
     }
   };
+
+  const {
+    courses,
+    enrolledIds,
+    handleCreateCourse,
+    handleJoinCourse
+  } = useCourses({ navigate });
 
   const handleLogin = (u) => {
     const savedUser = localStorage.getItem(`user_profile_${u.id}`);
@@ -192,10 +96,6 @@ export default function App() {
   };
 
   // ─── Teacher actions ──────────────────────────────────────────────────────
-  const handleCreateCourse = (course) => {
-    setCourses(prev => [...prev, course]);
-    navigate('teacher-course-detail', { selectedCourseId: course.id });
-  };
 
   const handleAddLecture = (lecture) => {
     setLectures(prev => [...prev, lecture]);
@@ -326,9 +226,6 @@ Các điểm chính
   };
 
   // ─── Student actions ─────────────────────────────────────────────────────
-  const handleJoinCourse = (courseId) => {
-    setEnrolledIds(prev => [...prev, courseId]);
-  };
 
   const handleSendMessage = (lectureId, content) => {
     const userMsg = {
