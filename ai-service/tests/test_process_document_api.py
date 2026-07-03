@@ -1,3 +1,5 @@
+"""Kiểm thử orchestration service, internal auth và API contract /v1."""
+
 import unittest
 from pathlib import Path
 from types import SimpleNamespace

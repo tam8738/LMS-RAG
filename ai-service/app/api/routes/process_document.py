@@ -1,3 +1,5 @@
+"""HTTP adapter cho document processing pipeline."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -27,6 +29,11 @@ def process_document(
         Depends(get_process_document_service),
     ],
 ) -> SuccessResponse[ProcessDocumentResult]:
+    """Xử lý đồng bộ từ góc nhìn Backend và trả kết quả theo envelope.
+
+    Hàm ``def`` được FastAPI chạy trong thread pool. Backend gọi endpoint này
+    trong background job để request của Frontend không phải chờ trực tiếp.
+    """
     result = service.process(request)
     return SuccessResponse(
         data=result,

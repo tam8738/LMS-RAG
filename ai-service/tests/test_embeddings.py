@@ -1,3 +1,5 @@
+"""Kiểm thử embedding batching/retry/output bằng mock, không gọi API thật."""
+
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch

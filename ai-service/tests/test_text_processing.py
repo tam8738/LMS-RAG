@@ -1,3 +1,5 @@
+"""Kiểm thử cleaner, tokenizer, chunk boundaries, overlap và pipeline."""
+
 import tempfile
 import unittest
 from pathlib import Path

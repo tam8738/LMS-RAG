@@ -1,3 +1,5 @@
+"""Entry point tạo FastAPI application của AI Service."""
+
 from fastapi import FastAPI
 
 from app.api.error_handlers import register_exception_handlers
@@ -6,6 +8,7 @@ from app.core.config import settings
 
 
 def create_app() -> FastAPI:
+    """Application factory giúp test tạo app mới và override dependencies."""
     application = FastAPI(
         title=settings.app_name,
         description="AI service for document processing and RAG workflows.",
@@ -16,4 +19,5 @@ def create_app() -> FastAPI:
     return application
 
 
+# Uvicorn import ``app.main:app`` để lấy instance này.
 app = create_app()

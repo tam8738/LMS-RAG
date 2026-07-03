@@ -1,3 +1,5 @@
+"""PostgreSQL/pgvector implementation của DocumentChunkRepository."""
+
 import math
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -12,6 +14,7 @@ from app.db.pgvector_store import to_vector_literal
 from app.repositories.document_chunk_repository import DocumentChunkRepository
 from app.schemas.document import EmbeddedDocument
 
+# SQL tách thành hằng số để dễ đọc/test và luôn truyền dữ liệu qua parameters.
 _DELETE_DOCUMENT_CHUNKS_SQL = """
 DELETE FROM document_chunks
 WHERE document_id = %s
@@ -30,15 +33,19 @@ INSERT INTO document_chunks (
 VALUES (%s, %s, %s, %s, %s, %s, %s::vector)
 """
 
+# Factory trả context manager connection; test thay bằng fake transaction DB.
 ConnectionFactory = Callable[[], AbstractContextManager[Any]]
 
 
 class PostgresDocumentChunkRepository(DocumentChunkRepository):
+    """Batch replace chunks trong một transaction PostgreSQL."""
+
     def __init__(
         self,
         connection_factory: ConnectionFactory = get_connection,
         expected_dimensions: int | None = None,
     ) -> None:
+        """Inject connection factory trong test; production dùng PostgreSQL."""
         self.connection_factory = connection_factory
         self.expected_dimensions = (
             expected_dimensions
@@ -54,6 +61,12 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         lecture_id: int,
         document: EmbeddedDocument,
     ) -> int:
+        """Xóa chunks cũ và batch insert chunks mới một cách atomic.
+
+        Validation và build rows chạy trước khi mở transaction. Khi bất kỳ
+        insert nào lỗi, exception thoát khỏi ``connection.transaction()`` nên
+        cả DELETE lẫn các INSERT trước đó đều được rollback.
+        """
         self._validate_document(document_id, lecture_id, document)
         rows = self._build_rows(document_id, lecture_id, document)
 
@@ -65,11 +78,14 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
                             _DELETE_DOCUMENT_CHUNKS_SQL,
                             (document_id,),
                         )
+                        # executemany gửi toàn bộ rows qua một API batch thay vì
+                        # tự execute và commit từng chunk riêng lẻ.
                         cursor.executemany(
                             _INSERT_DOCUMENT_CHUNK_SQL,
                             rows,
                         )
         except psycopg.Error as exc:
+            # Lỗi được bắt bên ngoài transaction block, sau khi rollback xảy ra.
             raise ServiceError(
                 ErrorCode.DATABASE_ERROR,
                 "Không thể lưu document chunks vào PostgreSQL",
@@ -90,6 +106,7 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         lecture_id: int,
         document: EmbeddedDocument,
     ) -> None:
+        """Chặn dữ liệu sai trước khi tốn connection/transaction database."""
         if document_id <= 0:
             raise self._invalid_input("document_id", "document_id phải lớn hơn 0")
         if lecture_id <= 0:
@@ -103,6 +120,8 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
                 ),
             )
 
+        # Index liên tục giúp unique(document_id, chunk_index) có ý nghĩa và
+        # giữ thứ tự tài liệu xác định khi đọc lại.
         chunk_indexes = [chunk.chunk_index for chunk in document.chunks]
         expected_indexes = list(range(document.chunk_count))
         if chunk_indexes != expected_indexes:
@@ -133,6 +152,7 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         lecture_id: int,
         document: EmbeddedDocument,
     ) -> list[tuple[Any, ...]]:
+        """Ánh xạ model nghiệp vụ sang đúng thứ tự cột của INSERT SQL."""
         return [
             (
                 document_id,
@@ -148,6 +168,7 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
 
     @staticmethod
     def _invalid_input(field: str, message: str) -> ServiceError:
+        """Tạo lỗi validation nhất quán cho tầng persistence."""
         return ServiceError(
             ErrorCode.INVALID_INPUT,
             "Dữ liệu document chunks không hợp lệ",

@@ -1,1 +1,1 @@
-"""Parsers for validated PDF and TXT learning materials."""
+"""Các parser biến PDF/TXT đã validate thành text theo trang."""

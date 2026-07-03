@@ -1,1 +1,1 @@
-"""Application services for document processing and RAG workflows."""
+"""Các use case/component xử lý tài liệu và RAG."""

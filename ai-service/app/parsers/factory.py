@@ -1,3 +1,5 @@
+"""Chọn parser phù hợp mà không để pipeline chứa nhiều nhánh if/elif."""
+
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.parsers.base import DocumentParser
 from app.parsers.pdf import PdfDocumentParser
@@ -6,6 +8,8 @@ from app.schemas.document import DocumentFileType
 
 
 class DocumentParserFactory:
+    """Factory ánh xạ loại file sang class parser tương ứng."""
+
     _parsers: dict[DocumentFileType, type[DocumentParser]] = {
         DocumentFileType.PDF: PdfDocumentParser,
         DocumentFileType.TXT: TxtDocumentParser,
@@ -13,6 +17,7 @@ class DocumentParserFactory:
 
     @classmethod
     def create(cls, file_type: DocumentFileType) -> DocumentParser:
+        """Tạo parser stateless; loại ngoài MVP trả lỗi contract rõ ràng."""
         parser_class = cls._parsers.get(file_type)
         if parser_class is None:
             value = (

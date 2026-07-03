@@ -1,3 +1,5 @@
+"""Khởi tạo dependency production cho các FastAPI routes."""
+
 from functools import lru_cache
 
 from app.core.errors import ErrorCode, ServiceError
@@ -14,6 +16,11 @@ from app.services.storage import StorageResolver
 
 @lru_cache(maxsize=1)
 def get_process_document_service() -> ProcessDocumentService:
+    """Lắp ráp object graph và tái sử dụng service/OpenAI client giữa requests.
+
+    Khởi tạo lazy khi process endpoint được gọi, không phải khi import app.
+    Vì vậy public health vẫn chạy nếu local chưa có OPENAI_API_KEY.
+    """
     try:
         embedding_provider = OpenAIEmbeddingProvider()
     except ValueError as exc:

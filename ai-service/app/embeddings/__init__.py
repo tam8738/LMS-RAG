@@ -1,1 +1,1 @@
-"""Embedding providers used by the document processing pipeline."""
+"""Abstraction và provider sinh vector embedding cho chunks."""

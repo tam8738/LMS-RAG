@@ -1,3 +1,9 @@
+"""OpenAI implementation của EmbeddingProvider.
+
+Provider chịu trách nhiệm chia batch, retry lỗi tạm thời, giữ thứ tự output
+và từ chối response sai trước khi vector đi vào tầng persistence.
+"""
+
 import math
 import time
 from collections.abc import Callable
@@ -15,6 +21,8 @@ from app.core.config import settings
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.embeddings.base import EmbeddingProvider
 
+# Chỉ lỗi có khả năng tự hết mới được retry. Bad request không được retry vì
+# gửi lại cùng payload sẽ tiếp tục thất bại và chỉ làm tăng độ trễ/chi phí.
 _RETRYABLE_EXCEPTIONS = (
     APIConnectionError,
     APITimeoutError,
@@ -24,6 +32,8 @@ _RETRYABLE_EXCEPTIONS = (
 
 
 class OpenAIEmbeddingProvider(EmbeddingProvider):
+    """Sinh embedding qua OpenAI với batch và retry có giới hạn."""
+
     def __init__(
         self,
         client: Any | None = None,
@@ -37,6 +47,12 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         request_timeout_seconds: float | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        """Khởi tạo provider từ settings hoặc dependency được inject trong test.
+
+        OpenAI client thật được đặt ``max_retries=0`` vì lớp này tự quản lý
+        retry. Nếu cả SDK và lớp ngoài cùng retry, số lần gọi và thời gian chờ
+        sẽ khó dự đoán.
+        """
         super().__init__(
             model_name=model_name or settings.embedding_model,
             dimensions=(
@@ -69,6 +85,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self._sleep = sleep
 
         if client is not None:
+            # Unit test truyền MagicMock vào đây nên không gọi mạng/API thật.
             self.client = client
         else:
             selected_api_key = api_key or settings.openai_api_key
@@ -77,6 +94,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             self.client = OpenAI(api_key=selected_api_key, max_retries=0)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
+        """Sinh vector theo batch và ghép kết quả theo đúng thứ tự input."""
         if not texts:
             return []
         if any(not text.strip() for text in texts):
@@ -95,6 +113,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         return embeddings
 
     def _request_batch(self, batch: list[str]) -> Any:
+        """Gọi một batch và retry lỗi tạm thời bằng exponential backoff."""
+        # max_retries=2 nghĩa là một lần gọi đầu + tối đa hai lần thử lại.
         for retry_number in range(self.max_retries + 1):
             try:
                 return self.client.embeddings.create(
@@ -112,15 +132,18 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                         status_code=503,
                     ) from exc
 
+                # 0.5, 1.0, 2.0... giúp tránh gọi dồn khi provider đang quá tải.
                 delay = self.retry_base_delay_seconds * (2**retry_number)
                 self._sleep(delay)
             except Exception as exc:
+                # Lỗi không tạm thời không được retry.
                 raise ServiceError(
                     ErrorCode.EMBEDDING_ERROR,
                     "Không thể sinh embedding từ OpenAI",
                     status_code=502,
                 ) from exc
 
+        # Về logic, vòng lặp luôn return hoặc raise. Dòng này hỗ trợ type checker.
         raise AssertionError("Vòng lặp retry phải luôn return hoặc raise")
 
     def _parse_batch_response(
@@ -128,7 +151,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         response: Any,
         expected_count: int,
     ) -> list[list[float]]:
+        """Chuẩn hóa và validate output trước khi trả vector cho nghiệp vụ."""
         try:
+            # API có trường index; sort đảm bảo vector thứ i vẫn thuộc text thứ i.
             items = sorted(response.data, key=lambda item: item.index)
             indexes = [item.index for item in items]
             vectors = [
@@ -156,6 +181,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             )
 
         for index, vector in enumerate(vectors):
+            # Cột database là VECTOR(1536), vì vậy sai một chiều cũng không lưu.
             if len(vector) != self.dimensions:
                 raise ServiceError(
                     ErrorCode.INVALID_OUTPUT,
@@ -171,6 +197,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                         )
                     ],
                 )
+
+            # NaN/Infinity làm phép tính khoảng cách không đáng tin cậy và có
+            # thể bị pgvector từ chối.
             if any(not math.isfinite(value) for value in vector):
                 raise ServiceError(
                     ErrorCode.INVALID_OUTPUT,
@@ -187,6 +216,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         return vectors
 
     def _validate_configuration(self) -> None:
+        """Fail fast với cấu hình batch/retry/timeout không hợp lệ."""
         if self.batch_size <= 0:
             raise ValueError("embedding batch_size phải lớn hơn 0")
         if self.max_retries < 0:

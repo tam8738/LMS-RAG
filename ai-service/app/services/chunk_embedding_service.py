@@ -1,3 +1,5 @@
+"""Gắn vectors từ provider trở lại đúng document chunks."""
+
 import math
 
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
@@ -10,13 +12,19 @@ from app.schemas.document import (
 
 
 class ChunkEmbeddingService:
+    """Nghiệp vụ embedding độc lập với OpenAI hoặc mock provider cụ thể."""
+
     def __init__(self, provider: EmbeddingProvider) -> None:
+        """Inject provider để production dùng OpenAI và test dùng mock."""
         self.provider = provider
 
     def embed(self, document: ChunkedDocument) -> EmbeddedDocument:
+        """Embed toàn bộ chunk texts và giữ nguyên metadata theo vị trí."""
         vectors = self.provider.embed(
             [chunk.content for chunk in document.chunks]
         )
+
+        # Một vector phải tương ứng chính xác với một chunk.
         if len(vectors) != document.chunk_count:
             raise ServiceError(
                 ErrorCode.EMBEDDING_ERROR,
@@ -34,6 +42,7 @@ class ChunkEmbeddingService:
 
         embedded_chunks: list[EmbeddedDocumentChunk] = []
         for chunk, vector in zip(document.chunks, vectors):
+            # Service kiểm tra lại contract để bảo vệ khi dùng provider khác.
             if len(vector) != self.provider.dimensions:
                 raise ServiceError(
                     ErrorCode.EMBEDDING_ERROR,
@@ -65,6 +74,7 @@ class ChunkEmbeddingService:
                     ],
                 )
 
+            # model_dump giữ page/index/content/token_count, sau đó thêm vector.
             embedded_chunks.append(
                 EmbeddedDocumentChunk(
                     **chunk.model_dump(),

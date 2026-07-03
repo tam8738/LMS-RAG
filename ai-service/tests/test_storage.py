@@ -1,3 +1,5 @@
+"""Kiểm thử StorageResolver chống absolute path và path traversal."""
+
 import tempfile
 import unittest
 from pathlib import Path

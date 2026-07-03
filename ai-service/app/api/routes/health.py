@@ -1,3 +1,5 @@
+"""Health endpoints cho process FastAPI và PostgreSQL/pgvector."""
+
 from typing import Annotated
 
 import psycopg
@@ -22,6 +24,7 @@ router = APIRouter(tags=["health"])
     response_model_exclude_none=True,
 )
 def health_check() -> SuccessResponse[HealthData]:
+    """Public liveness check, không phụ thuộc database hoặc OpenAI."""
     return SuccessResponse(
         data=HealthData(
             service="ai-service",
@@ -38,6 +41,7 @@ def health_check() -> SuccessResponse[HealthData]:
 def pgvector_health_check(
     _authorization: Annotated[None, Depends(require_internal_api_key)],
 ) -> SuccessResponse[PgVectorHealthData]:
+    """Protected readiness check cho database và extension pgvector."""
     try:
         result = ensure_pgvector_ready()
     except psycopg.Error as exc:

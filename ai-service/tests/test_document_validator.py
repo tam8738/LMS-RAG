@@ -1,3 +1,5 @@
+"""Kiểm thử validation size, extension, PDF signature và TXT encoding."""
+
 import tempfile
 import unittest
 from pathlib import Path

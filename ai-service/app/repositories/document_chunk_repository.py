@@ -1,9 +1,13 @@
+"""Repository abstraction cho persistence của document chunks."""
+
 from abc import ABC, abstractmethod
 
 from app.schemas.document import EmbeddedDocument
 
 
 class DocumentChunkRepository(ABC):
+    """Tách nghiệp vụ xử lý tài liệu khỏi chi tiết PostgreSQL/pgvector."""
+
     @abstractmethod
     def replace_document_chunks(
         self,
@@ -11,5 +15,5 @@ class DocumentChunkRepository(ABC):
         lecture_id: int,
         document: EmbeddedDocument,
     ) -> int:
-        """Atomically replace all chunks and return the inserted count."""
+        """Thay toàn bộ chunks atomically và trả số rows đã insert."""
         raise NotImplementedError

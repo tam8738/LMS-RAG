@@ -1,3 +1,5 @@
+"""Kiểm thử PDF/TXT parsers và parser factory mà không cần OCR."""
+
 import tempfile
 import unittest
 from pathlib import Path

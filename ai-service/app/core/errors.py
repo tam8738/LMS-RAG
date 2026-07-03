@@ -1,3 +1,10 @@
+"""Mô hình lỗi thống nhất giữa các tầng của AI Service.
+
+Code nghiệp vụ raise ``ServiceError``; API exception handler chuyển lỗi đó
+thành JSON envelope. Nhờ vậy parser, embedding và repository không phụ thuộc
+trực tiếp vào FastAPI nhưng vẫn trả cùng một contract cho Backend.
+"""
+
 from enum import Enum
 from typing import Any, Literal
 
@@ -5,6 +12,8 @@ from pydantic import BaseModel, Field
 
 
 class ErrorCode(str, Enum):
+    """Các mã lỗi ổn định mà Backend có thể xử lý bằng chương trình."""
+
     INVALID_INPUT = "INVALID_INPUT"
     UNAUTHORIZED_INTERNAL_CALL = "UNAUTHORIZED_INTERNAL_CALL"
     FILE_NOT_FOUND = "FILE_NOT_FOUND"
@@ -24,11 +33,23 @@ class ErrorCode(str, Enum):
 
 
 class ErrorDetail(BaseModel):
+    """Mô tả lỗi gắn với một field cụ thể trong request hoặc dữ liệu."""
+
     field: str
     message: str
 
 
 class ServiceError(Exception):
+    """Exception nghiệp vụ độc lập với framework web.
+
+    Attributes:
+        code: Mã lỗi ổn định trong ``ErrorCode``.
+        message: Thông báo an toàn có thể trả cho Backend.
+        status_code: HTTP status mà API layer sẽ sử dụng.
+        details: Danh sách lỗi chi tiết theo field.
+        context: Dữ liệu kỹ thuật chỉ dùng nội bộ, không tự động trả ra API.
+    """
+
     def __init__(
         self,
         code: ErrorCode,
@@ -38,6 +59,7 @@ class ServiceError(Exception):
         details: list[ErrorDetail] | None = None,
         context: dict[str, Any] | None = None,
     ) -> None:
+        """Khởi tạo lỗi và giữ message trong base ``Exception`` để logging."""
         super().__init__(message)
         self.code = code
         self.message = message
@@ -47,11 +69,15 @@ class ServiceError(Exception):
 
 
 class ErrorBody(BaseModel):
+    """Phần ``error`` bên trong error envelope."""
+
     code: ErrorCode
     message: str
     details: list[ErrorDetail] = Field(default_factory=list)
 
 
 class ErrorResponse(BaseModel):
+    """JSON response chuẩn cho mọi request thất bại."""
+
     success: Literal[False] = False
     error: ErrorBody

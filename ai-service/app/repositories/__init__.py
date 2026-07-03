@@ -1,1 +1,1 @@
-"""Persistence repositories owned by the AI service."""
+"""Persistence abstractions và PostgreSQL implementations."""

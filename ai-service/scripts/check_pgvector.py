@@ -1,8 +1,11 @@
+"""Script CLI kiểm tra kết nối PostgreSQL và extension pgvector."""
+
 from pathlib import Path
 import sys
 
 import psycopg
 
+# Khi chạy từ thư mục scripts, thêm root ai-service để import package app.
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT_DIR))
 
@@ -10,12 +13,16 @@ from app.db.pgvector_store import ensure_pgvector_ready
 
 
 def main() -> None:
+    """Chạy phép lưu/truy vấn vector mẫu và in kết quả dễ đọc cho developer."""
     try:
         result = ensure_pgvector_ready()
     except psycopg.Error as exc:
         print("pgvector check failed")
         print(f"reason: {exc}")
-        print("hint: start PostgreSQL with Docker Desktop and `docker compose up -d postgres`.")
+        print(
+            "hint: start PostgreSQL with Docker Desktop and "
+            "`docker compose up -d postgres`."
+        )
         raise SystemExit(1) from exc
 
     print("pgvector check ok")
@@ -27,4 +34,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Chỉ chạy CLI khi gọi file trực tiếp, không chạy khi import để test.
     main()

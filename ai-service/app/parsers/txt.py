@@ -1,3 +1,5 @@
+"""Đọc học liệu TXT UTF-8 thành một logical page."""
+
 from app.core.errors import ErrorCode, ServiceError
 from app.parsers.base import DocumentParser
 from app.schemas.document import (
@@ -9,10 +11,14 @@ from app.schemas.document import (
 
 
 class TxtDocumentParser(DocumentParser):
+    """TXT parser hỗ trợ UTF-8 và UTF-8-SIG (file có BOM)."""
+
     supported_type = DocumentFileType.TXT
 
     def _parse(self, document: ValidatedDocument) -> ParsedDocument:
+        """Đọc toàn bộ TXT; TXT không có số trang nên dùng ``None``."""
         try:
+            # utf-8-sig tự loại BOM nhưng vẫn đọc được UTF-8 không có BOM.
             content = document.path.read_text(encoding="utf-8-sig")
         except (OSError, UnicodeError) as exc:
             raise ServiceError(

@@ -1,3 +1,5 @@
+"""Kiểm thử batch persistence và rollback giữ chunks cũ bằng fake DB."""
+
 import unittest
 from copy import deepcopy
 
