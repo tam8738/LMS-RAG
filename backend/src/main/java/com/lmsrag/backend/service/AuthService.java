@@ -1,7 +1,7 @@
 package com.lmsrag.backend.service;
 
-import com.lmsrag.backend.dto.LoginRequestDTO;
-import com.lmsrag.backend.dto.LoginResponseDTO;
+import com.lmsrag.backend.dto.auth.LoginRequestDTO;
+import com.lmsrag.backend.dto.auth.LoginResponseDTO;
 import com.lmsrag.backend.entity.User;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;

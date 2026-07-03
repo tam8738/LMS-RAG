@@ -1,4 +1,4 @@
-package com.lmsrag.backend.dto;
+package com.lmsrag.backend.dto.auth;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

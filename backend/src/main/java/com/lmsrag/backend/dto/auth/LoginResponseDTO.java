@@ -1,4 +1,4 @@
-package com.lmsrag.backend.dto;
+package com.lmsrag.backend.dto.auth;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

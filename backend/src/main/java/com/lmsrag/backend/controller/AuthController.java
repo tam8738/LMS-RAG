@@ -1,8 +1,8 @@
 package com.lmsrag.backend.controller;
 
 import com.lmsrag.backend.dto.ApiResponse;
-import com.lmsrag.backend.dto.LoginRequestDTO;
-import com.lmsrag.backend.dto.LoginResponseDTO;
+import com.lmsrag.backend.dto.auth.LoginRequestDTO;
+import com.lmsrag.backend.dto.auth.LoginResponseDTO;
 import com.lmsrag.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
