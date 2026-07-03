@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
   BookOpen,
-  GraduationCap,
-  User as UserIcon,
   Sparkles,
   Mail,
   Lock,
@@ -13,7 +11,6 @@ import {
   MessageSquareQuote,
   CheckCircle2
 } from 'lucide-react';
-import { MOCK_USERS } from '../../data/mockData';
 import { login as authServiceLogin } from '../../services/authService';
 
 export default function LoginPage({ onLogin }) {
@@ -24,25 +21,6 @@ export default function LoginPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // Synchronize users with localStorage
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('edurag_users');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing edurag_users from localStorage', e);
-      }
-    }
-    // Default mock users with password: '123456'
-    const initialUsers = MOCK_USERS.map((u) => ({
-      ...u,
-      password: '123456',
-    }));
-    localStorage.setItem('edurag_users', JSON.stringify(initialUsers));
-    return initialUsers;
-  });
 
   const handleLogin = async (e) => {
     e.preventDefault();
