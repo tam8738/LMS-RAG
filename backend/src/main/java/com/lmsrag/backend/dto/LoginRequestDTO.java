@@ -1,14 +1,15 @@
 package com.lmsrag.backend.dto;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Schema(description = "Thông tin đăng nhập")
 public class LoginRequestDTO {
+
+    @Schema(description = "Email người dùng", example = "teacher@example.com")
     private String email;
+
+    @Schema(description = "Mật khẩu", example = "password123")
     private String password;
 }
-

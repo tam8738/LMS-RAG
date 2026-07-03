@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+
 @Entity
 @Table(name = "courses")
 @Getter
@@ -17,8 +18,8 @@ import java.time.Instant;
 public class Course {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     private String name;
     private String description;
@@ -39,4 +40,5 @@ public class Course {
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private Instant updatedAt;}
+    private Instant updatedAt;
+}
