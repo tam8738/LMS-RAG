@@ -4,3 +4,5 @@ python-dotenv==1.0.1
 openai==1.59.7
 psycopg[binary]==3.3.4
 pgvector==0.3.6
+pypdf==5.1.0
+tiktoken==0.8.0
