@@ -26,6 +26,14 @@ class Settings:
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "150"))
     default_top_k: int = int(os.getenv("DEFAULT_TOP_K", "5"))
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
+    embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "64"))
+    embedding_max_retries: int = int(os.getenv("EMBEDDING_MAX_RETRIES", "2"))
+    embedding_retry_base_delay_seconds: float = float(
+        os.getenv("EMBEDDING_RETRY_BASE_DELAY_SECONDS", "0.5")
+    )
+    embedding_request_timeout_seconds: float = float(
+        os.getenv("EMBEDDING_REQUEST_TIMEOUT_SECONDS", "30")
+    )
 
     @property
     def max_file_size_bytes(self) -> int:

@@ -55,3 +55,19 @@ class ChunkedDocument(BaseModel):
     @property
     def chunk_count(self) -> int:
         return len(self.chunks)
+
+
+class EmbeddedDocumentChunk(DocumentChunk):
+    embedding: list[float] = Field(min_length=1)
+
+
+class EmbeddedDocument(BaseModel):
+    file_type: DocumentFileType
+    page_count: int = Field(ge=1)
+    embedding_model: str = Field(min_length=1)
+    embedding_dimensions: int = Field(gt=0)
+    chunks: list[EmbeddedDocumentChunk] = Field(min_length=1)
+
+    @property
+    def chunk_count(self) -> int:
+        return len(self.chunks)
