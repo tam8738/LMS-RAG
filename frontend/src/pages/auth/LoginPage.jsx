@@ -14,6 +14,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { MOCK_USERS } from '../../data/mockData';
+import { login as authServiceLogin } from '../../services/authService';
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ export default function LoginPage({ onLogin }) {
     return initialUsers;
   });
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -53,29 +54,18 @@ export default function LoginPage({ onLogin }) {
       return;
     }
 
-    const found = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-
-    if (!found) {
-      setError('Tài khoản không tồn tại. Vui lòng liên hệ Quản trị viên để được cung cấp.');
-      return;
+    try {
+      const found = await authServiceLogin(email, password);
+      setSuccess('Đăng nhập thành công! Đang chuyển hướng...');
+      setTimeout(() => {
+        onLogin(found);
+      }, 800);
+    } catch (err) {
+      setError(err.message || 'Đã xảy ra lỗi đăng nhập.');
     }
-
-    if (found.password !== password) {
-      setError('Mật khẩu không chính xác. Vui lòng thử lại.');
-      return;
-    }
-
-    setSuccess('Đăng nhập thành công! Đang chuyển hướng...');
-    setTimeout(() => {
-      onLogin(found);
-    }, 800);
   };
 
-  const handleDemoLogin = (demoUser) => {
-    // Synchronize or find in users list if password updated
-    const found = users.find(u => u.email === demoUser.email);
-    onLogin(found || demoUser);
-  };
+
 
   return (
     <div className="min-h-screen flex font-sans antialiased text-slate-800">
@@ -290,58 +280,6 @@ export default function LoginPage({ onLogin }) {
                 <span>Đăng nhập</span>
               </button>
             </form>
-
-            {/* Quick Demo Credentials Footer */}
-            <div className="mt-6">
-              <div className="relative flex items-center">
-                <div className="flex-grow border-t border-slate-100" />
-                <span className="px-3 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                  Trải nghiệm nhanh demo
-                </span>
-                <div className="flex-grow border-t border-slate-100" />
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin(MOCK_USERS[0])}
-                  className="flex items-center gap-2.5 border border-slate-200 rounded-xl px-3 py-2 hover:bg-slate-50 hover:border-slate-300 transition duration-200 group text-left"
-                >
-                  <div className="w-7 h-7 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-                    <GraduationCap className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-slate-800 font-bold text-xs">
-                      Giảng viên
-                    </div>
-                    <div className="text-slate-400 text-[9px] font-medium leading-tight">
-                      teacher@edu.vn
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin(MOCK_USERS[1])}
-                  className="flex items-center gap-2.5 border border-slate-200 rounded-xl px-3 py-2 hover:bg-slate-50 hover:border-slate-300 transition duration-200 group text-left"
-                >
-                  <div className="w-7 h-7 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-                    <UserIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-slate-800 font-bold text-xs">
-                      Sinh viên
-                    </div>
-                    <div className="text-slate-400 text-[9px] font-medium leading-tight">
-                      student@edu.vn
-                    </div>
-                  </div>
-                </button>
-              </div>
-              {/* <p className="mt-3 text-slate-400 text-[10px] text-center">
-                Mật khẩu đăng nhập mặc định: <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-mono">123456</code>
-              </p> */}
-            </div>
           </div>
         </div>
       </div>
