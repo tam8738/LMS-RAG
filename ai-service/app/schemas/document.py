@@ -38,3 +38,20 @@ class ParsedDocument(BaseModel):
     file_type: DocumentFileType
     page_count: int = Field(ge=1)
     pages: list[ParsedPage] = Field(min_length=1)
+
+
+class DocumentChunk(BaseModel):
+    page_number: int | None = Field(default=None, ge=1)
+    chunk_index: int = Field(ge=0)
+    content: str = Field(min_length=1)
+    token_count: int = Field(ge=1)
+
+
+class ChunkedDocument(BaseModel):
+    file_type: DocumentFileType
+    page_count: int = Field(ge=1)
+    chunks: list[DocumentChunk] = Field(min_length=1)
+
+    @property
+    def chunk_count(self) -> int:
+        return len(self.chunks)
