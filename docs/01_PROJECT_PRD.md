@@ -58,7 +58,7 @@ thành `PUBLISHED`.
 
 ### 4.2. Admin - actor phụ
 
-Admin chỉ:
+Trách nhiệm core của Admin:
 
 - Xem hàng đợi `PENDING_REVIEW`.
 - Xem metadata và file cần duyệt.
@@ -66,8 +66,17 @@ Admin chỉ:
 - Reject kèm lý do.
 - Archive tài liệu đã công bố.
 
+Chức năng Should-have của Admin:
+
+- Xem và tìm kiếm danh sách tài khoản Teacher.
+- Tạo tài khoản Teacher với mật khẩu tạm thời.
+- Sửa tên/email của Teacher.
+- Khóa hoặc mở khóa tài khoản Teacher.
+- Reset mật khẩu Teacher.
+
 Admin không upload thay Teacher, không sửa nội dung chuyên môn và không quản
-trị hệ thống phức tạp trong MVP.
+trị hệ thống phức tạp trong MVP. Hệ thống chỉ có một Admin; tài khoản này được
+tạo bằng migration/seed, không tạo hoặc thay đổi role qua giao diện.
 
 ### 4.3. Student
 
@@ -100,6 +109,7 @@ cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạ
 - Summary một document.
 - Question generation từ selected documents.
 - Lịch sử hỏi đáp.
+- Quản lý tài khoản Teacher ở mức cơ bản.
 
 ### Out-of-scope
 
@@ -113,6 +123,8 @@ cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạ
 - Queue phân tán.
 - Cloud storage bắt buộc.
 - Admin dashboard phức tạp.
+- Tạo thêm Admin, đổi role hoặc quản lý Student.
+- Xóa cứng tài khoản Teacher.
 - AI tự công bố nội dung.
 
 ## 6. Trạng thái
@@ -203,10 +215,11 @@ Teacher chọn document được phép truy cập
 /my-documents/:documentId
 /admin/reviews
 /admin/reviews/:documentId
+/admin/teachers
 ```
 
-Sau login, Teacher vào Library. Admin có thêm khu vực Review. Không xây
-dashboard riêng trong core MVP.
+Sau login, Teacher vào Library. Admin có thêm khu vực Review và quản lý Teacher.
+Không xây dashboard riêng trong core MVP.
 
 ## 10. Yêu cầu phi chức năng
 
