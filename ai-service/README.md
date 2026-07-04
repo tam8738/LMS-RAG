@@ -143,6 +143,12 @@ AI Service xử lý đồng bộ theo luồng:
 resolve -> validate -> parse -> clean -> chunk -> embed -> transaction replace
 ```
 
+PDF parser hiện sử dụng PyMuPDF để trích text theo vị trí glyph từng trang.
+Qua kiểm thử với một PDF có text layer gồm 179 trang, phần
+`resolve -> validate -> parse -> clean -> chunk` tạo 307 chunks, chunk lớn nhất
+999 token và loại bỏ các mẫu vỡ từ đã ghi nhận từ parser cũ. PDF scan không có
+text layer vẫn chưa được hỗ trợ vì MVP không triển khai OCR.
+
 Backend chịu trách nhiệm gọi endpoint trong background, quản lý processing job và cập nhật trạng thái tài liệu.
 
 ## Xử lý lỗi thường gặp
