@@ -91,7 +91,8 @@ AI Service:
 - Kiểm tra `X-Internal-Key`.
 - Resolve `storage_key` dưới `UPLOAD_ROOT`.
 - Validate lại file.
-- Parse PDF/TXT.
+- Parse PDF/TXT. PDF hiện dùng PyMuPDF để tái tạo text theo vị trí glyph và
+  giảm lỗi vỡ từ trên tài liệu tiếng Việt có layout phức tạp.
 - Clean text.
 - Chunk và gắn metadata.
 - Sinh embedding.
@@ -106,6 +107,14 @@ AI Service không:
 - Cập nhật `documents.status`.
 - Quản lý processing job.
 - Tự publish summary/quiz.
+
+### Ghi chú kiểm thử parser thực tế ngày 04/07/2026
+
+Pipeline `resolve -> validate -> parse -> clean -> chunk` đã được chạy với một
+PDF có text layer gồm 179 trang. Kết quả tạo 307 chunks, chunk lớn nhất 999
+token và không còn các mẫu vỡ từ đã ghi nhận như `nh\nững`, `liệ u`, `đ ược`.
+Đây chưa phải E2E đầy đủ vì lần kiểm tra này không gọi OpenAI và không lưu
+PostgreSQL/pgvector. PDF scan vẫn cần OCR và nằm ngoài MVP.
 
 ## 5. Shared storage
 

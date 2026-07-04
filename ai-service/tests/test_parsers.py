@@ -3,10 +3,9 @@
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
-from pypdf import PdfWriter
+import pymupdf
 
 from app.core.errors import ErrorCode, ServiceError
 from app.parsers.factory import DocumentParserFactory
@@ -19,11 +18,28 @@ class StubPdfPage:
     def __init__(self, text: str | None = None, error: Exception | None = None):
         self.text = text
         self.error = error
+        self.get_text_calls: list[tuple[str, bool]] = []
 
-    def extract_text(self) -> str | None:
+    def get_text(self, output_type: str, *, sort: bool = False) -> str | None:
+        self.get_text_calls.append((output_type, sort))
         if self.error is not None:
             raise self.error
         return self.text
+
+
+class StubPdfDocument:
+    def __init__(self, pages: list[StubPdfPage]):
+        self.pages = pages
+        self.page_count = len(pages)
+
+    def __iter__(self):
+        return iter(self.pages)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback) -> None:
+        return None
 
 
 class ParserTestCase(unittest.TestCase):
@@ -93,17 +109,16 @@ class ParserTestCase(unittest.TestCase):
             ErrorCode.INVALID_INPUT,
         )
 
-    @patch("app.parsers.pdf.PdfReader")
+    @patch("app.parsers.pdf.pymupdf.open")
     def test_pdf_parser_extracts_text_and_preserves_page_numbers(
         self,
-        reader_mock,
+        open_mock,
     ) -> None:
-        reader_mock.return_value = SimpleNamespace(
-            pages=[
-                StubPdfPage("  Trang một  "),
-                StubPdfPage("  \n"),
-                StubPdfPage("Trang ba"),
-            ]
+        first_page = StubPdfPage("  Trang một  ")
+        empty_page = StubPdfPage("  \n")
+        third_page = StubPdfPage("Trang ba")
+        open_mock.return_value = StubPdfDocument(
+            [first_page, empty_page, third_page]
         )
         path = self._write_bytes("source.pdf", b"%PDF-1.7")
         document = self._validated_document(path, DocumentFileType.PDF)
@@ -120,12 +135,39 @@ class ParserTestCase(unittest.TestCase):
             [page.content for page in result.pages],
             ["Trang một", "Trang ba"],
         )
-        reader_mock.assert_called_once_with(path)
+        open_mock.assert_called_once_with(path)
+        self.assertEqual(first_page.get_text_calls, [("text", False)])
+        self.assertEqual(empty_page.get_text_calls, [("text", False)])
+        self.assertEqual(third_page.get_text_calls, [("text", False)])
 
-    @patch("app.parsers.pdf.PdfReader")
-    def test_pdf_parser_treats_none_as_empty_page(self, reader_mock) -> None:
-        reader_mock.return_value = SimpleNamespace(
-            pages=[StubPdfPage(None), StubPdfPage("Nội dung")]
+    @patch("app.parsers.pdf.pymupdf.open")
+    def test_pdf_parser_removes_alignment_whitespace(
+        self,
+        open_mock,
+    ) -> None:
+        open_mock.return_value = StubPdfDocument(
+            [
+                StubPdfPage(
+                    "        HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG\n"
+                    "\n"
+                    "                    BÀI   GIẢNG        "
+                )
+            ]
+        )
+        path = self._write_bytes("source.pdf", b"%PDF-1.7")
+        document = self._validated_document(path, DocumentFileType.PDF)
+
+        result = PdfDocumentParser().parse(document)
+
+        self.assertEqual(
+            result.pages[0].content,
+            "HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG\n\nBÀI   GIẢNG",
+        )
+
+    @patch("app.parsers.pdf.pymupdf.open")
+    def test_pdf_parser_treats_none_as_empty_page(self, open_mock) -> None:
+        open_mock.return_value = StubPdfDocument(
+            [StubPdfPage(None), StubPdfPage("Nội dung")]
         )
         path = self._write_bytes("source.pdf", b"%PDF-1.7")
         document = self._validated_document(path, DocumentFileType.PDF)
@@ -135,10 +177,10 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(result.page_count, 2)
         self.assertEqual(result.pages[0].page_number, 2)
 
-    @patch("app.parsers.pdf.PdfReader")
-    def test_pdf_parser_rejects_document_without_text(self, reader_mock) -> None:
-        reader_mock.return_value = SimpleNamespace(
-            pages=[StubPdfPage(None), StubPdfPage(" \n")]
+    @patch("app.parsers.pdf.pymupdf.open")
+    def test_pdf_parser_rejects_document_without_text(self, open_mock) -> None:
+        open_mock.return_value = StubPdfDocument(
+            [StubPdfPage(None), StubPdfPage(" \n")]
         )
         path = self._write_bytes("source.pdf", b"%PDF-1.7")
         document = self._validated_document(path, DocumentFileType.PDF)
@@ -148,8 +190,11 @@ class ParserTestCase(unittest.TestCase):
             ErrorCode.EMPTY_DOCUMENT,
         )
 
-    @patch("app.parsers.pdf.PdfReader", side_effect=ValueError("invalid PDF"))
-    def test_pdf_parser_wraps_reader_error(self, _reader_mock) -> None:
+    @patch(
+        "app.parsers.pdf.pymupdf.open",
+        side_effect=ValueError("invalid PDF"),
+    )
+    def test_pdf_parser_wraps_reader_error(self, _open_mock) -> None:
         path = self._write_bytes("source.pdf", b"%PDF-broken")
         document = self._validated_document(path, DocumentFileType.PDF)
 
@@ -158,10 +203,10 @@ class ParserTestCase(unittest.TestCase):
             ErrorCode.PARSER_ERROR,
         )
 
-    @patch("app.parsers.pdf.PdfReader")
-    def test_pdf_parser_wraps_page_extraction_error(self, reader_mock) -> None:
-        reader_mock.return_value = SimpleNamespace(
-            pages=[StubPdfPage(error=RuntimeError("extract failed"))]
+    @patch("app.parsers.pdf.pymupdf.open")
+    def test_pdf_parser_wraps_page_extraction_error(self, open_mock) -> None:
+        open_mock.return_value = StubPdfDocument(
+            [StubPdfPage(error=RuntimeError("extract failed"))]
         )
         path = self._write_bytes("source.pdf", b"%PDF-1.7")
         document = self._validated_document(path, DocumentFileType.PDF)
@@ -173,10 +218,9 @@ class ParserTestCase(unittest.TestCase):
 
     def test_real_blank_pdf_is_empty_document(self) -> None:
         path = self.root / "blank.pdf"
-        writer = PdfWriter()
-        writer.add_blank_page(width=200, height=200)
-        with path.open("wb") as output:
-            writer.write(output)
+        with pymupdf.open() as pdf_document:
+            pdf_document.new_page(width=200, height=200)
+            pdf_document.save(path)
         document = self._validated_document(path, DocumentFileType.PDF)
 
         self._assert_parser_error(
