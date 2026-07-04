@@ -178,6 +178,21 @@ Backend kiểm quyền toàn bộ `document_ids` trước khi gọi AI:
 - Owner dùng document của mình nếu `PROCESSED`.
 - Người khác chỉ dùng `PUBLISHED`.
 
+### BE-08 - Quản lý tài khoản Teacher
+
+**Phụ thuộc:** BE-01
+**Mức ưu tiên:** Should-have
+
+Tạo service/controller tối giản để Admin duy nhất:
+
+- Xem, tìm kiếm Teacher.
+- Tạo Teacher với mật khẩu tạm thời đã BCrypt.
+- Sửa tên/email.
+- Chuyển `ACTIVE/INACTIVE`.
+- Reset mật khẩu.
+
+Không tạo thêm Admin, không đổi role, không xóa cứng và không quản lý Student.
+
 ## 3. Workstream AI
 
 ### AI-01 - Process E2E thật
@@ -279,6 +294,18 @@ Chỉ thực hiện sau core E2E:
 - Hiển thị answer, not-found và citation.
 - Citation mở đúng document; page deep-link là Should-have.
 
+### FE-06 - Quản lý Teacher
+
+**Mức ưu tiên:** Should-have
+
+- `/admin/teachers`.
+- Danh sách và tìm kiếm Teacher.
+- Form tạo/sửa Teacher.
+- Activate/deactivate.
+- Reset mật khẩu với hộp xác nhận.
+
+Không cần dashboard, thống kê hoặc màn hình chi tiết riêng.
+
 ## 5. Workstream Infrastructure
 
 ### INFRA-01 - Docker/shared storage
@@ -323,6 +350,42 @@ POST /api/v1/rag/answer
 
 Backend request/response phải dùng envelope nhất quán với code hiện có.
 
+### 6.1. API quản lý Teacher - Should-have
+
+```txt
+GET   /api/v1/admin/teachers
+POST  /api/v1/admin/teachers
+PATCH /api/v1/admin/teachers/{teacherId}
+POST  /api/v1/admin/teachers/{teacherId}/activate
+POST  /api/v1/admin/teachers/{teacherId}/deactivate
+POST  /api/v1/admin/teachers/{teacherId}/reset-password
+```
+
+`GET /api/v1/admin/teachers` hỗ trợ `query`, `status`, `page`, `size`. Tất cả
+endpoint trong mục này chỉ cho role `ADMIN`; đối tượng đích luôn là `TEACHER`.
+
+Tạo Teacher:
+
+```json
+{
+  "name": "Nguyễn Văn A",
+  "email": "teacher@example.com",
+  "temporary_password": "TempPass123!"
+}
+```
+
+Cập nhật Teacher chỉ nhận `name`, `email`. Activate/deactivate không nhận role.
+Reset password:
+
+```json
+{
+  "temporary_password": "NewTempPass123!"
+}
+```
+
+Backend luôn gán role `TEACHER`, BCrypt password và không trả password/hash
+trong response.
+
 ## 7. Test bắt buộc
 
 ### Backend
@@ -366,6 +429,16 @@ Teacher A login -> upload -> PROCESSED -> submit
 -> Admin approve -> Teacher B thấy Library
 -> Teacher B hỏi -> answer + citation
 ```
+
+### Should-have - Quản lý tài khoản Teacher
+
+- Chỉ Admin truy cập được API và màn hình quản lý Teacher.
+- Tìm kiếm, lọc trạng thái và phân trang trả đúng kết quả.
+- Email Teacher không được trùng.
+- Mật khẩu luôn được BCrypt và không xuất hiện trong response.
+- Teacher `INACTIVE` không thể đăng nhập.
+- Không thể tạo Admin, đổi role hoặc xóa cứng tài khoản qua API.
+- UI tạo, sửa, khóa/mở khóa và reset mật khẩu hoạt động đúng.
 
 ## 8. Thứ tự merge
 

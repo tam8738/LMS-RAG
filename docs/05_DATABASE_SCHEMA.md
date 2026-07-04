@@ -21,13 +21,27 @@ Similarity: cosine
 `users`, `courses`, `lectures` phải tồn tại và dùng ID `BIGINT` trước migration
 này.
 
-## 2. Extension
+## 2. Tài khoản Admin và Teacher
+
+Dùng bảng `users` hiện có; không tạo bảng quản lý tài khoản riêng.
+
+Quy tắc:
+
+- Migration/seed tạo đúng một tài khoản `ADMIN` ở trạng thái `ACTIVE`.
+- API không cho tạo thêm Admin hoặc đổi role.
+- Teacher dùng role `TEACHER` và status `ACTIVE/INACTIVE`.
+- Email unique.
+- Password chỉ lưu BCrypt hash.
+- Deactivate Teacher không xóa dữ liệu và phải chặn đăng nhập.
+- Reset password thay hash hiện tại bằng hash của mật khẩu tạm thời mới.
+
+## 3. Extension
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-## 3. Documents
+## 4. Documents
 
 ```sql
 CREATE TABLE documents (
@@ -99,7 +113,7 @@ ON documents(publication_status, published_at DESC)
 WHERE publication_status = 'PUBLISHED';
 ```
 
-## 4. Processing jobs
+## 5. Processing jobs
 
 ```sql
 CREATE TABLE document_processing_jobs (
@@ -133,7 +147,7 @@ ON document_processing_jobs(document_id)
 WHERE status = 'PROCESSING';
 ```
 
-## 5. Document chunks
+## 6. Document chunks
 
 ```sql
 CREATE TABLE document_chunks (
@@ -176,7 +190,7 @@ ON document_chunks
 USING hnsw (embedding vector_cosine_ops);
 ```
 
-## 6. Retrieval query
+## 7. Retrieval query
 
 Core RAG lọc theo `document_ids`, không theo toàn Library:
 
@@ -196,7 +210,7 @@ LIMIT :top_k;
 
 AI phải truyền `document_ids` đã được Backend kiểm permission.
 
-## 7. Reprocess transaction
+## 8. Reprocess transaction
 
 AI parse/chunk/embed xong trước khi mở transaction:
 
@@ -219,7 +233,7 @@ ROLLBACK;
 
 Chunks cũ phải còn nguyên sau rollback.
 
-## 8. Publication transition
+## 9. Publication transition
 
 Backend service thực thi:
 
@@ -234,7 +248,7 @@ PUBLISHED -> ARCHIVED
 Không dùng database trigger cho state machine trong MVP. Service kiểm rule,
 transaction và role.
 
-## 9. Delete
+## 10. Delete
 
 Khi Backend xóa Document:
 
@@ -246,7 +260,7 @@ Khi Backend xóa Document:
 Nếu cần ưu tiên consistency, Backend có thể xóa file sau khi transaction database
 commit và log/retry khi file cleanup lỗi.
 
-## 10. Không thuộc core schema
+## 11. Không thuộc core schema
 
 Chưa tạo trong core MVP:
 

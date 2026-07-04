@@ -65,7 +65,8 @@ Nguồn duy nhất cho SQL schema, constraint và index của Document MVP.
 
 - Quản lý tài liệu và thư viện dùng chung là trọng tâm.
 - Giảng viên là actor chính.
-- Admin là actor phụ, chỉ kiểm duyệt/công bố tài liệu.
+- Hệ thống có một Admin duy nhất.
+- Admin kiểm duyệt/công bố tài liệu và quản lý tài khoản Teacher ở mức cơ bản.
 - Không triển khai Student flow trong core MVP.
 - ID nghiệp vụ mục tiêu dùng `BIGINT/Long`.
 - Upload tự động kích hoạt AI processing.
@@ -74,6 +75,7 @@ Nguồn duy nhất cho SQL schema, constraint và index của Document MVP.
   `documents/{document_id}/{version}/source.{extension}`.
 - RAG nhận `document_ids`; không retrieval toàn thư viện trong MVP.
 - Summary và question generation là Should-have.
+- Quản lý tài khoản Teacher là Should-have, không chặn core demo.
 
 ## 4. Thứ tự ưu tiên khi có xung đột
 
