@@ -1,412 +1,104 @@
-# LMS-RAG — RAG Lecture Assistant
+# LMS-RAG
 
-## Giới thiệu
+Hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG cho giảng viên ngành CNTT.
 
-LMS-RAG là hệ thống quản lý tài liệu bài giảng và hỗ trợ học tập sử dụng Retrieval-Augmented Generation (RAG).
+## Định hướng
 
-Hệ thống hỗ trợ:
-
-* Teacher/Admin quản lý course và lecture
-* Upload tài liệu PDF/TXT
-* AI xử lý tài liệu và tạo embeddings
-* Student hỏi đáp theo nội dung bài giảng
-* Sinh summary và quiz bằng AI
-* Student làm quiz và xem kết quả
-
----
-
-# Công nghệ sử dụng
-
-| Thành phần     | Công nghệ             |
-| -------------- | --------------------- |
-| Frontend       | React + Vite          |
-| Backend        | Spring Boot           |
-| AI Service     | FastAPI               |
-| Database       | PostgreSQL            |
-| Vector Search  | pgvector              |
-| Authentication | Spring Security + JWT |
-| AI API         | OpenAI API            |
-| API Style      | REST API              |
-
----
-
-# Kiến trúc hệ thống
+Core MVP tập trung vào:
 
 ```txt
-Frontend (React)
-       |
-       v
-Backend (Spring Boot)
-       |
-       +---- PostgreSQL
-       |
-       +---- AI Service (FastAPI)
-                    |
-                    +---- OpenAI API
-                    |
-                    +---- pgvector
+Teacher login
+-> upload PDF/TXT
+-> Backend tạo Document/job
+-> AI tạo chunks/vector
+-> Teacher submit review
+-> Admin approve
+-> document xuất hiện trong Library
+-> Teacher khác hỏi RAG
+-> answer có citation
 ```
 
----
+Không triển khai Student flow, quiz attempt/result, gamification hoặc dashboard phức tạp trong core MVP. Summary và question generation là Should-have.
 
-# Cấu trúc project
+## Thành phần
+
+| Thành phần | Công nghệ | Trách nhiệm |
+|---|---|---|
+| Frontend | React + Vite | Library, My Documents, Admin Review, RAG UI |
+| Backend | Spring Boot | JWT, permission, upload, jobs, review, Library |
+| AI Service | FastAPI | Parse, chunk, embedding, retrieval, RAG |
+| Database | PostgreSQL + pgvector | Nghiệp vụ và vector storage |
+
+## Tài liệu chính thức
+
+Bắt đầu tại:
 
 ```txt
-LMS-RAG/
-│
-├── backend/          # Spring Boot API
-├── frontend/         # React + Vite UI
-├── ai-service/       # FastAPI + RAG
-├── docs/             # Tài liệu đồ án
-│
-├── docker-compose.yml
-├── .env.example
-├── .gitignore
-└── README.md
+docs/00_DOCS_INDEX.md
 ```
 
----
+Thứ tự đọc:
 
-# Thành viên nhóm
-
-| Vai trò    | Công việc                              |
-| ---------- | -------------------------------------- |
-| Backend    | Spring Boot, PostgreSQL, JWT, REST API |
-| Frontend   | React UI/UX                            |
-| AI Service | FastAPI, RAG, OpenAI, pgvector         |
-
----
-
-# Clone project
-
-```bash
-git clone -b develop https://github.com/tam8738/LMS-RAG.git
+```txt
+00_DOCS_INDEX.md
+01_PROJECT_PRD.md
+02_MVP_IMPLEMENTATION_PLAN.md
+03_BE_AI_INTEGRATION.md
+04_AI_API_CONTRACT.md
+05_DATABASE_SCHEMA.md
+06_AI_PIPELINE.md
 ```
 
-Di chuyển vào project:
+Các file học tập, WBS và báo cáo cá nhân không phải contract triển khai.
 
-```bash
-cd LMS-RAG
+## Cấu trúc repository
+
+```txt
+backend/       Spring Boot API
+frontend/      React UI
+ai-service/    FastAPI AI Service
+docs/          Tài liệu dự án
 ```
 
----
+## Trạng thái hiện tại
 
-# Git Flow Convention
+Backend:
 
-Repository sử dụng Git Flow với cấu trúc branch:
+- Đã có login JWT và entity nền.
+- Chưa có Document/upload/review/Library/RAG proxy.
+
+Frontend:
+
+- Chưa có source ứng dụng.
+
+AI Service:
+
+- Đã có document processing pipeline và `/v1/process-document`.
+- Chưa có retrieval/RAG endpoint E2E.
+
+Chi tiết và thứ tự triển khai nằm trong `docs/02_MVP_IMPLEMENTATION_PLAN.md`.
+
+## Quy ước Git
+
+Branches chính:
 
 ```txt
 main
 develop
 feature/*
-release/*
-hotfix/*
 ```
 
-| Branch      | Vai trò                         |
-| ----------- | ------------------------------- |
-| `main`      | Source code ổn định để demo/nộp |
-| `develop`   | Nhánh tích hợp chung            |
-| `feature/*` | Nhánh phát triển chức năng      |
-| `release/*` | Chuẩn bị release/demo           |
-| `hotfix/*`  | Sửa lỗi khẩn cấp                |
-
----
-
-# Khởi tạo Git Flow trên máy thành viên
-
-Mỗi thành viên sau khi clone cần chạy:
-
-```bash
-git flow init
-```
-
-Sau đó Enter theo mặc định:
-
-```txt
-Production branch: main
-Development branch: develop
-Feature prefix: feature/
-Release prefix: release/
-Hotfix prefix: hotfix/
-```
-
----
-
-# Quy trình làm việc với Git Flow
-
-## 1. Chuyển sang develop
-
-```bash
-git checkout develop
-git pull origin develop
-```
-
----
-
-## 2. Tạo feature branch
-
-Ví dụ:
-
-```bash
-git flow feature start backend-init
-```
-
-Git sẽ tạo:
-
-```txt
-feature/backend-init
-```
-
----
-
-## 3. Commit code
-
-```bash
-git add .
-git commit -m "feat(backend): initialize spring boot maven project"
-```
-
----
-
-## 4. Push branch
-
-```bash
-git push -u origin feature/backend-init
-```
-
----
-
-## 5. Tạo Pull Request
-
-```txt
-feature/backend-init → develop
-```
-
----
-
-# Quy ước đặt tên branch
-
-```txt
-feature/<module>-<task>
-```
-
-Ví dụ:
-
-```txt
-feature/auth-jwt
-feature/course-api
-feature/upload-document
-feature/rag-chat
-feature/summary-workflow
-feature/quiz-workflow
-feature/frontend-layout
-```
-
----
-
-# Quy ước commit message
-
-Format:
+Commit:
 
 ```txt
 <type>(<module>): <description>
 ```
 
-## Các type sử dụng
-
-| Type     | Ý nghĩa            |
-| -------- | ------------------ |
-| feat     | Thêm chức năng     |
-| fix      | Sửa lỗi            |
-| refactor | Refactor code      |
-| docs     | Cập nhật tài liệu  |
-| test     | Thêm/sửa test      |
-| chore    | Công việc cấu hình |
-
----
-
-# Ví dụ commit
-
-```bash
-feat(auth): implement login API
-feat(course): add course CRUD
-feat(chat): integrate rag answer service
-fix(upload): validate pdf file type
-docs(readme): update setup guide
-chore(docker): add postgres container
-```
-
----
-
-# Backend Setup
-
-## Chạy PostgreSQL bằng Docker
-
-```bash
-docker compose up -d
-```
-
----
-
-## Chạy Spring Boot
-
-```bash
-cd backend
-./mvnw spring-boot:run
-```
-
-Backend chạy tại:
+Ví dụ:
 
 ```txt
-http://localhost:8080
+feat(backend): add document upload
+feat(ai): add document retrieval
+feat(frontend): add library screen
+test(e2e): verify publication and rag flow
 ```
-
-Swagger UI:
-
-```txt
-http://localhost:8080/swagger-ui/index.html
-```
-
----
-
-# Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend chạy tại:
-
-```txt
-http://localhost:5173
-```
-
----
-
-# AI Service Setup
-
-## Tạo virtual environment
-
-```bash
-cd ai-service
-python -m venv venv
-```
-
-Activate environment:
-
-### Git Bash
-
-```bash
-source venv/Scripts/activate
-```
-
-### PowerShell
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
----
-
-## Cài dependencies
-
-```bash
-pip install fastapi uvicorn openai psycopg2-binary pgvector python-dotenv
-```
-
----
-
-## Chạy FastAPI
-
-```bash
-uvicorn app.main:app --reload
-```
-
-AI Service chạy tại:
-
-```txt
-http://localhost:8000
-```
-
----
-
-# Docker Compose
-
-```yaml
-version: '3.9'
-
-services:
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: lms-rag-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: lms_rag
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
-    ports:
-      - "5432:5432"
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: lms-rag-pgadmin
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-```
-
----
-
-# Environment Variables
-
-## Backend
-
-```env
-SPRING_DATASOURCE_URL=
-SPRING_DATASOURCE_USERNAME=
-SPRING_DATASOURCE_PASSWORD=
-JWT_SECRET=
-```
-
-## AI Service
-
-```env
-OPENAI_API_KEY=
-DATABASE_URL=
-```
-
----
-
-# Phạm vi MVP
-
-* Authentication & Authorization
-* Course/Lecture Management
-* Document Upload & Processing
-* RAG Question Answering
-* AI Summary Generation
-* AI Quiz Generation
-* Quiz Attempt & Result
-
----
-
-# Tài liệu dự án
-
-Tài liệu nằm trong:
-
-```txt
-/docs
-```
-
-Bao gồm:
-
-* SRS
-* ERD
-* API Documentation
-* WBS
-* Báo cáo đồ án
