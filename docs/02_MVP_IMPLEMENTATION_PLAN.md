@@ -249,6 +249,59 @@ Hai thành viên không cùng sửa `docker-compose.yml`, root `.env.example`,
 
 Estimate là giờ làm tập trung, không bao gồm thời gian chờ handoff.
 
+## 7.1. Task status board
+
+### Quy ước status
+
+| Status | Ý nghĩa |
+|---|---|
+| `TODO` | Chưa bắt đầu |
+| `IN_PROGRESS` | Đang làm trên feature branch |
+| `BLOCKED` | Bị chặn bởi dependency hoặc lỗi cần người khác xử lý |
+| `REVIEW` | Code đã xong, đang chờ review/merge hoặc chờ gate cuối |
+| `DONE` | Đã merge vào `develop` và pass acceptance/test liên quan |
+| `DEFERRED` | Dời sau core MVP |
+
+Quy tắc cập nhật:
+
+- Chỉ chuyển `DONE` khi task đã merge vào `develop` và có evidence test/acceptance.
+- Nếu `BLOCKED`, ghi rõ đang chờ task hoặc người nào trong cột `Notes`.
+- Mỗi PR làm thay đổi trạng thái task phải cập nhật bảng này trong cùng PR hoặc PR docs ngay sau đó.
+- `Evidence` ưu tiên ghi PR/commit, test command hoặc handoff gate; không ghi chung chung.
+
+### Bảng trạng thái
+
+| Task | Owner | Status | Started | Done | Evidence | Notes |
+|---|---|---|---|---|---|---|
+| INT-00 | Cả ba | TODO |  |  |  | Contract lock trước code P0 |
+| BE-01 | Trương Mỹ Tâm | TODO |  |  |  | Security và Flyway foundation |
+| BE-02 | Trương Mỹ Tâm | TODO |  |  |  | Migration và Document model |
+| INFRA-01 | Trương Mỹ Tâm + Khánh | TODO |  |  |  | Docker Compose/shared volume |
+| BE-03 | Trương Mỹ Tâm | TODO |  |  |  | Upload/storage |
+| BE-04 | Trương Mỹ Tâm | TODO |  |  |  | Background processing và AI client |
+| BE-05 | Trương Mỹ Tâm | TODO |  |  |  | Review/publication |
+| BE-06 | Trương Mỹ Tâm | TODO |  |  |  | Library/download/document APIs |
+| BE-07 | Trương Mỹ Tâm | TODO |  |  |  | RAG proxy và permission |
+| BE-08 | Trương Mỹ Tâm | TODO |  |  |  | Backend integration tests/OpenAPI/seed |
+| BE-09 | Trương Mỹ Tâm | DEFERRED |  |  |  | P1 quản lý Teacher, không chặn core |
+| AI-01 | Nguyễn Thành Đại Khánh | DONE | 05/07/2026 | 05/07/2026 | `python -m pytest -q`; `python -m compileall -q app scripts tests`; `docker build -t lms-rag-ai-service .`; đã merge vào `develop` | Dockerfile, dev deps, storage key versioned |
+| AI-02 | Nguyễn Thành Đại Khánh | TODO |  |  |  | Chờ BE-02 và INFRA-01 để E2E thật |
+| AI-03 | Nguyễn Thành Đại Khánh | TODO |  |  |  | Scoped vector retrieval |
+| AI-04 | Nguyễn Thành Đại Khánh | TODO |  |  |  | Grounded answer và citation |
+| AI-05 | Nguyễn Thành Đại Khánh | TODO |  |  |  | AI tests/runbook |
+| FE-01 | Việt | TODO |  |  |  | Scaffold/auth |
+| FE-02 | Việt | TODO |  |  |  | API client/types/shared states |
+| FE-03 | Việt | TODO |  |  |  | Library/detail |
+| FE-04 | Việt | TODO |  |  |  | My Documents/upload |
+| FE-05 | Việt | TODO |  |  |  | Admin Review |
+| FE-06 | Việt | TODO |  |  |  | RAG panel/citation |
+| FE-07 | Việt | TODO |  |  |  | Frontend tests/responsive/demo polish |
+| FE-08 | Việt | DEFERRED |  |  |  | P1 quản lý Teacher, không chặn core |
+| INT-01 | Tâm + Khánh | TODO |  |  |  | Upload -> AI processing handoff |
+| INT-02 | Tâm + Việt | TODO |  |  |  | Backend public API -> Frontend handoff |
+| INT-03 | Cả ba | TODO |  |  |  | RAG chain handoff |
+| QA-01 | Cả ba | TODO |  |  |  | Core E2E 12 scenarios |
+
 ## 8. Task triển khai Backend - Trương Mỹ Tâm
 
 ### BE-01 - Chuẩn hóa security và migration foundation
