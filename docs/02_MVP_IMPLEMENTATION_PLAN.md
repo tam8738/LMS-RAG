@@ -308,7 +308,7 @@ DocumentRepository
 DocumentProcessingJobRepository
 ```
 
-Migration phải theo mục 11 và `05_DATABASE_SCHEMA.md`.
+Migration phải theo mục 12 và `05_DATABASE_SCHEMA.md`.
 
 Acceptance:
 
@@ -496,7 +496,9 @@ Thực hiện:
 - Library chỉ trả `PUBLISHED`, search title và pagination.
 - Document detail áp permission.
 - Download stream file, đúng MIME và original filename.
-- Owner sửa title/description/lecture khi `DRAFT` hoặc `REJECTED`.
+- Owner chỉ sửa title/description khi `DRAFT` hoặc `REJECTED`.
+- `lecture_id` không được thay đổi sau khi tạo Document trong core MVP. Nếu cần
+  chuyển lecture, Teacher tạo Document mới để tránh lệch metadata với chunks.
 - Owner thay file khi `DRAFT`, `REJECTED` hoặc processing `FAILED`.
 - Thay file tăng `file_version`, sinh storage key mới và chạy processing lại.
 - Delete chỉ cho owner khi `DRAFT` hoặc `REJECTED`.
@@ -1052,6 +1054,9 @@ Error:
 ```
 
 Pagination bắt đầu từ page `1`. Default `page=1`, `limit=10`, max `limit=50`.
+`message` và `meta` là optional: `message` chỉ phục vụ hiển thị, `meta` chỉ có ở
+response phân trang. Frontend xử lý logic bằng HTTP status, `success`, `data` và
+`error.code`, không phụ thuộc vào nội dung `message`.
 
 ### DTO dùng chung
 
@@ -1086,7 +1091,11 @@ Pagination bắt đầu từ page `1`. Default `page=1`, `limit=10`, max `limit=
   "publication_status": "DRAFT",
   "error_code": null,
   "error_message": null,
+  "reviewed_by": null,
+  "reviewer_name": null,
+  "reviewed_at": null,
   "rejection_reason": null,
+  "published_at": null,
   "created_at": "2026-07-05T08:00:00Z",
   "updated_at": "2026-07-05T08:05:00Z"
 }
@@ -1136,7 +1145,8 @@ Target response `200`:
       "role": "TEACHER",
       "status": "ACTIVE"
     }
-  }
+  },
+  "message": "Đăng nhập thành công"
 }
 ```
 
@@ -1183,10 +1193,11 @@ PATCH request chỉ nhận:
 ```json
 {
   "title": "Tên mới",
-  "description": "Mô tả mới",
-  "lecture_id": 5
+  "description": "Mô tả mới"
 }
 ```
+
+Không cho cập nhật `lecture_id` sau khi Document đã được tạo.
 
 Replace-file dùng multipart field `file`, trả `202` với Document/job mới.
 Submit/reprocess không cần body.
@@ -1408,6 +1419,9 @@ VITE_API_BASE_URL=http://localhost:8080/api/v1
 | Concurrency | EXCLUSIVE khi khóa contract |
 
 Acceptance:
+
+Checklist dưới đây được tick trong pull request khi từng thành viên đã review.
+Chỉ coi INT-00 và contract đã khóa khi cả bốn mục đều `[x]`.
 
 - [ ] Tâm xác nhận public API, DTO và error code.
 - [ ] Khánh xác nhận internal AI API và schema chunks.
