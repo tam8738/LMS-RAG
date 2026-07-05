@@ -38,6 +38,12 @@ Cài dependencies:
 pip install -r requirements.txt
 ```
 
+Cài dependencies phục vụ test trong môi trường phát triển:
+
+```powershell
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
 Tạo file `.env` từ `.env.example`:
 
 ```powershell
@@ -87,6 +93,25 @@ Swagger UI:
 ```txt
 http://localhost:8000/docs
 ```
+
+## Chạy bằng Docker
+
+Build image từ thư mục `ai-service`:
+
+```powershell
+docker build -t lms-rag-ai-service .
+```
+
+Chạy container standalone để kiểm tra health endpoint:
+
+```powershell
+docker run --rm -p 8000:8000 `
+  -e APP_ENV=docker `
+  -e INTERNAL_API_KEY=dev-internal-secret `
+  lms-rag-ai-service
+```
+
+Health check của image gọi `GET /v1/health`. Các endpoint nghiệp vụ vẫn cần cấu hình thêm `DATABASE_URL`, `UPLOAD_ROOT`, `OPENAI_API_KEY` và `INTERNAL_API_KEY` giống Backend.
 
 ## Kiểm tra pgvector
 
@@ -183,4 +208,34 @@ docker compose up -d postgres
 - Frontend không gọi trực tiếp AI Service.
 - Backend kiểm tra quyền truy cập trước, sau đó gọi AI Service qua REST API.
 - Endpoint `/v1/health/pgvector` yêu cầu `X-Internal-Key` và chỉ dành cho Backend hoặc kiểm tra nội bộ.
+### Chạy toàn bộ kiểm thử với một tài liệu mới
 
+Từ thư mục `ai-service`, truyền đường dẫn PDF/TXT bất kỳ:
+
+```powershell
+python scripts/test_document.py "C:\duong-dan\tai-lieu-moi.pdf"
+```
+
+Một command sẽ chạy:
+
+```txt
+95 unit/API tests
+-> resolve đường dẫn
+-> validate file
+-> parse
+-> clean
+-> chunk toàn bộ tài liệu
+-> kiểm tra index/token/page/content/lỗi vỡ từ
+-> tạo báo cáo HTML
+```
+
+Để chỉ test tài liệu mà không chạy lại unit/API tests:
+
+```powershell
+python scripts/test_document.py "C:\duong-dan\tai-lieu-moi.pdf" --skip-unit-tests
+```
+
+Script trả exit code `0` khi toàn bộ điều kiện PASS và `1` khi có lỗi. Đồng thời,
+script tạo báo cáo HTML trong `ai-service/.reports/` để xem thống kê và nội dung
+từng chunk. Phạm vi hiện tại kết thúc tại chunking; chưa gọi OpenAI embedding
+hoặc ghi PostgreSQL.

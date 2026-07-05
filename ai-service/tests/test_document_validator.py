@@ -23,7 +23,7 @@ class DocumentValidatorTest(unittest.TestCase):
 
         result = self.validator.validate(
             path,
-            "documents/12/source.pdf",
+            "documents/12/v1/source.pdf",
             DocumentFileType.PDF,
         )
 
@@ -37,7 +37,7 @@ class DocumentValidatorTest(unittest.TestCase):
 
         result = self.validator.validate(
             path,
-            "documents/12/source.txt",
+            "documents/12/v1/source.txt",
             DocumentFileType.TXT,
         )
 
@@ -75,7 +75,7 @@ class DocumentValidatorTest(unittest.TestCase):
 
         result = self.validator.validate(
             path,
-            "documents/12/source.txt",
+            "documents/12/v1/source.txt",
             DocumentFileType.TXT,
         )
 
@@ -148,7 +148,7 @@ class DocumentValidatorTest(unittest.TestCase):
         expected_status: int,
     ) -> None:
         with self.assertRaises(ServiceError) as context:
-            self.validator.validate(path, f"documents/12/{path.name}", file_type)
+            self.validator.validate(path, f"documents/12/v1/{path.name}", file_type)
 
         self.assertEqual(context.exception.code, expected_code)
         self.assertEqual(context.exception.status_code, expected_status)

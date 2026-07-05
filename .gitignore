@@ -54,3 +54,8 @@ Thumbs.db
 logs/
 *.log
 .reports/
+
+# Local learning/test artifacts
+
+docs/AI_LEARNING_LOG.md
+test-uploads/

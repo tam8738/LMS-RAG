@@ -280,7 +280,7 @@ class DocumentChunkingPipelineTest(unittest.TestCase):
         file_type: DocumentFileType,
     ) -> ValidatedDocument:
         return ValidatedDocument(
-            storage_key=f"documents/12/{path.name}",
+            storage_key=f"documents/12/v1/{path.name}",
             path=path,
             file_type=file_type,
             media_type=file_type.media_type,

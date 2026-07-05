@@ -18,11 +18,11 @@ class StorageResolverTest(unittest.TestCase):
         self.temp_directory.cleanup()
 
     def test_resolves_valid_relative_storage_key(self) -> None:
-        result = self.resolver.resolve("documents/12/source.pdf")
+        result = self.resolver.resolve("documents/12/v1/source.pdf")
 
         self.assertEqual(
             result,
-            self.upload_root.resolve() / "documents" / "12" / "source.pdf",
+            self.upload_root.resolve() / "documents" / "12" / "v1" / "source.pdf",
         )
 
     def test_rejects_empty_storage_key(self) -> None:
@@ -41,10 +41,10 @@ class StorageResolverTest(unittest.TestCase):
         self._assert_invalid_key("documents/../secret.txt")
 
     def test_rejects_backslash_path(self) -> None:
-        self._assert_invalid_key(r"documents\12\source.pdf")
+        self._assert_invalid_key(r"documents\12\v1\source.pdf")
 
     def test_rejects_windows_alternate_data_stream(self) -> None:
-        self._assert_invalid_key("documents/12/source.pdf:secret")
+        self._assert_invalid_key("documents/12/v1/source.pdf:secret")
 
     def _assert_invalid_key(self, storage_key: str) -> None:
         with self.assertRaises(ServiceError) as context:

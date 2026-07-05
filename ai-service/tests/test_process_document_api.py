@@ -31,7 +31,7 @@ def process_request(reprocess: bool = False) -> ProcessDocumentRequest:
     return ProcessDocumentRequest(
         document_id=12,
         lecture_id=5,
-        storage_key="documents/12/source.pdf",
+        storage_key="documents/12/v1/source.pdf",
         file_type=DocumentFileType.PDF,
         reprocess=reprocess,
     )
@@ -39,8 +39,8 @@ def process_request(reprocess: bool = False) -> ProcessDocumentRequest:
 
 def validated_document() -> ValidatedDocument:
     return ValidatedDocument(
-        storage_key="documents/12/source.pdf",
-        path=Path("/storage/uploads/documents/12/source.pdf"),
+        storage_key="documents/12/v1/source.pdf",
+        path=Path("/storage/uploads/documents/12/v1/source.pdf"),
         file_type=DocumentFileType.PDF,
         media_type="application/pdf",
         size_bytes=100,
@@ -110,7 +110,7 @@ class ProcessDocumentServiceTest(unittest.TestCase):
 
     def test_runs_complete_pipeline_in_order(self) -> None:
         request = process_request(reprocess=True)
-        path = Path("/storage/uploads/documents/12/source.pdf")
+        path = Path("/storage/uploads/documents/12/v1/source.pdf")
         validated = validated_document()
         chunked = chunked_document()
         embedded = embedded_document()
@@ -135,10 +135,10 @@ class ProcessDocumentServiceTest(unittest.TestCase):
         self.assertEqual(
             calls.mock_calls,
             [
-                call.resolve("documents/12/source.pdf"),
+                call.resolve("documents/12/v1/source.pdf"),
                 call.validate(
                     path,
-                    "documents/12/source.pdf",
+                    "documents/12/v1/source.pdf",
                     DocumentFileType.PDF,
                 ),
                 call.chunk(validated),
@@ -230,7 +230,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
         payload = {
             "document_id": 12,
             "lecture_id": 5,
-            "storage_key": "documents/12/source.pdf",
+            "storage_key": "documents/12/v1/source.pdf",
             "file_type": "PDF",
             "reprocess": False,
         }
@@ -263,7 +263,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
             json={
                 "document_id": 12,
                 "lecture_id": 5,
-                "storage_key": "documents/12/source.pdf",
+                "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
             },
         )
@@ -331,7 +331,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
             json={
                 "document_id": 12,
                 "lecture_id": 5,
-                "storage_key": "documents/12/source.pdf",
+                "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
                 "reprocess": True,
             },
@@ -385,7 +385,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
             details=[
                 ErrorDetail(
                     field="storage_key",
-                    message="documents/12/source.pdf",
+                    message="documents/12/v1/source.pdf",
                 )
             ],
         )
@@ -396,7 +396,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
             json={
                 "document_id": 12,
                 "lecture_id": 5,
-                "storage_key": "documents/12/source.pdf",
+                "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
             },
         )
@@ -408,7 +408,11 @@ class ProcessDocumentApiTest(unittest.TestCase):
             "storage_key",
         )
 
-    def test_unexpected_error_is_hidden_by_internal_error_envelope(self) -> None:
+    @patch("app.api.error_handlers.logger")
+    def test_unexpected_error_is_hidden_by_internal_error_envelope(
+        self,
+        logger_mock,
+    ) -> None:
         self.service.process.side_effect = RuntimeError("sensitive detail")
 
         response = self.client.post(
@@ -417,7 +421,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
             json={
                 "document_id": 12,
                 "lecture_id": 5,
-                "storage_key": "documents/12/source.pdf",
+                "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
             },
         )
@@ -425,6 +429,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json()["error"]["code"], "INTERNAL_ERROR")
         self.assertNotIn("sensitive detail", response.text)
+        logger_mock.exception.assert_called_once()
 
 
 if __name__ == "__main__":

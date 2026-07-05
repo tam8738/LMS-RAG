@@ -25,7 +25,7 @@ Không triển khai Student flow, quiz attempt/result, gamification hoặc dashb
 | Thành phần | Công nghệ | Trách nhiệm |
 |---|---|---|
 | Frontend | React + Vite | Library, My Documents, Admin Review, RAG UI |
-| Backend | Spring Boot | JWT, permission, upload, jobs, review, Library |
+| Backend | Spring Boot | JWT, Teacher accounts, upload, jobs, review, Library |
 | AI Service | FastAPI | Parse, chunk, embedding, retrieval, RAG |
 | Database | PostgreSQL + pgvector | Nghiệp vụ và vector storage |
 
