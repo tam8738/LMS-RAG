@@ -1,7 +1,7 @@
 # PRD - Hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG
 
-**Phiên bản:** 1.2
-**Cập nhật:** 04/07/2026
+**Phiên bản:** 1.3
+**Cập nhật:** 05/07/2026
 **Trạng thái:** Nguồn yêu cầu nghiệp vụ chính thức
 
 ## 1. Bài toán
@@ -44,7 +44,7 @@ Hệ thống không phải một LMS đầy đủ và không lấy Student flow 
 Teacher có thể:
 
 - Đăng nhập và xem Library.
-- Tạo/chọn course và lecture để phân loại tài liệu.
+- Chọn course và lecture để phân loại tài liệu.
 - Upload và quản lý tài liệu của mình.
 - Theo dõi trạng thái xử lý.
 - Retry/reprocess khi cần.
@@ -110,6 +110,7 @@ cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạ
 - Question generation từ selected documents.
 - Lịch sử hỏi đáp.
 - Quản lý tài khoản Teacher ở mức cơ bản.
+- Tạo và quản lý course/lecture ngoài dữ liệu demo.
 
 ### Out-of-scope
 

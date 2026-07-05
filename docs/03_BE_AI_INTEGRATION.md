@@ -1,7 +1,7 @@
 # Quyết định tích hợp Backend - AI Service
 
-**Phiên bản:** 1.2
-**Cập nhật:** 04/07/2026
+**Phiên bản:** 1.3
+**Cập nhật:** 05/07/2026
 **Phạm vi:** Document processing và document-scoped RAG
 
 File này chỉ ghi quyết định kiến trúc và ownership. Payload HTTP nằm trong
@@ -17,8 +17,9 @@ Java: Long
 Python/JSON: int
 ```
 
-Current Backend vẫn có `Course`/`Lecture` dùng UUID `String`; đây là việc phải
-refactor trước Document MVP.
+Backend hiện đã dùng `Long` cho `Course.id` và `Lecture.id`. Migration mới phải
+giữ thống nhất `BIGINT/BIGSERIAL` trong PostgreSQL, `Long` trong Java và `int`
+trong Python/JSON.
 
 ## 2. Luồng upload và file
 

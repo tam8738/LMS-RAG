@@ -131,7 +131,7 @@ Payload mẫu:
 {
   "document_id": 12,
   "lecture_id": 5,
-  "storage_key": "documents/12/source.pdf",
+  "storage_key": "documents/12/v1/source.pdf",
   "file_type": "PDF",
   "reprocess": false
 }

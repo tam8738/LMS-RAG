@@ -1,7 +1,7 @@
 # Bộ tài liệu chính thức của dự án
 
-**Phiên bản:** 1.2
-**Cập nhật:** 04/07/2026
+**Phiên bản:** 1.3
+**Cập nhật:** 05/07/2026
 **Đối tượng đọc:** Frontend, Backend, AI Service
 
 ## 1. Mục đích
@@ -25,8 +25,8 @@ nhóm quyết định để tránh lặp và mâu thuẫn.
 02_MVP_IMPLEMENTATION_PLAN.md
 ```
 
-Đọc để biết hiện trạng code, task FE/BE/AI, dependency, test, branch và thứ tự
-thực hiện.
+Đọc để biết owner, deadline, task graph, public API, frontend structure, migration,
+test gate, handoff, branch và thứ tự thực hiện.
 
 ### 3. Quyết định tích hợp Backend - AI
 

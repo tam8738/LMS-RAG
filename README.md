@@ -18,7 +18,7 @@ Teacher login
 -> answer có citation
 ```
 
-Không triển khai Student flow, quiz attempt/result, gamification hoặc dashboard phức tạp trong core MVP. Summary và question generation là Should-have.
+Không triển khai Student flow, quiz attempt/result, gamification hoặc dashboard phức tạp trong core MVP. Summary, question generation và quản lý tài khoản Teacher là Should-have.
 
 ## Thành phần
 
