@@ -11,7 +11,7 @@ export default function useCourses({ navigate } = {}) {
       navigate('teacher-course-detail', { selectedCourseId: course.id });
     }
   };
-
+  // check tránh trùng id khi join khóa học
   const handleJoinCourse = (courseId) => {
     setEnrolledIds(prev => {
       if (prev.includes(courseId)) return prev;
