@@ -1,0 +1,29 @@
+*   [33m24e22ff[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdevelop[m[33m, [m[1;31morigin/develop[m[33m)[m merge feature/auth-jwt into develop
+[31m|[m[32m\[m  
+[31m|[m * [33m155c8e7[m[33m ([m[1;31morigin/feature/auth-jwt[m[33m, [m[1;32mfeature/auth-jwt[m[33m)[m feat(auth): add login API with JWT token generation
+[31m|[m * [33m45466d6[m feat(backend): add core JPA entities and JWT services
+* [32m|[m   [33mbc5cfe5[m Merge pull request #4 from tam8738/feature/docker-setup
+[32m|[m[34m\[m [32m\[m  
+[32m|[m [34m|[m[32m/[m  
+[32m|[m[32m/[m[34m|[m   
+[32m|[m * [33md80c285[m[33m ([m[1;31morigin/feature/docker-setup[m[33m, [m[1;32mfeature/docker-setup[m[33m)[m chore(docker): finalize Postgres + pgAdmin config and env template
+[32m|[m[32m/[m  
+* [33mabb8d4c[m feat(ai): configure pgvector health check
+*   [33m16057ba[m Merge branch 'develop' into khanh-ai
+[35m|[m[36m\[m  
+[35m|[m *   [33m0e48912[m Merge branch 'khanh-ai' into develop
+[35m|[m [1;31m|[m[1;32m\[m  
+[35m|[m * [1;32m\[m   [33m4a9c68b[m Merge branch 'feature/backend-init' into develop
+[35m|[m [1;33m|[m[1;34m\[m [1;32m\[m  
+[35m|[m [1;33m|[m * [1;32m|[m [33me2694ea[m[33m ([m[1;31morigin/feature/backend-init[m[33m, [m[1;32mfeature/backend-init[m[33m)[m chore(init): keep empty project directories
+[35m|[m * [1;34m|[m [1;32m|[m [33m281d009[m Revise README for clarity and project details
+[35m|[m [1;34m|[m[1;34m/[m [1;32m/[m  
+[35m|[m * [1;32m|[m [33m5fd81a8[m feat(backend): initialize spring boot maven project
+[35m|[m * [1;32m|[m [33m5bf9569[m chore(init): setup monorepo structure
+* [1;34m|[m [1;32m|[m [33m2c5a423[m feat(ai): initialize ai service scaffold and docs
+[1;32m|[m [1;34m|[m[1;32m/[m  
+[1;32m|[m[1;32m/[m[1;34m|[m   
+* [1;34m|[m [33mb272fa9[m update docs; ai pipeline 7 ai service contract for be
+[1;34m|[m[1;34m/[m  
+* [33m1574b83[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Update README with project details and setup instructions
+* [33m46e51bf[m Initial commit
