@@ -158,7 +158,6 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
 
         inserted_count = repository.replace_document_chunks(
             document_id=12,
-            lecture_id=5,
             document=embedded_document(),
         )
 
@@ -189,10 +188,10 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         self.assertIn("%s::vector", insert_events[0][1])
 
         inserted_rows = insert_events[0][2]
-        self.assertEqual(inserted_rows[0][0:6], (12, 5, 1, 0, "Nội dung chunk 0", 10))
-        self.assertEqual(inserted_rows[0][6], "[1.0,1.0,1.0]")
-        self.assertEqual(inserted_rows[1][0:6], (12, 5, 2, 1, "Nội dung chunk 1", 11))
-        self.assertEqual(inserted_rows[1][6], "[2.0,2.0,2.0]")
+        self.assertEqual(inserted_rows[0][0:5], (12, 1, 0, "Nội dung chunk 0", 10))
+        self.assertEqual(inserted_rows[0][5], "[1.0,1.0,1.0]")
+        self.assertEqual(inserted_rows[1][0:5], (12, 2, 1, "Nội dung chunk 1", 11))
+        self.assertEqual(inserted_rows[1][5], "[2.0,2.0,2.0]")
 
     def test_partial_insert_failure_rolls_back_and_preserves_old_chunks(self) -> None:
         old_rows = [("old chunk 1",), ("old chunk 2",)]
@@ -206,7 +205,7 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         )
 
         with self.assertRaises(ServiceError) as context:
-            repository.replace_document_chunks(12, 5, embedded_document())
+            repository.replace_document_chunks(12, embedded_document())
 
         self.assertEqual(context.exception.code, ErrorCode.DATABASE_ERROR)
         self.assertEqual(context.exception.status_code, 503)
@@ -226,7 +225,7 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         )
 
         with self.assertRaises(ServiceError) as context:
-            repository.replace_document_chunks(12, 5, embedded_document())
+            repository.replace_document_chunks(12, embedded_document())
 
         self.assertEqual(context.exception.code, ErrorCode.DATABASE_ERROR)
         self.assertIn("rollback", connection.events)
@@ -239,10 +238,10 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         )
 
     def test_rejects_invalid_ids_before_opening_connection(self) -> None:
-        invalid_cases = ((0, 5, "document_id"), (12, 0, "lecture_id"))
+        invalid_cases = ((0, "document_id"),)
 
-        for document_id, lecture_id, expected_field in invalid_cases:
-            with self.subTest(document_id=document_id, lecture_id=lecture_id):
+        for document_id, expected_field in invalid_cases:
+            with self.subTest(document_id=document_id):
                 factory = FakeConnectionFactory(FakeConnection())
                 repository = PostgresDocumentChunkRepository(
                     connection_factory=factory,
@@ -252,7 +251,6 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
                 with self.assertRaises(ServiceError) as context:
                     repository.replace_document_chunks(
                         document_id,
-                        lecture_id,
                         embedded_document(),
                     )
 
@@ -270,7 +268,6 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         with self.assertRaises(ServiceError) as context:
             repository.replace_document_chunks(
                 12,
-                5,
                 embedded_document(dimensions=4),
             )
 
@@ -291,7 +288,6 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         with self.assertRaises(ServiceError) as context:
             repository.replace_document_chunks(
                 12,
-                5,
                 embedded_document(dimensions=3, vector_size=2),
             )
 
@@ -312,7 +308,6 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         with self.assertRaises(ServiceError) as context:
             repository.replace_document_chunks(
                 12,
-                5,
                 embedded_document(indexes=(0, 2)),
             )
 
@@ -330,7 +325,6 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         with self.assertRaises(ServiceError) as context:
             repository.replace_document_chunks(
                 12,
-                5,
                 embedded_document(non_finite=True),
             )
 

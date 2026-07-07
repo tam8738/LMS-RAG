@@ -30,10 +30,15 @@ from app.services.process_document_service import ProcessDocumentService
 def process_request(reprocess: bool = False) -> ProcessDocumentRequest:
     return ProcessDocumentRequest(
         document_id=12,
-        lecture_id=5,
         storage_key="documents/12/v1/source.pdf",
         file_type=DocumentFileType.PDF,
         reprocess=reprocess,
+        metadata={
+            "subject": "Cơ sở dữ liệu",
+            "topic": "Chuẩn hóa dữ liệu",
+            "chapter": "Chương 3",
+            "tags": ["database", "normalization", "database"],
+        },
     )
 
 
@@ -143,14 +148,15 @@ class ProcessDocumentServiceTest(unittest.TestCase):
                 ),
                 call.chunk(validated),
                 call.embed(chunked),
-                call.replace(12, 5, embedded),
+                call.replace(12, embedded),
             ],
         )
         self.assertEqual(result.document_id, 12)
-        self.assertEqual(result.lecture_id, 5)
         self.assertEqual(result.status, "PROCESSED")
         self.assertEqual(result.page_count, 2)
         self.assertEqual(result.chunk_count, 2)
+        self.assertEqual(request.metadata.subject, "Cơ sở dữ liệu")
+        self.assertEqual(request.metadata.tags, ["database", "normalization"])
 
     def test_rejects_repository_count_mismatch(self) -> None:
         self.resolver.resolve.return_value = Path("source.pdf")
@@ -229,7 +235,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
         )
         payload = {
             "document_id": 12,
-            "lecture_id": 5,
             "storage_key": "documents/12/v1/source.pdf",
             "file_type": "PDF",
             "reprocess": False,
@@ -262,7 +267,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "anything"},
             json={
                 "document_id": 12,
-                "lecture_id": 5,
                 "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
             },
@@ -320,7 +324,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
     def test_process_document_returns_contract_response(self) -> None:
         self.service.process.return_value = ProcessDocumentResult(
             document_id=12,
-            lecture_id=5,
             page_count=2,
             chunk_count=8,
         )
@@ -330,10 +333,15 @@ class ProcessDocumentApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_id": 12,
-                "lecture_id": 5,
                 "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
                 "reprocess": True,
+                "metadata": {
+                    "subject": "Cơ sở dữ liệu",
+                    "topic": "  Chuẩn hóa dữ liệu  ",
+                    "chapter": "Chương 3",
+                    "tags": ["database", "", "normalization"],
+                },
             },
         )
 
@@ -344,7 +352,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
                 "success": True,
                 "data": {
                     "document_id": 12,
-                    "lecture_id": 5,
                     "status": "PROCESSED",
                     "page_count": 2,
                     "chunk_count": 8,
@@ -355,6 +362,8 @@ class ProcessDocumentApiTest(unittest.TestCase):
         request = self.service.process.call_args.args[0]
         self.assertEqual(request.file_type, DocumentFileType.PDF)
         self.assertTrue(request.reprocess)
+        self.assertEqual(request.metadata.topic, "Chuẩn hóa dữ liệu")
+        self.assertEqual(request.metadata.tags, ["database", "normalization"])
 
     def test_request_validation_uses_invalid_input_envelope(self) -> None:
         response = self.client.post(
@@ -362,7 +371,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_id": 0,
-                "lecture_id": 5,
                 "storage_key": "  ",
                 "file_type": "DOCX",
             },
@@ -376,6 +384,26 @@ class ProcessDocumentApiTest(unittest.TestCase):
         self.assertIn("body.document_id", fields)
         self.assertIn("body.storage_key", fields)
         self.assertIn("body.file_type", fields)
+
+    def test_rejects_legacy_lecture_id_field(self) -> None:
+        response = self.client.post(
+            "/v1/process-document",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_id": 12,
+                "lecture_id": 5,
+                "storage_key": "documents/12/v1/source.pdf",
+                "file_type": "PDF",
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        body = response.json()
+        self.assertEqual(body["success"], False)
+        self.assertEqual(body["error"]["code"], "INVALID_INPUT")
+        fields = {detail["field"] for detail in body["error"]["details"]}
+        self.assertIn("body.lecture_id", fields)
+        self.service.process.assert_not_called()
 
     def test_service_error_is_mapped_to_contract_envelope(self) -> None:
         self.service.process.side_effect = ServiceError(
@@ -395,7 +423,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_id": 12,
-                "lecture_id": 5,
                 "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
             },
@@ -420,7 +447,6 @@ class ProcessDocumentApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_id": 12,
-                "lecture_id": 5,
                 "storage_key": "documents/12/v1/source.pdf",
                 "file_type": "PDF",
             },

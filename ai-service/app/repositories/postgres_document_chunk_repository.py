@@ -23,14 +23,13 @@ WHERE document_id = %s
 _INSERT_DOCUMENT_CHUNK_SQL = """
 INSERT INTO document_chunks (
     document_id,
-    lecture_id,
     page_number,
     chunk_index,
     content,
     token_count,
     embedding
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s::vector)
+VALUES (%s, %s, %s, %s, %s, %s::vector)
 """
 
 # Factory trả context manager connection; test thay bằng fake transaction DB.
@@ -58,7 +57,6 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
     def replace_document_chunks(
         self,
         document_id: int,
-        lecture_id: int,
         document: EmbeddedDocument,
     ) -> int:
         """Xóa chunks cũ và batch insert chunks mới một cách atomic.
@@ -67,8 +65,8 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         insert nào lỗi, exception thoát khỏi ``connection.transaction()`` nên
         cả DELETE lẫn các INSERT trước đó đều được rollback.
         """
-        self._validate_document(document_id, lecture_id, document)
-        rows = self._build_rows(document_id, lecture_id, document)
+        self._validate_document(document_id, document)
+        rows = self._build_rows(document_id, document)
 
         try:
             with self.connection_factory() as connection:
@@ -103,14 +101,11 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
     def _validate_document(
         self,
         document_id: int,
-        lecture_id: int,
         document: EmbeddedDocument,
     ) -> None:
         """Chặn dữ liệu sai trước khi tốn connection/transaction database."""
         if document_id <= 0:
             raise self._invalid_input("document_id", "document_id phải lớn hơn 0")
-        if lecture_id <= 0:
-            raise self._invalid_input("lecture_id", "lecture_id phải lớn hơn 0")
         if document.embedding_dimensions != self.expected_dimensions:
             raise self._invalid_input(
                 "embedding_dimensions",
@@ -149,14 +144,12 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
     @staticmethod
     def _build_rows(
         document_id: int,
-        lecture_id: int,
         document: EmbeddedDocument,
     ) -> list[tuple[Any, ...]]:
         """Ánh xạ model nghiệp vụ sang đúng thứ tự cột của INSERT SQL."""
         return [
             (
                 document_id,
-                lecture_id,
                 chunk.page_number,
                 chunk.chunk_index,
                 chunk.content,

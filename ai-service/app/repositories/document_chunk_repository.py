@@ -12,7 +12,6 @@ class DocumentChunkRepository(ABC):
     def replace_document_chunks(
         self,
         document_id: int,
-        lecture_id: int,
         document: EmbeddedDocument,
     ) -> int:
         """Thay toàn bộ chunks atomically và trả số rows đã insert."""

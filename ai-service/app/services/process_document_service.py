@@ -58,7 +58,6 @@ class ProcessDocumentService:
         # 5. Lần đầu và reprocess cùng dùng atomic replace transaction.
         inserted_count = self.chunk_repository.replace_document_chunks(
             request.document_id,
-            request.lecture_id,
             embedded_document,
         )
 
@@ -73,7 +72,6 @@ class ProcessDocumentService:
 
         return ProcessDocumentResult(
             document_id=request.document_id,
-            lecture_id=request.lecture_id,
             page_count=embedded_document.page_count,
             chunk_count=inserted_count,
         )
