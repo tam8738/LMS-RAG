@@ -1,14 +1,14 @@
 # AI Service
 
-AI Service là service FastAPI phụ trách các chức năng AI trong hệ thống LMS RAG Lecture Assistant:
+AI Service là service FastAPI phụ trách các chức năng AI trong hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG:
 
 - Xử lý tài liệu PDF/TXT.
 - Làm sạch và chia nhỏ nội dung tài liệu.
 - Sinh embedding.
 - Lưu và truy vấn vector bằng PostgreSQL/pgvector.
 - Trả lời câu hỏi bằng RAG.
-- Sinh summary bài giảng.
-- Sinh quiz ôn tập.
+- Sinh summary tài liệu.
+- Sinh câu hỏi gợi ý từ tài liệu.
 
 ## Yêu cầu môi trường
 
@@ -155,10 +155,15 @@ Payload mẫu:
 ```json
 {
   "document_id": 12,
-  "lecture_id": 5,
   "storage_key": "documents/12/v1/source.pdf",
   "file_type": "PDF",
-  "reprocess": false
+  "reprocess": false,
+  "metadata": {
+    "subject": "Cơ sở dữ liệu",
+    "topic": "Chuẩn hóa dữ liệu",
+    "chapter": "Chương 3",
+    "tags": ["database", "normalization"]
+  }
 }
 ```
 

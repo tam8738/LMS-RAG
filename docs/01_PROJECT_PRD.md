@@ -1,36 +1,37 @@
 # PRD - Hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG
 
-**Phiên bản:** 1.3
-**Cập nhật:** 05/07/2026
+**Phiên bản:** 1.4
+**Cập nhật:** 07/07/2026
 **Trạng thái:** Nguồn yêu cầu nghiệp vụ chính thức
 
 ## 1. Bài toán
 
-Giảng viên CNTT phải quản lý nhiều giáo trình, bài giảng và tài liệu tham khảo.
-Lưu file theo thư mục chỉ giải quyết việc lưu trữ, chưa giúp tìm kiếm nội dung,
-kiểm soát chất lượng hoặc tái sử dụng tài liệu khi chuẩn bị giảng dạy.
+Giảng viên CNTT phải quản lý nhiều giáo trình, bài giảng, tài liệu tham khảo và tài liệu tự biên soạn. Lưu file theo thư mục chỉ giải quyết việc lưu trữ, chưa giúp tìm kiếm nội dung, kiểm soát chất lượng, tái sử dụng tài liệu hoặc khai thác nội dung bằng AI khi chuẩn bị giảng dạy.
 
-Sản phẩm được xây dựng như một thư viện tài liệu giảng dạy dùng chung. Giảng
-viên đóng góp và quản lý tài liệu của mình; Admin kiểm duyệt trước khi tài liệu
-được công bố. RAG giúp giảng viên tra cứu nội dung có nguồn kiểm chứng.
+Sản phẩm được xây dựng như một thư viện học liệu dùng chung cho giảng viên. Trọng tâm của hệ thống là **Document**. Giảng viên upload, quản lý và khai thác tài liệu; Admin kiểm duyệt trước khi tài liệu được công bố vào Library. RAG giúp giảng viên hỏi đáp trên tài liệu đã chọn và nhận câu trả lời có citation kiểm chứng được.
+
+Hệ thống không phải LMS đầy đủ. Không bắt giảng viên tạo Course/Lecture trước khi upload. Subject, topic, chapter và tags chỉ là metadata của Document để phân loại, lọc, tìm kiếm và bổ sung ngữ cảnh cho RAG.
 
 ## 2. Mục tiêu
 
-- Quản lý tài liệu theo môn học và bài giảng.
+- Quản lý tài liệu/học liệu theo hướng document-centric.
+- Cho phép Teacher upload PDF/TXT và gắn metadata nếu cần.
 - Tự động xử lý PDF/TXT thành chunks và embeddings sau khi upload.
 - Kiểm duyệt tài liệu trước khi đưa vào thư viện chung.
-- Tìm kiếm và khai thác tài liệu đã công bố.
-- Hỏi đáp trên tài liệu được chọn và trả citation.
+- Tìm kiếm, lọc và khai thác tài liệu đã công bố.
+- Hỏi đáp RAG trên tài liệu được chọn và trả citation.
 - Giữ quyền sở hữu, quyền truy cập và trạng thái rõ ràng.
-
-Hệ thống không phải một LMS đầy đủ và không lấy Student flow làm trọng tâm.
 
 ## 3. Thuật ngữ
 
 | Thuật ngữ | Ý nghĩa |
 |---|---|
-| Document | Tài liệu PDF/TXT do giảng viên upload |
-| Library | Danh sách document `PUBLISHED` sau khi đăng nhập |
+| Document | Tài liệu PDF/TXT do Teacher upload; là thực thể trung tâm của hệ thống |
+| Subject | Môn học hoặc lĩnh vực dùng để phân loại Document, không phải lớp học/LMS course |
+| Topic | Chủ đề tùy chọn của Document |
+| Chapter | Chương/bài/phần tùy chọn của Document |
+| Tags | Nhãn phân loại tự do của Document |
+| Library | Danh sách Document `PUBLISHED` sau khi đăng nhập |
 | Processing status | Trạng thái xử lý kỹ thuật của AI |
 | Publication status | Trạng thái kiểm duyệt/công bố |
 | RAG | Retrieval context trước khi sinh câu trả lời |
@@ -44,17 +45,17 @@ Hệ thống không phải một LMS đầy đủ và không lấy Student flow 
 Teacher có thể:
 
 - Đăng nhập và xem Library.
-- Chọn course và lecture để phân loại tài liệu.
-- Upload và quản lý tài liệu của mình.
-- Theo dõi trạng thái xử lý.
+- Upload PDF/TXT mà không cần tạo Course/Lecture trước.
+- Gắn metadata cho tài liệu: subject, topic, chapter, tags, description.
+- Quản lý tài liệu của mình khi còn ở trạng thái cho phép sửa.
+- Theo dõi trạng thái xử lý AI.
 - Retry/reprocess khi cần.
 - Dùng RAG trên tài liệu của mình đã `PROCESSED`.
 - Gửi tài liệu cho Admin duyệt.
-- Xem lý do từ chối, chỉnh sửa và gửi lại.
+- Xem lý do từ chối, chỉnh sửa metadata/file và gửi lại.
 - Dùng RAG trên tài liệu `PUBLISHED` của giảng viên khác.
 
-Teacher không được sửa/xóa tài liệu của người khác và không tự đặt document
-thành `PUBLISHED`.
+Teacher không được sửa/xóa tài liệu của người khác và không tự đặt document thành `PUBLISHED`.
 
 ### 4.2. Admin - actor phụ
 
@@ -74,22 +75,19 @@ Chức năng Should-have của Admin:
 - Khóa hoặc mở khóa tài khoản Teacher.
 - Reset mật khẩu Teacher.
 
-Admin không upload thay Teacher, không sửa nội dung chuyên môn và không quản
-trị hệ thống phức tạp trong MVP. Hệ thống chỉ có một Admin; tài khoản này được
-tạo bằng migration/seed, không tạo hoặc thay đổi role qua giao diện.
+Admin không upload thay Teacher, không sửa nội dung chuyên môn và không quản trị hệ thống phức tạp trong MVP. Hệ thống chỉ có một Admin; tài khoản này được tạo bằng migration/seed, không tạo hoặc thay đổi role qua giao diện.
 
 ### 4.3. Student
 
-Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thống nhưng không
-cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạn này.
+Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thống nhưng không cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạn này.
 
 ## 5. Phạm vi core MVP
 
 ### Must-have
 
 - Teacher/Admin login bằng JWT.
-- Course/Lecture tối thiểu để phân loại document.
 - Upload PDF/TXT tối đa 20 MB.
+- Metadata document: subject, topic, chapter, tags, description.
 - Backend tự tạo Document và processing job.
 - Backend tự động gọi AI sau khi upload.
 - AI parse, clean, chunk, embedding và lưu pgvector.
@@ -110,10 +108,12 @@ cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạ
 - Question generation từ selected documents.
 - Lịch sử hỏi đáp.
 - Quản lý tài khoản Teacher ở mức cơ bản.
-- Tạo và quản lý course/lecture ngoài dữ liệu demo.
+- Bảng `subjects` riêng nếu nhóm muốn chuẩn hóa danh mục môn học.
 
 ### Out-of-scope
 
+- Teacher tạo/quản lý Course như LMS.
+- Lecture entity là luồng nghiệp vụ bắt buộc.
 - Student flow.
 - Quiz attempt/result.
 - Gamification, level, score.
@@ -160,10 +160,10 @@ Quy tắc:
 
 | Publication status | Teacher owner | Teacher khác | Admin |
 |---|---|---|---|
-| `DRAFT` | Xem, sửa, xóa, RAG nếu `PROCESSED`, submit | Không | Không cần |
+| `DRAFT` | Xem, sửa metadata/file, xóa, RAG nếu `PROCESSED`, submit | Không | Không cần |
 | `PENDING_REVIEW` | Xem, không thay file | Không | Xem, approve, reject |
 | `PUBLISHED` | Xem/RAG | Xem/RAG | Xem, archive |
-| `REJECTED` | Xem lý do, sửa, xóa, submit lại | Không | Xem lịch sử |
+| `REJECTED` | Xem lý do, sửa metadata/file, xóa, submit lại | Không | Xem lịch sử |
 | `ARCHIVED` | Xem lịch sử | Không | Xem |
 
 Backend là nơi thực thi permission. AI Service không xác thực user hoặc role.
@@ -173,7 +173,8 @@ Backend là nơi thực thi permission. AI Service không xác thực user hoặ
 ### Upload và xử lý
 
 ```txt
-Teacher upload
+Teacher upload tài liệu
+-> nhập title/description/subject/topic/chapter/tags
 -> Backend validate và lưu file
 -> tạo Document: UPLOADED + DRAFT
 -> tạo processing job
@@ -181,6 +182,8 @@ Teacher upload
 -> AI lưu chunks/vector
 -> Backend cập nhật PROCESSED hoặc FAILED
 ```
+
+Không có bước bắt buộc tạo Course/Lecture trước upload.
 
 ### Review và công bố
 
@@ -194,10 +197,12 @@ Teacher submit document PROCESSED
 
 Nếu reject, Backend lưu lý do và chuyển `REJECTED`.
 
-### RAG
+### Library và RAG
 
 ```txt
-Teacher chọn document được phép truy cập
+Teacher mở Library
+-> lọc theo subject/topic/chapter/tags/từ khóa nếu cần
+-> chọn document được phép truy cập
 -> Backend kiểm quyền từng document_id
 -> AI embedding câu hỏi
 -> retrieval chunks trong document_ids
@@ -219,8 +224,7 @@ Teacher chọn document được phép truy cập
 /admin/teachers
 ```
 
-Sau login, Teacher vào Library. Admin có thêm khu vực Review và quản lý Teacher.
-Không xây dashboard riêng trong core MVP.
+Sau login, Teacher vào Library. Admin có thêm khu vực Review và quản lý Teacher. Không xây dashboard riêng trong core MVP.
 
 ## 10. Yêu cầu phi chức năng
 
@@ -240,6 +244,7 @@ Core MVP hoàn thành khi chạy được:
 ```txt
 Teacher A login
 -> upload PDF/TXT
+-> nhập metadata subject/topic/chapter/tags
 -> Backend tạo Document/job
 -> AI lưu chunks/vector
 -> Teacher A submit review

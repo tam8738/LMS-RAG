@@ -1,7 +1,7 @@
 # AI Service Internal API Contract
 
-**Phiên bản:** 1.2
-**Cập nhật:** 04/07/2026
+**Phiên bản:** 1.4
+**Cập nhật:** 07/07/2026
 **Base URL Docker:** `http://ai-service:8000/v1`
 
 ## 1. Phạm vi core
@@ -22,6 +22,8 @@ Summary và question generation là Should-have và chưa thuộc core contract.
 - Frontend không gọi AI trực tiếp.
 - Mọi request nghiệp vụ cần `X-Internal-Key`.
 - `Content-Type: application/json`.
+- AI không nhận `course_id` hoặc `lecture_id` trong core MVP.
+- Nếu cần metadata, dùng `subject`, `topic`, `chapter`, `tags` như thông tin phụ của Document.
 
 ## 3. Authentication
 
@@ -57,6 +59,8 @@ Success:
   "message": "Thành công"
 }
 ```
+
+`message` là optional; client không được phụ thuộc hoàn toàn vào field này.
 
 Error:
 
@@ -117,20 +121,25 @@ Request:
 ```json
 {
   "document_id": 12,
-  "lecture_id": 5,
   "storage_key": "documents/12/v1/source.pdf",
   "file_type": "PDF",
-  "reprocess": false
+  "reprocess": false,
+  "metadata": {
+    "subject": "Cơ sở dữ liệu",
+    "topic": "Chuẩn hóa dữ liệu",
+    "chapter": "Chương 3",
+    "tags": ["database", "normalization"]
+  }
 }
 ```
 
 | Field | Required | Quy định |
 |---|---:|---|
 | `document_id` | Yes | Positive BIGINT |
-| `lecture_id` | Yes | Positive BIGINT, dùng làm metadata |
 | `storage_key` | Yes | Relative path dưới `UPLOAD_ROOT` |
 | `file_type` | Yes | `PDF` hoặc `TXT` |
 | `reprocess` | No | Mặc định `false` |
+| `metadata` | No | Metadata của Document, AI không dùng để phân quyền |
 
 Success `200`:
 
@@ -139,7 +148,6 @@ Success `200`:
   "success": true,
   "data": {
     "document_id": 12,
-    "lecture_id": 5,
     "status": "PROCESSED",
     "page_count": 20,
     "chunk_count": 48
@@ -165,7 +173,7 @@ Request:
 ```json
 {
   "document_ids": [12],
-  "question": "Encapsulation trong Java là gì?",
+  "question": "Chuẩn hóa dữ liệu là gì?",
   "top_k": 5,
   "language": "vi"
 }
@@ -186,14 +194,15 @@ Success `200`:
 {
   "success": true,
   "data": {
-    "answer": "Encapsulation là cơ chế đóng gói dữ liệu...",
+    "answer": "Chuẩn hóa dữ liệu là quá trình tổ chức dữ liệu để giảm dư thừa...",
     "not_found": false,
     "citations": [
       {
         "chunk_id": 120,
         "document_id": 12,
         "page_number": 5,
-        "excerpt": "Encapsulation là tính chất...",
+        "chunk_index": 7,
+        "excerpt": "Chuẩn hóa dữ liệu là quá trình...",
         "score": 0.92
       }
     ],
@@ -253,5 +262,4 @@ POST /v1/generate-summary
 POST /v1/generate-questions
 ```
 
-Khi triển khai, scope cũng dùng `document_ids`, không dùng lecture làm scope duy
-nhất.
+Khi triển khai, scope cũng dùng `document_ids`, không dùng subject/topic/chapter làm scope duy nhất.

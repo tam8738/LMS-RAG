@@ -1,7 +1,7 @@
 # Bộ tài liệu chính thức của dự án
 
-**Phiên bản:** 1.3
-**Cập nhật:** 05/07/2026
+**Phiên bản:** 1.4
+**Cập nhật:** 07/07/2026
 **Đối tượng đọc:** Frontend, Backend, AI Service
 
 ## 1. Mục đích
@@ -53,7 +53,16 @@ Nguồn duy nhất cho endpoint, request, response và error giữa Backend và 
 
 Nguồn duy nhất cho SQL schema, constraint và index của Document MVP.
 
-### 6. AI pipeline
+### 6. Backend database guide
+
+```txt
+07_BACKEND_DATABASE_SCHEMA_GUIDE.md
+```
+
+Đọc khi Backend tạo migration database đầy đủ cho MVP: users, documents, jobs,
+chunks, khóa chính, khóa phụ, index và seed demo.
+
+### 7. AI pipeline
 
 ```txt
 06_AI_PIPELINE.md
@@ -63,8 +72,10 @@ Nguồn duy nhất cho SQL schema, constraint và index của Document MVP.
 
 ## 3. Quyết định đã khóa
 
-- Quản lý tài liệu và thư viện dùng chung là trọng tâm.
+- Document là trung tâm của hệ thống.
 - Giảng viên là actor chính.
+- Subject/topic/chapter/tags chỉ là metadata của Document.
+- Không bắt Teacher tạo Course/Lecture trước khi upload.
 - Hệ thống có một Admin duy nhất.
 - Admin kiểm duyệt/công bố tài liệu và quản lý tài khoản Teacher ở mức cơ bản.
 - Không triển khai Student flow trong core MVP.
@@ -84,8 +95,9 @@ Nguồn duy nhất cho SQL schema, constraint và index của Document MVP.
 3. `05_DATABASE_SCHEMA.md` quyết định database schema.
 4. `03_BE_AI_INTEGRATION.md` quyết định ownership và kiến trúc tích hợp.
 5. `06_AI_PIPELINE.md` quyết định thuật toán AI.
-6. `02_MVP_IMPLEMENTATION_PLAN.md` quyết định thứ tự thi công.
-7. Code phải được sửa để khớp bộ tài liệu đã chốt.
+6. `07_BACKEND_DATABASE_SCHEMA_GUIDE.md` hướng dẫn Backend tạo migration database đầy đủ.
+7. `02_MVP_IMPLEMENTATION_PLAN.md` quyết định thứ tự thi công.
+8. Code phải được sửa để khớp bộ tài liệu đã chốt.
 
 ## 5. Tài liệu cá nhân, không phải contract
 

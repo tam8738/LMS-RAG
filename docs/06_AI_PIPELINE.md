@@ -1,7 +1,7 @@
 # AI pipeline cho Document MVP
 
-**Phiên bản:** 1.2
-**Cập nhật:** 04/07/2026
+**Phiên bản:** 1.4
+**Cập nhật:** 07/07/2026
 **Owner:** AI Service
 
 File này chỉ mô tả thuật toán AI. API payload nằm trong
@@ -18,7 +18,7 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - Chunker có overlap.
 - OpenAI embedding provider.
 - PostgreSQL repository atomic replace.
-- `POST /v1/process-document`.
+- `POST /v1/process-document` cần theo contract v1.4, không dùng `lecture_id`.
 - Unit/API mock tests.
 
 Chưa có:
@@ -152,6 +152,8 @@ language
 Quy tắc:
 
 - Bắt buộc filter `document_ids`.
+- Không dùng `course_id` hoặc `lecture_id` làm scope retrieval.
+- Subject/topic/chapter/tags chỉ là metadata lấy từ Document khi cần hiển thị.
 - Không query toàn Library.
 - Backend đã kiểm permission trước khi gọi.
 - Sort theo cosine distance.

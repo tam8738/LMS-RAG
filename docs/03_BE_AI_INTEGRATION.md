@@ -1,13 +1,26 @@
 # Quyết định tích hợp Backend - AI Service
 
-**Phiên bản:** 1.3
-**Cập nhật:** 05/07/2026
+**Phiên bản:** 1.4
+**Cập nhật:** 07/07/2026
 **Phạm vi:** Document processing và document-scoped RAG
 
 File này chỉ ghi quyết định kiến trúc và ownership. Payload HTTP nằm trong
 `04_AI_API_CONTRACT.md`; SQL nằm trong `05_DATABASE_SCHEMA.md`.
 
-## 1. ID
+## 1. Định hướng dữ liệu
+
+Trọng tâm của hệ thống là `Document`.
+
+`Subject`, `topic`, `chapter` và `tags` chỉ là metadata của Document. Các metadata này dùng để:
+
+- Phân loại tài liệu trong Library.
+- Lọc/tìm kiếm tài liệu.
+- Bổ sung ngữ cảnh hiển thị và RAG.
+- Tránh kéo hệ thống quay lại mô hình LMS.
+
+Không bắt Teacher tạo `Course` hoặc `Lecture` trước khi upload. Nếu repo hiện còn entity `Course/Lecture` từ hướng cũ, các entity đó không được dùng làm luồng nghiệp vụ bắt buộc của MVP mới.
+
+## 2. ID
 
 Mục tiêu thống nhất:
 
@@ -17,25 +30,24 @@ Java: Long
 Python/JSON: int
 ```
 
-Backend hiện đã dùng `Long` cho `Course.id` và `Lecture.id`. Migration mới phải
-giữ thống nhất `BIGINT/BIGSERIAL` trong PostgreSQL, `Long` trong Java và `int`
-trong Python/JSON.
+Các ID nghiệp vụ mới như `document_id`, `user_id`, `subject_id` nếu có bảng `subjects` riêng đều dùng quy ước trên.
 
-## 2. Luồng upload và file
+## 3. Luồng upload và file
 
 Frontend upload multipart vào Backend. Backend:
 
-1. Xác thực Teacher và ownership lecture.
+1. Xác thực Teacher.
 2. Validate type/size.
-3. Tạo Document để lấy `document_id`.
-4. Lưu file vào shared storage.
-5. Lưu `storage_key`.
-6. Tạo processing job.
-7. Tự động gọi AI ở background.
+3. Nhận metadata: `title`, `description`, `subject`, `topic`, `chapter`, `tags`.
+4. Tạo Document để lấy `document_id`.
+5. Lưu file vào shared storage.
+6. Lưu `storage_key`.
+7. Tạo processing job.
+8. Tự động gọi AI ở background.
 
 Backend không gửi multipart sang AI. AI nhận JSON chứa `storage_key`.
 
-## 3. Shared storage
+## 4. Shared storage
 
 Docker named volume:
 
@@ -56,7 +68,7 @@ Biến môi trường chung:
 UPLOAD_ROOT=/storage/uploads
 ```
 
-## 4. Storage key
+## 5. Storage key
 
 Format duy nhất:
 
@@ -77,7 +89,7 @@ documents/12/v1/source.pdf
 - Không chứa `..`, drive Windows, `:` hoặc absolute path.
 - Mỗi lần thay file tăng version để tránh ghi đè file đang được xử lý.
 
-## 5. File support
+## 6. File support
 
 Core MVP:
 
@@ -91,10 +103,9 @@ Không OCR, DOCX hoặc PPTX trực tiếp.
 
 Backend validate để phản hồi sớm. AI validate lại tại service boundary.
 
-## 6. Auto-processing
+## 7. Auto-processing
 
-AI endpoint xử lý đồng bộ từ góc nhìn Backend. Backend chạy lời gọi trong
-background worker:
+AI endpoint xử lý đồng bộ từ góc nhìn Backend. Backend chạy lời gọi trong background worker:
 
 ```txt
 upload transaction commit
@@ -105,8 +116,7 @@ upload transaction commit
 -> update Document/job
 ```
 
-Không giữ database transaction trong lúc gọi AI. Không dùng message queue trong
-MVP.
+Không giữ database transaction trong lúc gọi AI. Không dùng message queue trong MVP.
 
 Retry/reprocess:
 
@@ -114,7 +124,7 @@ Retry/reprocess:
 - Chặn hai active job cho cùng document.
 - AI atomic replace chunks; lỗi insert phải rollback và giữ chunks cũ.
 
-## 7. Status ownership
+## 8. Status ownership
 
 Backend là nguồn sự thật của:
 
@@ -126,7 +136,7 @@ document_processing_jobs.status
 
 AI chỉ trả kết quả xử lý; không cập nhật Document hoặc publication.
 
-## 8. Authentication
+## 9. Authentication
 
 Frontend -> Backend:
 
@@ -142,7 +152,7 @@ X-Internal-Key: <shared-secret>
 
 AI không xử lý JWT. Internal key rỗng, thiếu hoặc sai phải fail closed.
 
-## 9. RAG scope
+## 10. RAG scope
 
 Backend gửi danh sách:
 
@@ -155,12 +165,11 @@ Backend kiểm quyền từng ID trước khi gọi AI:
 - Owner dùng document của mình khi `PROCESSED`.
 - Người khác chỉ dùng document `PUBLISHED`.
 
-AI retrieval chỉ query chunks thuộc `document_ids`. `lecture_id` có thể được
-lưu làm metadata nhưng không phải scope bắt buộc của answer endpoint.
+AI retrieval chỉ query chunks thuộc `document_ids`. Subject/topic/chapter/tags có thể được truyền trong metadata nếu cần hiển thị hoặc logging, nhưng không thay thế permission check theo document.
 
 Không làm RAG toàn Library trong core MVP.
 
-## 10. Database ownership
+## 11. Database ownership
 
 - Backend quản lý toàn bộ migration.
 - Backend sở hữu tables nghiệp vụ và status.
@@ -168,7 +177,7 @@ Không làm RAG toàn Library trong core MVP.
 - Backend không tự ghi chunks trong flow bình thường.
 - Hai service dùng chung PostgreSQL trong MVP.
 
-## 11. Response và error
+## 12. Response và error
 
 - JSON dùng `snake_case`.
 - AI trả success/error envelope thống nhất.
@@ -176,13 +185,14 @@ Không làm RAG toàn Library trong core MVP.
 - Backend ánh xạ AI error sang public API phù hợp.
 - Backend quản lý job status khi AI timeout/lỗi.
 
-## 12. Ownership matrix
+## 13. Ownership matrix
 
 | Nội dung | Backend | AI Service |
 |---|---|---|
 | JWT và role | Chủ trì | Không |
 | Ownership/publication permission | Chủ trì | Không |
 | Upload/file metadata | Chủ trì | Không |
+| Subject/topic/chapter/tags | Chủ trì | Nhận làm metadata nếu cần |
 | Shared file | Ghi/xóa | Đọc |
 | Processing job/status | Chủ trì | Trả kết quả |
 | Parse/clean/chunk | Không | Chủ trì |
@@ -193,7 +203,7 @@ Không làm RAG toàn Library trong core MVP.
 | Retrieval/generation/citation | Không | Chủ trì |
 | Admin review/Library | Chủ trì | Không |
 
-## 13. Environment
+## 14. Environment
 
 Backend:
 

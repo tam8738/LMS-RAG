@@ -9,6 +9,7 @@ Core MVP tập trung vào:
 ```txt
 Teacher login
 -> upload PDF/TXT
+-> nhập metadata subject/topic/chapter/tags
 -> Backend tạo Document/job
 -> AI tạo chunks/vector
 -> Teacher submit review
@@ -18,7 +19,7 @@ Teacher login
 -> answer có citation
 ```
 
-Không triển khai Student flow, quiz attempt/result, gamification hoặc dashboard phức tạp trong core MVP. Summary, question generation và quản lý tài khoản Teacher là Should-have.
+Không triển khai Student flow, quiz attempt/result, gamification, Course/Lecture LMS flow hoặc dashboard phức tạp trong core MVP. Subject/topic/chapter/tags chỉ là metadata của Document. Summary, question generation và quản lý tài khoản Teacher là Should-have.
 
 ## Thành phần
 
