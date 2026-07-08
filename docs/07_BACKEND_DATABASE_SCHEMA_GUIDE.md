@@ -331,7 +331,48 @@ Ghi chú cho Backend:
 - Khi cần subject/topic/chapter trong citation hoặc filter, join từ `document_chunks.document_id` sang `documents.id`.
 - AI reprocess sẽ delete/insert chunks theo `document_id` trong một transaction.
 
-## 10. Migration V3 - seed demo users
+## 10. Lưu ý Hibernate/JPA cho document_chunks
+
+`document_chunks.embedding` dùng kiểu `VECTOR(1536)` của pgvector. Hibernate/JPA mặc định không hiểu tốt kiểu dữ liệu này, nên Backend không nên để Hibernate tự generate hoặc tự map bảng `document_chunks` trong MVP.
+
+Quyết định cho MVP:
+
+- Backend tạo bảng `document_chunks` bằng SQL migration.
+- Backend không cần tạo `DocumentChunkEntity` trong Java.
+- Backend không cần khai báo `@OneToMany` từ `Document` sang chunks.
+- Bảng `documents` không có cột `chunk_id`, `chunk`, `chunks` hoặc field tương tự.
+- Quan hệ đúng là `document_chunks.document_id -> documents.id`.
+- Backend CRUD `Document` không bị ảnh hưởng vì chỉ thao tác bảng `documents` và `document_processing_jobs`.
+- AI Service ghi/thay thế/truy vấn `document_chunks` bằng SQL/psycopg.
+
+Nếu Backend cần biết số chunk của một Document, dùng:
+
+```txt
+document_processing_jobs.chunk_count
+```
+
+hoặc field tổng hợp do Backend cập nhật sau khi AI trả kết quả, không load toàn bộ chunks qua Hibernate.
+
+Nếu sau MVP Backend thật sự cần đọc chunks, có hai hướng:
+
+1. Dùng native query hoặc `JdbcTemplate` để đọc `document_chunks`.
+2. Cài thêm thư viện hỗ trợ pgvector cho Hibernate rồi mới cân nhắc map `DocumentChunkEntity`.
+
+Không nên làm trong MVP:
+
+```java
+@OneToMany(mappedBy = "document")
+private List<DocumentChunk> chunks;
+```
+
+Lý do:
+
+- Một Document có thể có rất nhiều chunks.
+- Load chunks qua entity dễ nặng và không cần cho CRUD Document.
+- Field `embedding VECTOR(1536)` làm mapping Hibernate phức tạp không cần thiết.
+- AI Service mới là owner logic của chunks/vector.
+
+## 11. Migration V3 - seed demo users
 
 Seed tối thiểu cần có:
 
@@ -351,7 +392,7 @@ ON CONFLICT (email) DO NOTHING;
 
 Không commit password thật hoặc hash không rõ nguồn vào repo public nếu nhóm xem đó là thông tin nhạy cảm. Với demo local, có thể thống nhất mật khẩu tạm như `123456` và ghi rõ chỉ dùng cho môi trường demo.
 
-## 11. State transition cần Backend enforce
+## 12. State transition cần Backend enforce
 
 Database chỉ kiểm enum hợp lệ. Backend service phải kiểm transition hợp lệ.
 
@@ -380,7 +421,7 @@ Rule quan trọng:
 - Owner có thể RAG document của mình nếu `PROCESSED`.
 - Teacher khác chỉ RAG document `PUBLISHED`.
 
-## 12. Query mẫu Backend cần dùng
+## 13. Query mẫu Backend cần dùng
 
 Library:
 
@@ -434,7 +475,7 @@ ORDER BY dc.embedding <=> CAST(:query_embedding AS vector)
 LIMIT :top_k;
 ```
 
-## 13. Checklist để Backend tự kiểm tra
+## 14. Checklist để Backend tự kiểm tra
 
 Sau khi chạy migration, Backend kiểm tra:
 
@@ -481,7 +522,7 @@ ORDER BY tc.table_name, kcu.column_name;
 
 Không được có FK từ `documents` hoặc `document_chunks` sang `courses/lectures` trong MVP mới.
 
-## 14. Checklist bàn giao cho AI
+## 15. Checklist bàn giao cho AI
 
 Backend cần báo cho AI khi đã có:
 
@@ -493,7 +534,7 @@ Backend cần báo cho AI khi đã có:
 - [ ] Có ít nhất một row `documents` thật để AI test insert chunks.
 - [ ] Shared storage đã có file theo `storage_key`.
 
-## 15. Kết luận cho Backend
+## 16. Kết luận cho Backend
 
 Backend cần tạo đầy đủ schema nghiệp vụ, không chỉ bảng phục vụ AI. Bộ bảng tối thiểu, hợp lý và không thừa cho MVP mới là:
 

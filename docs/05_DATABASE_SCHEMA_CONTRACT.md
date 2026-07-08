@@ -176,6 +176,8 @@ course_id
 
 trong `document_chunks` của core MVP.
 
+Hibernate/JPA note: Backend không cần map `document_chunks` thành entity trong MVP. Bảng này được tạo bằng SQL migration; AI Service ghi/truy vấn bằng SQL. Chi tiết nằm trong `07_BACKEND_DATABASE_SCHEMA_GUIDE.md`.
+
 AI Service reprocess chunks bằng transaction:
 
 ```txt
