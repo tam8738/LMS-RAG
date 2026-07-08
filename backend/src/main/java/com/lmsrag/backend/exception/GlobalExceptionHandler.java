@@ -2,8 +2,11 @@ package com.lmsrag.backend.exception;
 
 
 import com.lmsrag.backend.dto.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +18,7 @@ import java.util.List;
  * Bắt và xử lý tập trung tất cả exception ném ra từ Controller/Service,
  * chuyển đổi thành response chuẩn theo {@link ApiResponse} (envelope success/error).
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -27,6 +31,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleAppException(AppException ex) {
 
         ErrorCode errorCode = ex.getErrorCode();
+        log.warn("Business exception: code={}, message={}", errorCode.name(), errorCode.getMessage());
 
         return ResponseEntity
                 .status(errorCode.getStatus())
@@ -40,8 +45,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleException(Exception ex) {
 
-        // log lỗi để debug, không trả chi tiết stack trace ra ngoài
-        ex.printStackTrace();
+        log.error("Unexpected system error: {}", ex.getMessage(), ex);
 
         ErrorCode errorCode = ErrorCode.INTERNAL_ERROR;
 
@@ -65,9 +69,11 @@ public class GlobalExceptionHandler {
                 .map(this::toErrorDetail)
                 .toList();
 
+        ErrorCode errorCode = ErrorCode.INVALID_INPUT;
+
         return ResponseEntity
-                .status(org.springframework.http.HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("INVALID_INPUT", "Dữ liệu không hợp lệ", details));
+                .status(errorCode.getStatus())
+                .body(ApiResponse.error(errorCode.name(), errorCode.getMessage(), details));
     }
 
     /**
@@ -97,9 +103,14 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Object>> handleAccessDeniedException(AccessDeniedException ex) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : "anonymous";
+
+        log.warn("Access denied for user '{}' to resource: {}", username, ex.getMessage());
+
         return ResponseEntity
-                .status(ErrorCode.UNAUTHORIZED.getStatus())
-                .body(ApiResponse.error(ErrorCode.UNAUTHORIZED.name(), ErrorCode.UNAUTHORIZED.getMessage()));
+                .status(ErrorCode.FORBIDDEN.getStatus())
+                .body(ApiResponse.error(ErrorCode.FORBIDDEN.name(), ErrorCode.FORBIDDEN.getMessage()));
     }
 
 }

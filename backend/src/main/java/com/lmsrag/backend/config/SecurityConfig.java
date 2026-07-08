@@ -30,6 +30,10 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers("/api/v1/my/**").hasRole("TEACHER")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/library/**").hasAnyRole("TEACHER", "ADMIN")
+                        .requestMatchers("/api/v1/rag/**").hasAnyRole("TEACHER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
