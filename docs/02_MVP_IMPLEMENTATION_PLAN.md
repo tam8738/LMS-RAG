@@ -141,8 +141,8 @@ Quy ước trạng thái:
 
 | Task | Owner | Priority | Depends on | Trạng thái | Ghi chú tracking |
 |---|---|---:|---|---|---|
-| BE-01 - Migration/database schema | Tâm | P0 | Docs schema | TODO | Cần tạo migration đủ `users`, `documents`, `document_processing_jobs`, `document_chunks` theo file `07` |
-| BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | TODO | Chưa có `Document`/`DocumentProcessingJob` theo scope mới |
+| BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; đổi `ddl-auto` sang `validate`; compile + test pass |
+| BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`, `DocumentRepository`, `DocumentProcessingJobRepository`; code compile + test pass |
 | BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | TODO | Upload không được yêu cầu Course/Lecture |
 | BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | TODO | Backend cần gọi AI background sau upload |
 | BE-05 - My Documents API | Tâm | P0 | BE-04 | TODO | CRUD/submit/reprocess cho owner |
