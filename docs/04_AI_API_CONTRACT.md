@@ -112,7 +112,76 @@ Yêu cầu `X-Internal-Key`. Kiểm tra PostgreSQL và extension pgvector.
 }
 ```
 
-## 6. Process document
+## 6. Analyze document
+
+### `POST /v1/analyze-document`
+
+Endpoint này chỉ kiểm tra tài liệu có thể RAG được hay không. Endpoint này không sinh embedding và không ghi `document_chunks`.
+
+Request:
+
+```json
+{
+  "document_id": 12,
+  "storage_key": "documents/12/v1/source.pdf",
+  "file_type": "PDF"
+}
+```
+
+| Field | Required | Quy định |
+|---|---:|---|
+| `document_id` | Yes | Positive BIGINT |
+| `storage_key` | Yes | Relative path dưới `UPLOAD_ROOT` |
+| `file_type` | Yes | `PDF` hoặc `TXT` |
+| `metadata` | No | Không bắt buộc cho bước kiểm tra RAG |
+
+Success `200`, tài liệu có thể RAG:
+
+```json
+{
+  "success": true,
+  "data": {
+    "document_id": 12,
+    "can_rag": true,
+    "rag_status": "READY_TO_PROCESS",
+    "page_count": 20,
+    "estimated_token_count": 18420,
+    "estimated_chunk_count": 24,
+    "unsupported_reason": null
+  },
+  "message": "Tài liệu có thể xử lý RAG"
+}
+```
+
+Success `200`, tài liệu không hỗ trợ RAG nhưng vẫn có thể lưu như tài liệu thường:
+
+```json
+{
+  "success": true,
+  "data": {
+    "document_id": 12,
+    "can_rag": false,
+    "rag_status": "UNSUPPORTED",
+    "page_count": 0,
+    "estimated_token_count": 0,
+    "estimated_chunk_count": 0,
+    "unsupported_reason": "EMPTY_DOCUMENT"
+  },
+  "message": "Tài liệu không hỗ trợ RAG"
+}
+```
+
+Hành vi:
+
+1. Resolve `storage_key` dưới `UPLOAD_ROOT`.
+2. Validate file tồn tại, đúng PDF/TXT và không quá size.
+3. Parse/clean/chunk nhẹ để biết có text usable hay không.
+4. Trả `READY_TO_PROCESS` nếu có thể chạy `/v1/process-document`.
+5. Trả `UNSUPPORTED` nếu file hợp lệ nhưng không có text để RAG.
+6. Không cập nhật bảng `documents`; Backend là nơi cập nhật DB/status.
+
+Implementation status: endpoint `/v1/analyze-document` đã có trong AI Service, nằm ở file riêng để có thể gỡ bỏ ít ảnh hưởng code cũ.
+## 7. Process document
 
 ### `POST /v1/process-document`
 
@@ -164,7 +233,7 @@ Hành vi:
 4. Atomic replace chunks.
 5. Trả count; không cập nhật bảng `documents`.
 
-## 7. Answer question
+## 8. Answer question
 
 Implementation status AI-03: endpoint `/v1/answer-question` đã có trong AI Service. MVP hiện trả extractive answer từ retrieved chunks và citations từ `document_chunks`; chưa dùng LLM chat/generation provider riêng.
 

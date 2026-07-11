@@ -19,6 +19,7 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - OpenAI embedding provider.
 - PostgreSQL repository atomic replace.
 - Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
+- `POST /v1/analyze-document` kiểm tra tài liệu có thể RAG được không, không embedding và không ghi DB.
 - `POST /v1/answer-question` trả extractive answer, `not_found` và citations.
 - `POST /v1/process-document` cần theo contract v1.4, không dùng `lecture_id`.
 - Unit/API mock tests.
@@ -28,7 +29,21 @@ Chưa có:
 - E2E thật Backend -> shared file -> OpenAI -> pgvector.
 - LLM generation/chat provider cho answer tự nhiên hơn.
 
-## 2. Process pipeline
+## 2. Analyze pipeline
+
+```txt
+storage_key
+-> resolve dưới UPLOAD_ROOT
+-> validate file
+-> parse PDF/TXT
+-> clean text
+-> chunk theo token để estimate
+-> trả can_rag/unsupported_reason
+```
+
+Analyze không gọi embedding provider và không ghi `document_chunks`.
+
+## 3. Process pipeline
 
 ```txt
 storage_key
