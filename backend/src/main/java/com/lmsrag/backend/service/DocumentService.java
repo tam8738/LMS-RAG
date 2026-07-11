@@ -124,23 +124,8 @@ public class DocumentService {
 
             // Cập nhật storage_key chính xác
             saved.setStorageKey(storageKey);
-            log.info("[UPLOAD] Đã cập nhật storage_key | documentId={} | storageKey={}",
-                    saved.getId(), storageKey);
-
-            // Tạo processing job
-            log.info("[UPLOAD] Tạo processing job | documentId={}", saved.getId());
-            DocumentProcessingJob job = DocumentProcessingJob.builder()
-                    .document(saved)
-                    .status(ProcessingStatus.PROCESSING)
-                    .startedAt(Instant.now())
-                    .build();
-            documentProcessingJobRepository.save(job);
-            log.info("[UPLOAD] Đã tạo processing job | documentId={} | jobId={}",
-                    saved.getId(), job.getId());
-
-            saved.setProcessingStatus(ProcessingStatus.PROCESSING);
             Document result = documentRepository.save(saved);
-            log.info("[UPLOAD] Hoàn tất upload | documentId={} | storageKey={} | status=PROCESSING",
+            log.info("[UPLOAD] Hoàn tất upload | documentId={} | storageKey={} | status=UPLOADED",
                     result.getId(), result.getStorageKey());
 
             return DocumentMapper.toResponse(result);
