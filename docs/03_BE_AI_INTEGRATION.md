@@ -1,11 +1,10 @@
 # Quyết định tích hợp Backend - AI Service
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
-**Phạm vi:** Document processing và document-scoped RAG
+**Phiên bản:** 1.5
+**Cập nhật:** 11/07/2026
+**Phạm vi:** Document analyze, RAG indexing và document-scoped RAG
 
-File này chỉ ghi quyết định kiến trúc và ownership. Payload HTTP nằm trong
-`04_AI_API_CONTRACT.md`; SQL nằm trong `05_DATABASE_SCHEMA.md`.
+File này ghi quyết định kiến trúc và ownership. Payload HTTP nằm trong `04_AI_API_CONTRACT.md`; database contract nằm trong `05_DATABASE_SCHEMA_CONTRACT.md`.
 
 ## 1. Định hướng dữ liệu
 
@@ -18,11 +17,9 @@ Trọng tâm của hệ thống là `Document`.
 - Bổ sung ngữ cảnh hiển thị và RAG.
 - Tránh kéo hệ thống quay lại mô hình LMS.
 
-Không bắt Teacher tạo `Course` hoặc `Lecture` trước khi upload. Nếu repo hiện còn entity `Course/Lecture` từ hướng cũ, các entity đó không được dùng làm luồng nghiệp vụ bắt buộc của MVP mới.
+Không bắt Teacher tạo `Course` hoặc `Lecture` trước khi upload.
 
 ## 2. ID
-
-Mục tiêu thống nhất:
 
 ```txt
 PostgreSQL: BIGINT/BIGSERIAL
@@ -32,22 +29,77 @@ Python/JSON: int
 
 Các ID nghiệp vụ mới như `document_id`, `user_id`, `subject_id` nếu có bảng `subjects` riêng đều dùng quy ước trên.
 
-## 3. Luồng upload và file
+## 3. Luồng upload và analyze nhẹ
 
 Frontend upload multipart vào Backend. Backend:
 
 1. Xác thực Teacher.
-2. Validate type/size.
+2. Validate type/size cơ bản.
 3. Nhận metadata: `title`, `description`, `subject`, `topic`, `chapter`, `tags`.
 4. Tạo Document để lấy `document_id`.
 5. Lưu file vào shared storage.
 6. Lưu `storage_key`.
-7. Tạo processing job.
-8. Tự động gọi AI ở background.
+7. Set:
+
+```txt
+processing_status = ANALYZING
+publication_status = DRAFT
+rag_status = NOT_ANALYZED
+```
+
+8. Gọi AI `POST /v1/analyze-document` sau khi upload/file save thành công.
+9. Backend cập nhật kết quả:
+
+```txt
+Nếu AI trả READY_TO_INDEX:
+processing_status = PROCESSED
+rag_status = READY_TO_INDEX
+
+Nếu AI trả UNSUPPORTED:
+processing_status = PROCESSED
+rag_status = UNSUPPORTED
+unsupported_reason = <reason>
+
+Nếu AI lỗi hệ thống:
+processing_status = FAILED
+rag_status = FAILED
+analysis_error_code/message = <error>
+```
 
 Backend không gửi multipart sang AI. AI nhận JSON chứa `storage_key`.
 
-## 4. Shared storage
+## 4. Luồng review và index RAG
+
+Teacher chỉ submit review khi:
+
+```txt
+processing_status = PROCESSED
+publication_status = DRAFT hoặc REJECTED
+```
+
+Admin approve:
+
+```txt
+PENDING_REVIEW -> PUBLISHED
+```
+
+Sau khi approve:
+
+```txt
+Nếu rag_status = READY_TO_INDEX:
+    Backend set rag_status = INDEXING
+    Backend gọi AI POST /v1/index-document
+    Nếu success: rag_status = READY, indexed_at = now
+    Nếu fail: rag_status = FAILED, rag_error_code/message = <error>
+
+Nếu rag_status = UNSUPPORTED:
+    Không gọi index-document
+    Document vẫn PUBLISHED như tài liệu thường
+```
+
+MVP có thể gọi `index-document` bằng `@Async` hoặc worker đơn giản. Không dùng queue phức tạp trong core MVP.
+
+## 5. Shared storage
 
 Docker named volume:
 
@@ -68,7 +120,7 @@ Biến môi trường chung:
 UPLOAD_ROOT=/storage/uploads
 ```
 
-## 5. Storage key
+## 6. Storage key
 
 Format duy nhất:
 
@@ -89,7 +141,7 @@ documents/12/v1/source.pdf
 - Không chứa `..`, drive Windows, `:` hoặc absolute path.
 - Mỗi lần thay file tăng version để tránh ghi đè file đang được xử lý.
 
-## 6. File support
+## 7. File support
 
 Core MVP:
 
@@ -99,30 +151,15 @@ TXT
 max 20 MB
 ```
 
-Không OCR, DOCX hoặc PPTX trực tiếp.
-
-Backend validate để phản hồi sớm. AI validate lại tại service boundary.
-
-## 7. Auto-processing
-
-AI endpoint xử lý đồng bộ từ góc nhìn Backend. Backend chạy lời gọi trong background worker:
+Không OCR, DOCX hoặc PPTX trực tiếp. PDF scan không có text layer sẽ được analyze thành:
 
 ```txt
-upload transaction commit
--> application event
--> @TransactionalEventListener(AFTER_COMMIT)
--> @Async worker
--> POST /v1/process-document
--> update Document/job
+processing_status = PROCESSED
+rag_status = UNSUPPORTED
+unsupported_reason = PDF_SCAN_NO_TEXT
 ```
 
-Không giữ database transaction trong lúc gọi AI. Không dùng message queue trong MVP.
-
-Retry/reprocess:
-
-- Chỉ chạy khi `FAILED` hoặc Teacher thay file/yêu cầu lập chỉ mục lại.
-- Chặn hai active job cho cùng document.
-- AI atomic replace chunks; lỗi insert phải rollback và giữ chunks cũ.
+Backend validate để phản hồi sớm. AI validate lại tại service boundary.
 
 ## 8. Status ownership
 
@@ -131,10 +168,11 @@ Backend là nguồn sự thật của:
 ```txt
 documents.processing_status
 documents.publication_status
+documents.rag_status
 document_processing_jobs.status
 ```
 
-AI chỉ trả kết quả xử lý; không cập nhật Document hoặc publication.
+AI chỉ trả kết quả analyze/index/RAG; không cập nhật `documents` hoặc `publication_status`.
 
 ## 9. Authentication
 
@@ -162,8 +200,10 @@ document_ids
 
 Backend kiểm quyền từng ID trước khi gọi AI:
 
-- Owner dùng document của mình khi `PROCESSED`.
-- Người khác chỉ dùng document `PUBLISHED`.
+```txt
+publication_status = PUBLISHED
+rag_status = READY
+```
 
 AI retrieval chỉ query chunks thuộc `document_ids`. Subject/topic/chapter/tags có thể được truyền trong metadata nếu cần hiển thị hoặc logging, nhưng không thay thế permission check theo document.
 
@@ -173,7 +213,7 @@ Không làm RAG toàn Library trong core MVP.
 
 - Backend quản lý toàn bộ migration.
 - Backend sở hữu tables nghiệp vụ và status.
-- AI ghi/thay thế/truy vấn `document_chunks`.
+- AI ghi/thay thế/truy vấn `document_chunks` khi `index-document` chạy.
 - Backend không tự ghi chunks trong flow bình thường.
 - Hai service dùng chung PostgreSQL trong MVP.
 
@@ -181,7 +221,8 @@ Không làm RAG toàn Library trong core MVP.
 
 - JSON dùng `snake_case`.
 - AI trả success/error envelope thống nhất.
-- RAG trả JSON đầy đủ; chưa dùng SSE.
+- Analyze có thể trả `rag_status = UNSUPPORTED` với HTTP 200 nếu tài liệu vẫn publish được như tài liệu thường.
+- Index lỗi không bắt buộc rollback publication; Backend giữ document `PUBLISHED` và set `rag_status = FAILED`.
 - Backend ánh xạ AI error sang public API phù hợp.
 - Backend quản lý job status khi AI timeout/lỗi.
 
@@ -194,9 +235,10 @@ Không làm RAG toàn Library trong core MVP.
 | Upload/file metadata | Chủ trì | Không |
 | Subject/topic/chapter/tags | Chủ trì | Nhận làm metadata nếu cần |
 | Shared file | Ghi/xóa | Đọc |
-| Processing job/status | Chủ trì | Trả kết quả |
-| Parse/clean/chunk | Không | Chủ trì |
-| Embedding | Không | Chủ trì |
+| Processing/rag/job status | Chủ trì | Trả kết quả |
+| Analyze nhẹ | Gọi và lưu kết quả | Chủ trì validate/parse/estimate |
+| Parse/clean/chunk | Không | Chủ trì khi index |
+| Embedding | Không | Chủ trì khi index |
 | Migration | Chủ trì | Review |
 | Ghi/query chunks | Không | Chủ trì |
 | RAG permission | Chủ trì | Tin `document_ids` đã được kiểm |
@@ -226,3 +268,19 @@ EMBEDDING_DIMENSIONS=1536
 ```
 
 Backend và AI phải dùng cùng `INTERNAL_API_KEY`.
+
+## 15. Luồng mới tóm tắt
+
+```txt
+Teacher upload
+-> Backend lưu file
+-> AI analyze nhẹ
+-> processing_status = PROCESSED
+-> rag_status = READY_TO_INDEX hoặc UNSUPPORTED
+-> Teacher xem kết quả
+-> Teacher submit review
+-> Admin approve
+-> Nếu READY_TO_INDEX: Backend gọi AI index-document, rag_status = READY
+-> Nếu UNSUPPORTED: publish như tài liệu thường
+-> Library hiển thị trạng thái RAG tương ứng
+```

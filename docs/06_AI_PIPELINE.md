@@ -1,272 +1,305 @@
-# AI pipeline cho Document MVP
+# AI Pipeline - Document Analyze, Index và RAG
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
-**Owner:** AI Service
+**Phiên bản:** 1.5
+**Cập nhật:** 11/07/2026
 
-File này chỉ mô tả thuật toán AI. API payload nằm trong
-`04_AI_API_CONTRACT.md`; database nằm trong `05_DATABASE_SCHEMA.md`.
+File này mô tả thuật toán AI sau REF-01. API chi tiết nằm trong `04_AI_API_CONTRACT.md`; database nằm trong `05_DATABASE_SCHEMA_CONTRACT.md`.
 
-## 1. Trạng thái hiện tại
+## 1. Vai trò của AI Service
 
-Đã có:
+AI Service không xử lý user/role/permission. Backend gửi `document_id`, `storage_key`, `file_type` và metadata phụ sau khi đã kiểm quyền.
 
-- Internal key dependency.
-- Storage resolver và document validator.
-- PDF/TXT parser.
-- Text cleaner và tokenizer.
-- Chunker có overlap.
-- OpenAI embedding provider.
-- PostgreSQL repository atomic replace.
-- Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
-- `POST /v1/answer-question` trả extractive answer, `not_found` và citations.
-- `POST /v1/process-document` cần theo contract v1.4, không dùng `lecture_id`.
-- Unit/API mock tests.
-
-Chưa có:
-
-- E2E thật Backend -> shared file -> OpenAI -> pgvector.
-- LLM generation/chat provider cho answer tự nhiên hơn.
-
-## 2. Process pipeline
+Từ v1.5, AI tách thành 3 nhóm trách nhiệm:
 
 ```txt
-storage_key
--> resolve dưới UPLOAD_ROOT
--> validate file
--> parse PDF/TXT
--> clean text
--> chunk theo token
--> embedding
--> atomic replace document_chunks
--> trả page_count/chunk_count
+analyze-document: kiểm tra nhẹ sau upload, không ghi chunks
+index-document: chunk/embed/store sau Admin approve
+answer-question: retrieval/RAG trên document đã READY
 ```
 
-### Resolve
+Endpoint cũ `/v1/process-document` đã có trong code hiện tại và có thể giữ tạm để test legacy. Hướng triển khai chính là `/v1/analyze-document` và `/v1/index-document`.
 
-- Chỉ nhận relative path dùng `/`.
-- Chặn absolute path, Windows drive, `:`, `\` và `..`.
+## 2. Analyze pipeline
+
+Endpoint:
+
+```txt
+POST /v1/analyze-document
+```
+
+Mục tiêu:
+
+```txt
+Xác định tài liệu có thể dùng RAG hay không trước khi Teacher submit review.
+```
+
+Luồng:
+
+```txt
+request
+-> internal auth
+-> resolve storage_key dưới UPLOAD_ROOT
+-> validate file tồn tại/type/size
+-> parse nhẹ PDF/TXT
+-> kiểm tra có text đọc được không
+-> đếm page_count nếu có
+-> estimate token_count/chunk_count
+-> trả READY_TO_INDEX hoặc UNSUPPORTED
+```
+
+Analyze không làm:
+
+```txt
+không clean/chunk đầy đủ
+không gọi embedding provider
+không ghi document_chunks
+không cập nhật bảng documents
+```
+
+Kết quả hỗ trợ RAG:
+
+```txt
+processing_status = PROCESSED
+rag_status = READY_TO_INDEX
+```
+
+Kết quả không hỗ trợ RAG nhưng vẫn publish được:
+
+```txt
+processing_status = PROCESSED
+rag_status = UNSUPPORTED
+unsupported_reason = PDF_SCAN_NO_TEXT hoặc EMPTY_TEXT
+```
+
+PDF scan không OCR trong MVP. Nếu PDF không có text layer thì analyze trả `UNSUPPORTED`, không phải lỗi upload.
+
+## 3. Index pipeline
+
+Endpoint:
+
+```txt
+POST /v1/index-document
+```
+
+Mục tiêu:
+
+```txt
+Sau khi Admin approve, tạo chunks/embedding để tài liệu có thể hỏi RAG.
+```
+
+Luồng:
+
+```txt
+request
+-> internal auth
+-> resolve storage_key dưới UPLOAD_ROOT
+-> validate file tồn tại/type/size
+-> parse đầy đủ PDF/TXT
+-> clean text
+-> chunk theo token
+-> sinh embedding
+-> atomic replace document_chunks
+-> trả READY + chunk_count
+```
+
+Atomic replace:
+
+```txt
+build toàn bộ chunks/embeddings trước transaction
+-> BEGIN
+-> DELETE FROM document_chunks WHERE document_id = ?
+-> batch INSERT chunks mới
+-> COMMIT
+```
+
+Nếu insert lỗi:
+
+```txt
+ROLLBACK
+chunks cũ vẫn còn nguyên
+AI trả error để Backend set rag_status = FAILED
+```
+
+## 4. Storage resolver
+
+Input:
+
+```txt
+storage_key = documents/{document_id}/v{version}/source.{extension}
+```
+
+Rule:
+
 - Path cuối phải nằm dưới `UPLOAD_ROOT`.
+- Từ chối absolute path.
+- Từ chối `..`, Windows drive, ký tự `:`.
+- AI chỉ đọc file; Backend là bên ghi/xóa file.
 
-### Validate
+## 5. Parser
 
-- File tồn tại.
-- Loại khai báo khớp extension/signature.
-- PDF/TXT.
-- Tối đa 20 MB.
-- TXT có encoding hợp lệ.
+### PDF
 
-### Parse
+- Đọc text theo từng page.
+- Giữ `page_number` để citation trỏ ngược được.
+- Không OCR trong MVP.
+- PDF scan không có text layer -> `UNSUPPORTED` ở analyze.
 
-PDF:
+### TXT
 
-- Dùng PyMuPDF.
-- Trích text theo page.
-- Giữ `page_number` bắt đầu từ 1.
-- PDF scan không có text trả `EMPTY_DOCUMENT`.
+- Đọc như một logical page.
+- Detect/validate encoding ở mức đơn giản.
+- Nếu text rỗng -> `UNSUPPORTED` hoặc `EMPTY_DOCUMENT` tùy file có còn publish được không.
 
-TXT:
+## 6. Cleaning và chunking
 
-- Đọc text theo encoding đã validate.
-- `page_number=null`.
-- Toàn file là một logical page trước chunking.
+Chỉ chạy đầy đủ trong `index-document`.
 
-### Clean
+Cleaning:
 
-- Chuẩn hóa line ending.
-- Loại control characters không hợp lệ.
-- Chuẩn hóa whitespace.
-- Giữ paragraph và code structure cần thiết.
-- Không viết lại hoặc tóm tắt nội dung gốc.
+- Chuẩn hóa khoảng trắng.
+- Gộp dòng vỡ hợp lý.
+- Bỏ trang trắng/nội dung rỗng.
 
-### Chunk
-
-Config mặc định:
+Chunking:
 
 ```txt
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=150
 ```
 
-Ưu tiên điểm cắt:
-
-```txt
-paragraph
--> sentence
--> newline
--> whitespace
--> hard cut
-```
-
 Mỗi chunk có:
 
 ```txt
-chunk_index
+document_id
 page_number
+chunk_index
 content
 token_count
+embedding
 ```
 
 `chunk_index` liên tục từ 0 trong toàn document.
 
-### Embedding
+## 7. Embedding
 
-Core config:
+Chỉ chạy trong `index-document`.
+
+Mặc định:
 
 ```txt
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
+EMBEDDING_BATCH_SIZE=64
 ```
 
-- Gửi theo batch.
-- Retry có giới hạn.
-- Validate số vector, dimensions và finite values.
+Nếu `OPENAI_API_KEY` thiếu hoặc provider lỗi, AI trả error để Backend set:
 
-### Persistence
+```txt
+rag_status = FAILED
+rag_error_code/message = <error>
+```
 
-- Build toàn bộ embeddings trước transaction.
-- Delete chunks cũ và batch insert chunks mới trong một transaction.
-- Insert lỗi phải rollback cả delete.
-- Unique `(document_id, chunk_index)`.
+Document vẫn có thể `PUBLISHED`; chỉ RAG không sẵn sàng.
 
-## 3. Retrieval pipeline
+## 8. Retrieval và RAG answer
 
-Trạng thái AI-02/AI-03: đã có repository `search_similar_chunks` và endpoint `/v1/answer-question`. MVP hiện compose extractive answer từ retrieved chunks; LLM generation có thể bổ sung sau.
+Endpoint:
+
+```txt
+POST /v1/answer-question
+```
+
+Backend chỉ gọi endpoint này khi:
+
+```txt
+publication_status = PUBLISHED
+rag_status = READY
+```
+
+Luồng:
 
 ```txt
 question
--> validate
--> query embedding
--> vector search trong document_ids
+-> embed question
+-> query pgvector trong document_ids được Backend cho phép
 -> top_k chunks
--> similarity threshold
--> retrieved context
-```
-
-Input:
-
-```txt
-document_ids: 1-10 IDs
-question
-top_k: mặc định 5
-language
-```
-
-Quy tắc:
-
-- Bắt buộc filter `document_ids`.
-- Không dùng `course_id` hoặc `lecture_id` làm scope retrieval.
-- Subject/topic/chapter/tags chỉ là metadata lấy từ Document khi cần hiển thị.
-- Không query toàn Library.
-- Backend đã kiểm permission trước khi gọi.
-- Sort theo cosine distance.
-- Trả score `1 - cosine_distance`.
-- Không có chunks hoặc score dưới threshold thì not-found.
-
-## 4. RAG answer
-
-Trạng thái AI-03: đã có endpoint `/v1/answer-question` ở mức MVP. Luồng hiện tại là extractive, tức là câu trả lời được compose trực tiếp từ các chunks tìm được, chưa gọi LLM generation/chat provider riêng.
-
-```txt
-retrieved chunks
 -> compose extractive answer từ top chunks
--> tạo citations từ chính retrieved chunks
--> trả answer/not_found/citations/tokens_used
+-> citations từ row document_chunks thật
 ```
 
-Quy tắc bắt buộc:
+MVP hiện dùng extractive answer từ retrieved chunks. Nếu sau này thêm LLM generation, prompt vẫn chỉ được dùng retrieved context, không bù kiến thức ngoài.
 
-- Chỉ dùng retrieved context.
-- Không tự bổ sung kiến thức ngoài tài liệu.
-- Nếu không có chunk, trả `not_found=true`.
-- Không tạo citation không tồn tại.
-- Trả lời theo `language`.
-- `tokens_used=0` trong MVP vì chưa gọi generation model.
-## 5. Citation
+## 9. Citation contract
 
-Mỗi citation:
+Citation phải truy ngược được về row thật:
 
 ```txt
 chunk_id
 document_id
 page_number
+chunk_index
 excerpt
 score
 ```
 
-`excerpt` lấy từ chunk thực tế, không do model tự viết. Citation phải truy ngược
-được về row `document_chunks`.
+Không tạo citation giả.
 
-## 6. Not-found
+## 10. Error strategy
 
-Trả:
+Analyze:
 
-```txt
-not_found=true
-citations=[]
-tokens_used=0 hoặc usage thực tế nếu đã gọi model
-```
+- File không tồn tại/type sai/quá size: error.
+- PDF scan hoặc không đủ text: trả `rag_status = UNSUPPORTED` nếu tài liệu vẫn publish được.
 
-Ưu tiên không gọi generation model nếu retrieval chắc chắn không có context.
+Index:
 
-## 7. Security boundary
+- Provider/database lỗi: error.
+- Backend giữ document `PUBLISHED` nhưng set `rag_status = FAILED`.
 
-AI Service:
+Answer:
 
-- Kiểm `X-Internal-Key`.
-- Validate `storage_key` và input.
-- Không xử lý JWT.
-- Không kiểm Teacher/Admin.
-- Không đọc/cập nhật `publication_status`.
-- Tin rằng Backend đã kiểm permission của `document_ids`.
+- Không có chunks hoặc score dưới threshold: `not_found=true`.
+- Không truy vấn document ngoài `document_ids`.
 
-## 8. Test bắt buộc
+## 11. Test bắt buộc
 
-### Process
+Analyze tests:
 
-- PDF nhiều trang và TXT.
-- File rỗng, sai signature, quá size.
-- Path traversal.
-- Chunk index/token/overlap.
-- Embedding dimensions.
-- Atomic rollback.
-- E2E thật lưu pgvector.
+- TXT có text -> READY_TO_INDEX.
+- PDF có text -> READY_TO_INDEX.
+- PDF scan/no text -> UNSUPPORTED.
+- Invalid storage_key -> INVALID_INPUT.
 
-### Retrieval
+Index tests:
 
-- Chỉ trả chunks trong `document_ids`.
-- Không rò chunk của document khác.
-- Top-k và score đúng.
-- Empty document list/input không hợp lệ.
-- Không có chunks trả not-found.
+- TXT/PDF tạo chunks và insert `document_chunks`.
+- Reindex thay chunks cũ trong transaction.
+- Provider/database lỗi không làm mất chunks cũ.
 
-### RAG
+RAG tests:
 
-- Answer bám retrieved context.
+- Retrieval chỉ trong `document_ids`.
 - Citation đúng chunk/document/page.
-- Không citation giả.
-- Internal key sai trả `401`.
-- Provider timeout/database error dùng đúng error envelope.
+- Không có chunks trả `not_found=true`.
 
-## 9. Current parser evidence
+## 12. Trạng thái hiện tại
 
-Pipeline parse/clean/chunk đã được thử với PDF tiếng Việt có text layer gồm 179
-trang:
+Đã có trong code trước REF-01:
+
+- Storage resolver/validator.
+- PDF/TXT parser.
+- Cleaning/chunking.
+- Embedding provider.
+- Repository lưu và retrieval pgvector.
+- `/v1/process-document` legacy.
+- `/v1/answer-question` MVP.
+
+Cần làm tiếp sau REF-01:
 
 ```txt
-307 chunks
-max chunk: 999 tokens
+AI-04: thêm /v1/analyze-document
+AI-05: thêm /v1/index-document
+BE-04: Backend gọi analyze sau upload
+BE-06: Backend gọi index sau Admin approve
+BE-08: Backend RAG proxy chỉ gọi khi PUBLISHED + READY
 ```
-
-Đây chưa phải E2E đầy đủ vì lần test parser không gọi OpenAI và không lưu
-PostgreSQL.
-
-## 10. Should-have
-
-Sau core RAG E2E:
-
-- Summary một document.
-- Question generation từ selected documents.
-- Prompt/evaluation tuning.
-
-Các phần này không chặn core MVP.

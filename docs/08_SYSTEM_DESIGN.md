@@ -8,7 +8,7 @@
 
 ## 1. Tổng quan hệ thống
 
-LMS-RAG là hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG cho giảng viên ngành CNTT. Trọng tâm của core MVP là **Document**: giảng viên upload tài liệu, Admin kiểm duyệt, sau đó tài liệu xuất hiện trong Library để giảng viên khác tra cứu bằng RAG có citation.
+LMS-RAG là hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG cho giảng viên ngành CNTT. Trọng tâm của core MVP là **Document**: giảng viên upload tài liệu, AI analyze nhẹ, Admin kiểm duyệt, sau đó tài liệu xuất hiện trong Library. Nếu tài liệu hỗ trợ RAG, hệ thống index sau khi Admin approve để giảng viên khác tra cứu bằng RAG có citation.
 
 
 ### Luồng demo bắt buộc
@@ -19,7 +19,9 @@ Teacher A login
   -> nhập metadata subject/topic/chapter/tags
   -> Backend tạo Document + lưu file
   -> Backend gọi AI Service background
-  -> AI parse/clean/chunk/embed và lưu document_chunks
+  -> AI analyze nhẹ, trả READY_TO_INDEX hoặc UNSUPPORTED
+  -> Admin approve
+  -> nếu READY_TO_INDEX thì AI index và lưu document_chunks
   -> Teacher A submit review
   -> Admin approve
   -> Document xuất hiện trong Library
@@ -51,7 +53,8 @@ Teacher A login
 ┌─────────────────────────┐      ┌──────────────────────────┐
 │      AI Service         │      │    PostgreSQL + pgvector │
 │      FastAPI (Python)   │      │  users | documents       │
-│  process-document       │      │  document_processing_jobs│
+│  analyze-document       │
+│  index-document         │      │  document_processing_jobs│
 │  answer-question        │      │  document_chunks         │
 └─────────────────────────┘      └──────────────────────────┘
 ```
@@ -77,7 +80,7 @@ Teacher upload tài liệu
   -> Backend validate và lưu file
   -> tạo Document: UPLOADED + DRAFT
   -> tạo processing job
-  -> background call AI /v1/process-document
+  -> call AI /v1/analyze-document
   -> AI lưu chunks/vector
   -> Backend cập nhật PROCESSED hoặc FAILED
 ```
@@ -139,10 +142,10 @@ Hệ thống có **một Admin duy nhất**, tạo bằng migration/seed.
 ### 5.1. Processing status
 
 ```txt
-UPLOADED -> PROCESSING -> PROCESSED
+UPLOADED -> ANALYZING -> PROCESSED
                       -> FAILED
 
-FAILED/PROCESSED --retry/reprocess--> PROCESSING
+FAILED --retry analyze--> ANALYZING
 ```
 
 ### 5.2. Publication status
@@ -157,7 +160,7 @@ PUBLISHED --Admin archive--> ARCHIVED
 
 ### Quy tắc
 
-- Hai trạng thái được lưu ở **hai cột riêng** trên `documents`.
+- Ba trạng thái được lưu ở ba cột riêng trên `documents`: `processing_status`, `publication_status`, `rag_status`.
 - Upload tự chạy processing nhưng **không tự submit review**.
 - Chỉ document `PROCESSED` được submit review.
 - Chỉ `PUBLISHED` xuất hiện trong Library.
@@ -254,7 +257,8 @@ Tags: JSONB array
 | `file_type` | `VARCHAR(20)` | NOT NULL, CHECK `PDF`/`TXT` | Loại file |
 | `mime_type` | `VARCHAR(100)` | | MIME type |
 | `file_size` | `BIGINT` | NOT NULL, CHECK > 0 | Kích thước file |
-| `processing_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `UPLOADED`, CHECK `UPLOADED`/`PROCESSING`/`PROCESSED`/`FAILED` | Trạng thái xử lý AI |
+| `processing_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `UPLOADED`, CHECK `UPLOADED`/`ANALYZING`/`PROCESSED`/`FAILED` | Trạng thái analyze nhẹ |
+| `rag_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `NOT_ANALYZED`, CHECK `NOT_ANALYZED`/`READY_TO_INDEX`/`UNSUPPORTED`/`INDEXING`/`READY`/`FAILED` | Trạng thái RAG/index |
 | `publication_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `DRAFT`, CHECK `DRAFT`/`PENDING_REVIEW`/`PUBLISHED`/`REJECTED`/`ARCHIVED` | Trạng thái kiểm duyệt |
 | `error_code` | `VARCHAR(50)` | | Mã lỗi AI |
 | `error_message` | `TEXT` | | Chi tiết lỗi AI |
@@ -346,7 +350,8 @@ POST /api/v1/rag/answer
 ```txt
 GET  /v1/health
 GET  /v1/health/pgvector
-POST /v1/process-document
+POST /v1/analyze-document
+POST /v1/index-document
 POST /v1/answer-question
 ```
 
@@ -481,7 +486,7 @@ MAX_FILE_SIZE_MB=20
 - BE-01: Database migration MVP.
 - BE-02: Document entity/repository.
 - FE-01: App shell, route guard, API client.
-- AI-01: Align process-document contract.
+- AI-01: Legacy process-document nền pipeline; REF-01 tách analyze/index.
 
 ### Phase 2: Upload & Processing
 
@@ -559,3 +564,37 @@ MVP đạt khi:
 - Document published xuất hiện trong Library.
 - Teacher khác hỏi RAG trên document và nhận citation.
 - Backend/AI/Frontend có test hoặc manual test evidence tối thiểu.
+
+## REF-01. Luồng refactor v1.5
+
+Luồng mới được chốt sau khi test tích hợp cơ bản:
+
+```txt
+Teacher upload
+-> Backend lưu file
+-> AI analyze nhẹ
+-> processing_status = PROCESSED
+-> rag_status = READY_TO_INDEX hoặc UNSUPPORTED
+-> Teacher xem kết quả
+-> Teacher submit review
+-> Admin approve
+-> Nếu rag_status = READY_TO_INDEX:
+      Backend gọi AI index-document
+      rag_status = INDEXING
+      AI chunk/embed/store
+      rag_status = READY
+-> Nếu rag_status = UNSUPPORTED:
+      document published như tài liệu thường
+-> Library hiển thị:
+      READY: Có RAG AI
+      INDEXING: Đang chuẩn bị RAG
+      UNSUPPORTED: Không có RAG AI
+```
+
+Tác động kiến trúc:
+
+- Upload không còn chunk/embed ngay lập tức.
+- Admin approve là mốc kích hoạt index RAG.
+- Document không hỗ trợ RAG vẫn có giá trị như tài liệu thư viện.
+- Backend là nguồn sự thật của `rag_status`.
+- AI chỉ trả kết quả analyze/index, không tự cập nhật `documents`.

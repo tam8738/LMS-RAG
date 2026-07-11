@@ -187,7 +187,7 @@ CREATE TABLE documents (
         CHECK (file_type IN ('PDF', 'TXT')),
     CONSTRAINT ck_documents_processing_status
         CHECK (processing_status IN (
-            'UPLOADED', 'PROCESSING', 'PROCESSED', 'FAILED'
+            'UPLOADED', 'ANALYZING', 'PROCESSED', 'FAILED'
         )),
     CONSTRAINT ck_documents_publication_status
         CHECK (publication_status IN (
@@ -331,6 +331,89 @@ Ghi chú cho Backend:
 - Khi cần subject/topic/chapter trong citation hoặc filter, join từ `document_chunks.document_id` sang `documents.id`.
 - AI reprocess sẽ delete/insert chunks theo `document_id` trong một transaction.
 
+
+## 9A. Migration V4 - rag_status và analysis fields
+
+Không sửa trực tiếp `V1/V2/V3` nếu database đã chạy. Khi refactor sang luồng mới, Backend tạo migration mới:
+
+```txt
+V4__add_rag_status_and_analysis_fields.sql
+```
+
+SQL tối thiểu:
+
+```sql
+ALTER TABLE documents
+ADD COLUMN rag_status VARCHAR(30) NOT NULL DEFAULT 'NOT_ANALYZED',
+ADD COLUMN analysis_error_code VARCHAR(50),
+ADD COLUMN analysis_error_message TEXT,
+ADD COLUMN unsupported_reason VARCHAR(100),
+ADD COLUMN page_count INT,
+ADD COLUMN estimated_token_count INT,
+ADD COLUMN estimated_chunk_count INT,
+ADD COLUMN analyzed_at TIMESTAMPTZ,
+ADD COLUMN rag_error_code VARCHAR(50),
+ADD COLUMN rag_error_message TEXT,
+ADD COLUMN indexed_at TIMESTAMPTZ;
+
+ALTER TABLE documents
+ADD CONSTRAINT ck_documents_rag_status
+CHECK (rag_status IN (
+    'NOT_ANALYZED',
+    'READY_TO_INDEX',
+    'UNSUPPORTED',
+    'INDEXING',
+    'READY',
+    'FAILED'
+));
+
+ALTER TABLE documents
+ADD CONSTRAINT ck_documents_page_count
+CHECK (page_count IS NULL OR page_count >= 0),
+ADD CONSTRAINT ck_documents_estimated_token_count
+CHECK (estimated_token_count IS NULL OR estimated_token_count >= 0),
+ADD CONSTRAINT ck_documents_estimated_chunk_count
+CHECK (estimated_chunk_count IS NULL OR estimated_chunk_count >= 0);
+
+CREATE INDEX idx_documents_rag_status
+ON documents(rag_status);
+```
+
+Nếu giữ tên `PROCESSING` cũ trong `processing_status`, cần quyết định một trong hai hướng:
+
+```txt
+Hướng khuyến nghị: migrate PROCESSING -> ANALYZING và update check constraint.
+Hướng tạm thời: cho phép cả PROCESSING và ANALYZING trong giai đoạn chuyển tiếp.
+```
+
+Khuyến nghị sau khi refactor hoàn tất:
+
+```txt
+processing_status: UPLOADED, ANALYZING, PROCESSED, FAILED
+```
+
+Có thể bổ sung `job_type` cho `document_processing_jobs`:
+
+```sql
+ALTER TABLE document_processing_jobs
+ADD COLUMN job_type VARCHAR(30) NOT NULL DEFAULT 'INDEX';
+
+ALTER TABLE document_processing_jobs
+ADD CONSTRAINT ck_processing_jobs_type
+CHECK (job_type IN ('ANALYZE', 'INDEX', 'REPROCESS'));
+
+CREATE INDEX idx_processing_jobs_type_document
+ON document_processing_jobs(document_id, job_type, created_at DESC);
+```
+
+Luồng trạng thái mới:
+
+```txt
+Upload -> ANALYZING -> PROCESSED + READY_TO_INDEX/UNSUPPORTED
+Admin approve + READY_TO_INDEX -> INDEXING -> READY/FAILED
+Admin approve + UNSUPPORTED -> PUBLISHED như tài liệu thường
+```
+
 ## 10. Lưu ý Hibernate/JPA cho document_chunks
 
 `document_chunks.embedding` dùng kiểu `VECTOR(1536)` của pgvector. Hibernate/JPA mặc định không hiểu tốt kiểu dữ liệu này, nên Backend không nên để Hibernate tự generate hoặc tự map bảng `document_chunks` trong MVP.
@@ -399,9 +482,9 @@ Database chỉ kiểm enum hợp lệ. Backend service phải kiểm transition 
 Processing:
 
 ```txt
-UPLOADED -> PROCESSING -> PROCESSED
+UPLOADED -> ANALYZING -> PROCESSED
                       -> FAILED
-FAILED/PROCESSED -> PROCESSING nếu reprocess
+FAILED -> ANALYZING nếu analyze lại
 ```
 
 Publication:
@@ -417,6 +500,8 @@ PUBLISHED -> ARCHIVED
 Rule quan trọng:
 
 - Chỉ submit review khi `processing_status = 'PROCESSED'`.
+- Chỉ bật hỏi RAG khi `publication_status = 'PUBLISHED'` và `rag_status = 'READY'`.
+- Document `rag_status = 'UNSUPPORTED'` vẫn được publish như tài liệu thường.
 - Chỉ document `PUBLISHED` xuất hiện trong Library.
 - Owner có thể RAG document của mình nếu `PROCESSED`.
 - Teacher khác chỉ RAG document `PUBLISHED`.
@@ -520,7 +605,7 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 ORDER BY tc.table_name, kcu.column_name;
 ```
 
-Không được có FK từ `documents` hoặc `document_chunks` sang `courses/lectures` trong MVP mới.
+Không được có FK từ `documents` hoặc `document_chunks` sang `courses/lectures` trong MVP mới. Không thêm cột `chunk_id` hoặc `chunks` trực tiếp vào `documents`; RAG dùng bảng riêng `document_chunks`.
 
 ## 15. Checklist bàn giao cho AI
 

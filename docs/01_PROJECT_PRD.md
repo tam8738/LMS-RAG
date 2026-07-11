@@ -1,7 +1,7 @@
 # PRD - Hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.5
+**Cập nhật:** 11/07/2026
 **Trạng thái:** Nguồn yêu cầu nghiệp vụ chính thức
 
 ## 1. Bài toán
@@ -16,10 +16,10 @@ Hệ thống không phải LMS đầy đủ. Không bắt giảng viên tạo Co
 
 - Quản lý tài liệu/học liệu theo hướng document-centric.
 - Cho phép Teacher upload PDF/TXT và gắn metadata nếu cần.
-- Tự động xử lý PDF/TXT thành chunks và embeddings sau khi upload.
+- Tự động analyze nhẹ PDF/TXT sau khi upload để xác định tài liệu có hỗ trợ RAG hay không.
 - Kiểm duyệt tài liệu trước khi đưa vào thư viện chung.
 - Tìm kiếm, lọc và khai thác tài liệu đã công bố.
-- Hỏi đáp RAG trên tài liệu được chọn và trả citation.
+- Chỉ index RAG sau khi Admin approve; hỏi đáp RAG trên tài liệu `PUBLISHED` có `rag_status = READY` và trả citation.
 - Giữ quyền sở hữu, quyền truy cập và trạng thái rõ ràng.
 
 ## 3. Thuật ngữ
@@ -32,8 +32,8 @@ Hệ thống không phải LMS đầy đủ. Không bắt giảng viên tạo Co
 | Chapter | Chương/bài/phần tùy chọn của Document |
 | Tags | Nhãn phân loại tự do của Document |
 | Library | Danh sách Document `PUBLISHED` sau khi đăng nhập |
-| Processing status | Trạng thái xử lý kỹ thuật của AI |
-| Publication status | Trạng thái kiểm duyệt/công bố |
+| Processing status | Trạng thái analyze nhẹ tài liệu sau upload |
+| Publication status | Trạng thái kiểm duyệt/công bố |`n| RAG status | Trạng thái khả năng RAG và lập chỉ mục vector |
 | RAG | Retrieval context trước khi sinh câu trả lời |
 | Citation | Document, trang, đoạn trích và score của nguồn |
 | Public | Được công bố trong thư viện nội bộ, không mặc định công khai Internet |
@@ -48,12 +48,12 @@ Teacher có thể:
 - Upload PDF/TXT mà không cần tạo Course/Lecture trước.
 - Gắn metadata cho tài liệu: subject, topic, chapter, tags, description.
 - Quản lý tài liệu của mình khi còn ở trạng thái cho phép sửa.
-- Theo dõi trạng thái xử lý AI.
-- Retry/reprocess khi cần.
-- Dùng RAG trên tài liệu của mình đã `PROCESSED`.
+- Theo dõi trạng thái analyze và trạng thái RAG.
+- Retry analyze/index khi cần.
+- Xem kết quả analyze trước khi gửi duyệt.
 - Gửi tài liệu cho Admin duyệt.
 - Xem lý do từ chối, chỉnh sửa metadata/file và gửi lại.
-- Dùng RAG trên tài liệu `PUBLISHED` của giảng viên khác.
+- Dùng RAG trên tài liệu `PUBLISHED` có `rag_status = READY`.
 
 Teacher không được sửa/xóa tài liệu của người khác và không tự đặt document thành `PUBLISHED`.
 
@@ -91,7 +91,7 @@ Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thốn
 - Backend tự tạo Document và processing job.
 - Backend tự động gọi AI sau khi upload.
 - AI parse, clean, chunk, embedding và lưu pgvector.
-- Teacher xem hai trạng thái độc lập.
+- Teacher xem ba trạng thái độc lập: processing, publication và RAG.
 - Teacher submit review.
 - Admin approve/reject/archive.
 - Library chỉ hiển thị `PUBLISHED`.
@@ -133,10 +133,10 @@ Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thốn
 ### Processing status
 
 ```txt
-UPLOADED -> PROCESSING -> PROCESSED
+UPLOADED -> ANALYZING -> PROCESSED
                       -> FAILED
 
-FAILED/PROCESSED --retry hoặc thay file--> PROCESSING
+FAILED --retry hoặc thay file--> ANALYZING
 ```
 
 ### Publication status
@@ -151,8 +151,8 @@ PUBLISHED --Admin archive--> ARCHIVED
 
 Quy tắc:
 
-- Hai trạng thái được lưu ở hai cột riêng.
-- Upload tự chạy processing nhưng không tự submit review.
+- Ba trạng thái được lưu ở ba cột riêng: `processing_status`, `publication_status`, `rag_status`.
+- Upload tự chạy analyze nhẹ nhưng không tự submit review.
 - Chỉ document `PROCESSED` được submit.
 - Chỉ `PUBLISHED` xuất hiện trong Library.
 
@@ -160,9 +160,9 @@ Quy tắc:
 
 | Publication status | Teacher owner | Teacher khác | Admin |
 |---|---|---|---|
-| `DRAFT` | Xem, sửa metadata/file, xóa, RAG nếu `PROCESSED`, submit | Không | Không cần |
+| `DRAFT` | Xem, sửa metadata/file, xóa, xem kết quả analyze, submit nếu `PROCESSED` | Không | Không cần |
 | `PENDING_REVIEW` | Xem, không thay file | Không | Xem, approve, reject |
-| `PUBLISHED` | Xem/RAG | Xem/RAG | Xem, archive |
+| `PUBLISHED` | Xem, RAG nếu `rag_status = READY` | Xem, RAG nếu `rag_status = READY` | Xem, archive |
 | `REJECTED` | Xem lý do, sửa metadata/file, xóa, submit lại | Không | Xem lịch sử |
 | `ARCHIVED` | Xem lịch sử | Không | Xem |
 
@@ -232,7 +232,7 @@ Sau login, Teacher vào Library. Admin có thêm khu vực Review và quản lý
 - Backend gọi AI bằng `X-Internal-Key`.
 - Draft/rejected/archived không lộ trong Library.
 - Không log JWT, secret hoặc OpenAI key.
-- Reprocess dùng transaction để không mất chunks cũ khi insert lỗi.
+- Index/reindex dùng transaction để không mất chunks cũ khi insert lỗi.
 - `storage_key` luôn là relative path dưới `UPLOAD_ROOT`.
 - AI chỉ trả lời dựa trên retrieved context.
 - Citation phải truy ngược được về document và page.

@@ -48,7 +48,7 @@ Nguồn duy nhất cho endpoint, request, response và error giữa Backend và 
 ### 5. Database schema
 
 ```txt
-05_DATABASE_SCHEMA.md
+05_DATABASE_SCHEMA_CONTRACT.md
 ```
 
 Nguồn duy nhất cho SQL schema, constraint và index của Document MVP.
@@ -89,7 +89,7 @@ chunks, khóa chính, khóa phụ, index và seed demo.
 - Không triển khai Student flow trong core MVP.
 - ID nghiệp vụ mục tiêu dùng `BIGINT/Long`.
 - Upload tự động kích hoạt AI processing.
-- Dùng hai cột riêng: `processing_status` và `publication_status`.
+- Dùng ba cột riêng: `processing_status`, `publication_status` và `rag_status`.
 - `storage_key` có version:
   `documents/{document_id}/{version}/source.{extension}`.
 - RAG nhận `document_ids`; không retrieval toàn thư viện trong MVP.
@@ -100,8 +100,8 @@ chunks, khóa chính, khóa phụ, index và seed demo.
 
 1. `01_PROJECT_PRD.md` quyết định phạm vi và nghiệp vụ.
 2. `04_AI_API_CONTRACT.md` quyết định payload HTTP Backend - AI.
-3. `05_DATABASE_SCHEMA.md` quyết định database schema.
-4. `03_BE_AI_INTEGRATION.md` quyết định ownership và kiến trúc tích hợp.
+3. `05_DATABASE_SCHEMA_CONTRACT.md` quyết định database schema, bao gồm `rag_status` và migration V4.
+4. `03_BE_AI_INTEGRATION.md` quyết định ownership và kiến trúc tích hợp analyze/index.
 5. `06_AI_PIPELINE.md` quyết định thuật toán AI.
 6. `07_BACKEND_DATABASE_SCHEMA_GUIDE.md` hướng dẫn Backend tạo migration database đầy đủ.
 7. `02_MVP_IMPLEMENTATION_PLAN.md` quyết định thứ tự thi công.
@@ -126,3 +126,26 @@ WBS - LMS.xlsx
 3. Cập nhật file sở hữu quyết định đó.
 4. Cập nhật file liên quan bằng liên kết, không sao chép lại toàn bộ nội dung.
 5. Review docs và implementation trong cùng pull request hoặc docs trước code.
+## Cập nhật REF-01 - Luồng analyze/index mới
+
+Luồng MVP mới được chốt:
+
+```txt
+Teacher upload
+-> Backend lưu file
+-> AI analyze nhẹ
+-> processing_status = PROCESSED
+-> rag_status = READY_TO_INDEX hoặc UNSUPPORTED
+-> Teacher submit review
+-> Admin approve
+-> Nếu READY_TO_INDEX: Backend gọi AI index-document, rag_status = READY
+-> Nếu UNSUPPORTED: publish như tài liệu thường, không có RAG AI
+```
+
+Đọc các file sau khi implement REF-01:
+
+1. `01_PROJECT_PRD.md` để hiểu scope nghiệp vụ.
+2. `03_BE_AI_INTEGRATION.md` để hiểu luồng BE-AI.
+3. `04_AI_API_CONTRACT.md` để implement payload analyze/index/RAG.
+4. `05_DATABASE_SCHEMA_CONTRACT.md` và `07_BACKEND_DATABASE_SCHEMA_GUIDE.md` để tạo migration V4.
+5. `02_MVP_IMPLEMENTATION_PLAN.md` để chia task cho BE/AI/FE.
