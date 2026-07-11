@@ -68,6 +68,8 @@ analysis_error_code/message = <error>
 
 Backend không gửi multipart sang AI. AI nhận JSON chứa `storage_key`.
 
+Implementation status BE-04: Backend đã có `AiServiceClient` gọi `/v1/analyze-document` sau upload, dùng `AI_SERVICE_BASE_URL` và `INTERNAL_API_KEY`; kết quả analyze được lưu vào `processing_status`, `rag_status`, các analysis fields và `document_processing_jobs`.
+
 ## 4. Luồng review và index RAG
 
 Teacher chỉ submit review khi:

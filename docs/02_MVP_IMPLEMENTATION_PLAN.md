@@ -147,7 +147,7 @@ Quy ước trạng thái:
 | BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; REF-02 thêm V4 `rag_status` và analysis/index fields; đổi `ddl-auto` sang `validate`; compile + test pass |
 | BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`; REF-02 thêm `RagStatus` và các field analyze/index vào `Document`/`DocumentResponse`; code compile + test pass |
 | BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; đã test Docker upload TXT thành công và AI container đọc được file qua shared volume |
-| BE-04 - AI analyze client sau upload | Tâm/Khánh | P0 | BE-03, AI-04 | TODO | Backend gọi AI `/v1/analyze-document` sau upload, cập nhật `processing_status`, `rag_status`, analysis fields và job status |
+| BE-04 - AI analyze client sau upload | Tâm/Khánh | P0 | BE-03, AI-04 | DONE | Đã thêm `AiServiceClient`, config `AI_SERVICE_BASE_URL`/`INTERNAL_API_KEY`; upload gọi AI `/v1/analyze-document`, cập nhật `processing_status`, `rag_status`, analysis fields và job status; backend test pass |
 | BE-05 - My Documents API | Tâm | P0 | BE-04 | IN_PROGRESS | Đã có list/detail/update/delete/submit-review; cần expose `rag_status`, analysis result, chỉ submit khi `processing_status=PROCESSED` |
 | BE-06 - Admin review API | Tâm | P0 | BE-05 | IN_PROGRESS | Đã có review queue/detail/approve/reject/archive; cần sửa approve để sau khi publish gọi index nếu `rag_status=READY_TO_INDEX` |
 | BE-07 - Library API | Tâm | P0 | BE-06 | IN_PROGRESS | Đã có list/detail chỉ trả `PUBLISHED`; cần expose badge RAG: READY, INDEXING, UNSUPPORTED, FAILED |
@@ -233,19 +233,19 @@ POST /v1/answer-question` với `document_ids=[2]` trả answer, `not_found=fals
 Blocker còn lại cho core E2E:
 
 ```txt
-BE-04 chưa có: Backend upload xong chưa tự gọi AI `/v1/analyze-document`.
-BE-04 chưa có: Backend chưa tự cập nhật `processing_status`, `rag_status` và analysis fields theo response AI.
+BE-04 đã có code: Backend upload xong gọi AI /v1/analyze-document và cập nhật processing_status, rag_status, analysis fields/job status.
+INT-01 chưa chốt: cần chạy lại Docker E2E thật để xác nhận Backend + AI Service + shared volume hoạt động cùng nhau.
+BE-06/BE-index chưa có: Backend chưa gọi AI /v1/index-document sau Admin approve.
 BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer để kiểm quyền rồi gọi AI.
 Frontend chưa có app để chạy demo UI.
 ```
-
 Kết luận snapshot:
 
 ```txt
 AI Service core đã chạy được với database/file thật.
 Docker/shared volume đã chạy được.
 Backend document/review/library đã chạy được từng phần.
-MVP chưa E2E hoàn chỉnh vì Backend chưa tích hợp đủ AI client, review->index flow và RAG proxy.
+MVP chưa E2E hoàn chỉnh vì còn thiếu review->index flow, RAG proxy và test Docker E2E sau BE-04.
 ```
 
 
@@ -265,8 +265,8 @@ Backend Maven test pass
 Chưa làm trong REF-02:
 
 ```txt
-Chưa đổi upload flow sang ANALYZING
-Chưa gọi AI /v1/analyze-document
+Đã đổi upload flow sang ANALYZING rồi PROCESSED/FAILED theo kết quả analyze
+Đã gọi AI /v1/analyze-document sau upload trong BE-04
 Chưa gọi AI /v1/index-document sau approve
 ```
 ## 7. Backend implementation plan
@@ -484,44 +484,46 @@ Acceptance criteria:
 - File sai loại/quá size trả lỗi rõ.
 - Không log JWT, file content, secret.
 
-### BE-04 - Auto-processing worker và AI client
+### BE-04 - AI analyze client sau upload
 
 - TIP-ID: BE-04
-- Owner: Tâm
+- Owner: Tâm/Khánh
 - Priority: P0
-- Depends on: BE-03, AI-01
+- Depends on: BE-03, AI-04
 - Concurrency: EXCLUSIVE
 - Estimate: 1 ngày
+- Status: DONE
 
 Tạo/cập nhật:
 
 ```txt
+AiServiceProperties
 AiServiceClient
-DocumentProcessingService
-DocumentProcessingEvent
-AsyncConfig nếu cần
+AI analyze request/response DTO
+DocumentService upload analyze integration
+application.properties AI config
+docker-compose.yml Backend AI env
 ```
 
-Luồng:
+Luồng đã implement:
 
 ```txt
-upload transaction commit
--> event AFTER_COMMIT
--> @Async worker
+Teacher upload
+-> Backend lưu file vào shared storage
 -> set processing_status = ANALYZING, rag_status = NOT_ANALYZED
+-> tạo DocumentProcessingJob job_type = ANALYZE, status = PROCESSING
 -> POST AI /v1/analyze-document
--> success: PROCESSED + processed_at + chunk_count
--> fail: FAILED + error_code/error_message
+-> success: PROCESSED + READY_TO_INDEX/UNSUPPORTED + analyzed_at + analysis fields
+-> fail: FAILED + rag_status = FAILED + analysis_error_code/message
 ```
 
-AI request theo contract v1.4:
+AI request theo contract v1.5:
 
 ```json
 {
   "document_id": 12,
   "storage_key": "documents/12/v1/source.pdf",
   "file_type": "PDF",
-  "reprocess": false,
   "metadata": {
     "subject": "Cơ sở dữ liệu",
     "topic": "Chuẩn hóa dữ liệu",
@@ -539,12 +541,13 @@ X-Internal-Key: <INTERNAL_API_KEY>
 
 Acceptance criteria:
 
-- Upload API không bị treo để chờ AI xử lý lâu.
-- AI success cập nhật `PROCESSED`.
+- MVP hiện gọi analyze đồng bộ ngay sau upload; phù hợp file demo/nhỏ, có thể tách `@Async` sau.
+- AI success cập nhật `PROCESSED + READY_TO_INDEX/UNSUPPORTED`.
 - AI lỗi cập nhật `FAILED`.
-- Không có hai job active cùng document/job_type.
+- Tạo `DocumentProcessingJob` loại `ANALYZE`, status `PROCESSING -> PROCESSED/FAILED`.
 - Không gửi `lecture_id` hoặc `course_id` sang AI.
-
+- Backend Maven test pass.
+- INT-01 vẫn cần Docker E2E để xác nhận Backend + AI + shared volume chạy cùng nhau.
 ### BE-05 - My Documents API
 
 - TIP-ID: BE-05

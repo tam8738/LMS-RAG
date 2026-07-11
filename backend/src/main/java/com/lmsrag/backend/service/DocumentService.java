@@ -1,13 +1,18 @@
 package com.lmsrag.backend.service;
 
+import com.lmsrag.backend.client.ai.AiServiceClient;
+import com.lmsrag.backend.client.ai.AiServiceException;
+import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentResult;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
 import com.lmsrag.backend.entity.Document;
 import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.entity.User;
+import com.lmsrag.backend.enums.ProcessingJobType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
+import com.lmsrag.backend.enums.RagStatus;
 import com.lmsrag.backend.enums.UserRole;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
@@ -38,6 +43,7 @@ public class DocumentService {
     private final DocumentProcessingJobRepository documentProcessingJobRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AiServiceClient aiServiceClient;
 
     // Lấy user hiện tại từ JWT
     private User getCurrentUser() {
@@ -127,21 +133,32 @@ public class DocumentService {
             log.info("[UPLOAD] Đã cập nhật storage_key | documentId={} | storageKey={}",
                     saved.getId(), storageKey);
 
-            // Tạo processing job
-            log.info("[UPLOAD] Tạo processing job | documentId={}", saved.getId());
+            // Tạo analyze job và gọi AI Service analyze nhẹ sau khi file đã nằm trong shared storage.
+            log.info("[UPLOAD] Tạo analyze job | documentId={}", saved.getId());
+            saved.setProcessingStatus(ProcessingStatus.ANALYZING);
+            saved.setRagStatus(RagStatus.NOT_ANALYZED);
             DocumentProcessingJob job = DocumentProcessingJob.builder()
                     .document(saved)
+                    .jobType(ProcessingJobType.ANALYZE)
                     .status(ProcessingStatus.PROCESSING)
                     .startedAt(Instant.now())
                     .build();
             documentProcessingJobRepository.save(job);
-            log.info("[UPLOAD] Đã tạo processing job | documentId={} | jobId={}",
+            documentRepository.save(saved);
+            log.info("[UPLOAD] Đã tạo analyze job | documentId={} | jobId={}",
                     saved.getId(), job.getId());
 
-            saved.setProcessingStatus(ProcessingStatus.PROCESSING);
+            try {
+                AiAnalyzeDocumentResult analyzeResult = aiServiceClient.analyzeDocument(saved);
+                applyAnalyzeSuccess(saved, job, analyzeResult);
+            } catch (AiServiceException e) {
+                applyAnalyzeFailure(saved, job, e.getErrorCode(), e.getMessage());
+            }
+
             Document result = documentRepository.save(saved);
-            log.info("[UPLOAD] Hoàn tất upload | documentId={} | storageKey={} | status=PROCESSING",
-                    result.getId(), result.getStorageKey());
+            documentProcessingJobRepository.save(job);
+            log.info("[UPLOAD] Hoàn tất upload/analyze | documentId={} | storageKey={} | processingStatus={} | ragStatus={}",
+                    result.getId(), result.getStorageKey(), result.getProcessingStatus(), result.getRagStatus());
 
             return DocumentMapper.toResponse(result);
         } catch (Exception e) {
@@ -154,6 +171,64 @@ public class DocumentService {
         }
     }
 
+    private void applyAnalyzeSuccess(
+            Document document,
+            DocumentProcessingJob job,
+            AiAnalyzeDocumentResult result) {
+        Instant now = Instant.now();
+        RagStatus ragStatus = parseRagStatus(result.getRagStatus());
+
+        document.setProcessingStatus(ProcessingStatus.PROCESSED);
+        document.setProcessedAt(now);
+        document.setRagStatus(ragStatus);
+        document.setPageCount(result.getPageCount());
+        document.setEstimatedTokenCount(result.getEstimatedTokenCount());
+        document.setEstimatedChunkCount(result.getEstimatedChunkCount());
+        document.setUnsupportedReason(result.getUnsupportedReason());
+        document.setAnalyzedAt(now);
+        document.setErrorCode(null);
+        document.setErrorMessage(null);
+        document.setAnalysisErrorCode(null);
+        document.setAnalysisErrorMessage(null);
+
+        job.setStatus(ProcessingStatus.PROCESSED);
+        job.setChunkCount(result.getEstimatedChunkCount());
+        job.setCompletedAt(now);
+        job.setErrorCode(null);
+        job.setErrorMessage(null);
+    }
+
+    private void applyAnalyzeFailure(
+            Document document,
+            DocumentProcessingJob job,
+            String errorCode,
+            String errorMessage) {
+        Instant now = Instant.now();
+        document.setProcessingStatus(ProcessingStatus.FAILED);
+        document.setRagStatus(RagStatus.FAILED);
+        document.setErrorCode(errorCode);
+        document.setErrorMessage(errorMessage);
+        document.setAnalysisErrorCode(errorCode);
+        document.setAnalysisErrorMessage(errorMessage);
+        document.setAnalyzedAt(now);
+
+        job.setStatus(ProcessingStatus.FAILED);
+        job.setErrorCode(errorCode);
+        job.setErrorMessage(errorMessage);
+        job.setCompletedAt(now);
+    }
+
+    private RagStatus parseRagStatus(String value) {
+        try {
+            return RagStatus.valueOf(value);
+        } catch (RuntimeException e) {
+            throw new AiServiceException(
+                    "AI_INVALID_RAG_STATUS",
+                    "AI Service trả rag_status không hợp lệ: " + value,
+                    e
+            );
+        }
+    }
     private void validateUploadRequest(MultipartFile file, DocumentCreateRequest metadata) {
         if (file == null || file.isEmpty()) {
             log.warn("[UPLOAD] Upload rejected: file is missing or empty");
