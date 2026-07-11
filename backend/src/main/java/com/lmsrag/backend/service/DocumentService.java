@@ -3,6 +3,7 @@ package com.lmsrag.backend.service;
 import com.lmsrag.backend.client.ai.AiServiceClient;
 import com.lmsrag.backend.client.ai.AiServiceException;
 import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentResult;
+import com.lmsrag.backend.dto.ai.AiIndexDocumentResult;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
@@ -375,14 +376,85 @@ public class DocumentService {
             throw new AppException(ErrorCode.DOCUMENT_CANNOT_APPROVE);
         }
 
+        Instant now = Instant.now();
         document.setPublicationStatus(PublicationStatus.PUBLISHED);
         document.setReviewedBy(admin);
-        document.setReviewedAt(Instant.now());
-        document.setPublishedAt(Instant.now());
+        document.setReviewedAt(now);
+        document.setPublishedAt(now);
+
+        if (document.getRagStatus() == RagStatus.READY_TO_INDEX) {
+            indexApprovedDocument(document);
+        }
 
         return DocumentMapper.toResponse(documentRepository.save(document));
     }
 
+    private void indexApprovedDocument(Document document) {
+        DocumentProcessingJob job = DocumentProcessingJob.builder()
+                .document(document)
+                .jobType(ProcessingJobType.INDEX)
+                .status(ProcessingStatus.PROCESSING)
+                .startedAt(Instant.now())
+                .build();
+        documentProcessingJobRepository.save(job);
+
+        document.setRagStatus(RagStatus.INDEXING);
+        document.setRagErrorCode(null);
+        document.setRagErrorMessage(null);
+        documentRepository.save(document);
+
+        try {
+            AiIndexDocumentResult indexResult = aiServiceClient.indexDocument(document, false);
+            applyIndexSuccess(document, job, indexResult);
+        } catch (AiServiceException e) {
+            applyIndexFailure(document, job, e.getErrorCode(), e.getMessage());
+        }
+
+        documentProcessingJobRepository.save(job);
+    }
+
+    private void applyIndexSuccess(
+            Document document,
+            DocumentProcessingJob job,
+            AiIndexDocumentResult result) {
+        Instant now = Instant.now();
+        RagStatus ragStatus = parseRagStatus(result.getRagStatus());
+        if (ragStatus != RagStatus.READY) {
+            throw new AiServiceException(
+                    "AI_INVALID_RAG_STATUS",
+                    "AI Service index-document không trả READY: " + result.getRagStatus()
+            );
+        }
+
+        document.setRagStatus(RagStatus.READY);
+        document.setPageCount(result.getPageCount());
+        document.setEstimatedChunkCount(result.getChunkCount());
+        document.setIndexedAt(now);
+        document.setRagErrorCode(null);
+        document.setRagErrorMessage(null);
+
+        job.setStatus(ProcessingStatus.PROCESSED);
+        job.setChunkCount(result.getChunkCount());
+        job.setCompletedAt(now);
+        job.setErrorCode(null);
+        job.setErrorMessage(null);
+    }
+
+    private void applyIndexFailure(
+            Document document,
+            DocumentProcessingJob job,
+            String errorCode,
+            String errorMessage) {
+        Instant now = Instant.now();
+        document.setRagStatus(RagStatus.FAILED);
+        document.setRagErrorCode(errorCode);
+        document.setRagErrorMessage(errorMessage);
+
+        job.setStatus(ProcessingStatus.FAILED);
+        job.setErrorCode(errorCode);
+        job.setErrorMessage(errorMessage);
+        job.setCompletedAt(now);
+    }
     @Transactional
     public DocumentResponse rejectReview(Long id, String reason) {
         User admin = getCurrentUser();

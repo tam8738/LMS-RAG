@@ -149,7 +149,7 @@ Quy ước trạng thái:
 | BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; đã test Docker upload TXT thành công và AI container đọc được file qua shared volume |
 | BE-04 - AI analyze client sau upload | Tâm/Khánh | P0 | BE-03, AI-04 | DONE | Đã thêm `AiServiceClient`, config `AI_SERVICE_BASE_URL`/`INTERNAL_API_KEY`; upload gọi AI `/v1/analyze-document`, cập nhật `processing_status`, `rag_status`, analysis fields và job status; backend test pass |
 | BE-05 - My Documents API | Tâm | P0 | BE-04 | IN_PROGRESS | Đã có list/detail/update/delete/submit-review; cần expose `rag_status`, analysis result, chỉ submit khi `processing_status=PROCESSED` |
-| BE-06 - Admin review API | Tâm | P0 | BE-05 | IN_PROGRESS | Đã có review queue/detail/approve/reject/archive; cần sửa approve để sau khi publish gọi index nếu `rag_status=READY_TO_INDEX` |
+| BE-06 - Admin review API | Tâm/Khánh | P0 | BE-05, AI-05 | DONE | Đã có review queue/detail/approve/reject/archive; approve publish document và gọi AI `/v1/index-document` nếu `rag_status=READY_TO_INDEX`, cập nhật `INDEXING -> READY/FAILED`; backend test pass |
 | BE-07 - Library API | Tâm | P0 | BE-06 | IN_PROGRESS | Đã có list/detail chỉ trả `PUBLISHED`; cần expose badge RAG: READY, INDEXING, UNSUPPORTED, FAILED |
 | BE-08 - RAG proxy API | Tâm | P0 | BE-07, AI-03 | TODO | Backend chỉ cho hỏi khi `publication_status=PUBLISHED` và `rag_status=READY`, rồi gọi AI `/v1/answer-question` |
 | BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | SHOULD_HAVE | Không chặn core demo |
@@ -235,7 +235,7 @@ Blocker còn lại cho core E2E:
 ```txt
 BE-04 đã có code: Backend upload xong gọi AI /v1/analyze-document và cập nhật processing_status, rag_status, analysis fields/job status.
 INT-01 chưa chốt: cần chạy lại Docker E2E thật để xác nhận Backend + AI Service + shared volume hoạt động cùng nhau.
-BE-06/BE-index chưa có: Backend chưa gọi AI /v1/index-document sau Admin approve.
+BE-06 đã có code: Backend approve xong gọi AI /v1/index-document nếu rag_status=READY_TO_INDEX và cập nhật READY/FAILED.
 BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer để kiểm quyền rồi gọi AI.
 Frontend chưa có app để chạy demo UI.
 ```
@@ -267,7 +267,7 @@ Chưa làm trong REF-02:
 ```txt
 Đã đổi upload flow sang ANALYZING rồi PROCESSED/FAILED theo kết quả analyze
 Đã gọi AI /v1/analyze-document sau upload trong BE-04
-Chưa gọi AI /v1/index-document sau approve
+Đã gọi AI /v1/index-document sau approve trong BE-06
 ```
 ## 7. Backend implementation plan
 
@@ -603,11 +603,12 @@ Acceptance criteria:
 ### BE-06 - Admin review API
 
 - TIP-ID: BE-06
-- Owner: Tâm
+- Owner: Tâm/Khánh
 - Priority: P0
-- Depends on: BE-05
+- Depends on: BE-05, AI-05
 - Concurrency: EXCLUSIVE
 - Estimate: 0.75 ngày
+- Status: DONE
 
 Endpoints:
 
@@ -627,32 +628,35 @@ Rules:
 - Reject chỉ từ `PENDING_REVIEW` sang `REJECTED` và bắt buộc `reason`.
 - Archive chỉ từ `PUBLISHED` sang `ARCHIVED`.
 
-Khi approve:
+Khi approve đã implement:
 
 ```txt
 reviewed_by = admin_id
 reviewed_at = now
 published_at = now
 publication_status = PUBLISHED
-Nếu rag_status = READY_TO_INDEX thì bắt đầu index RAG
-```
 
-Khi reject:
+Nếu rag_status = READY_TO_INDEX:
+    tạo DocumentProcessingJob job_type = INDEX
+    rag_status = INDEXING
+    POST AI /v1/index-document
+    success: rag_status = READY, indexed_at = now, chunk_count vào job
+    fail: rag_status = FAILED, rag_error_code/message vào document
 
-```txt
-reviewed_by = admin_id
-reviewed_at = now
-rejection_reason = reason
-publication_status = REJECTED
+Nếu rag_status = UNSUPPORTED:
+    không gọi index-document
+    document vẫn PUBLISHED như tài liệu thường
 ```
 
 Acceptance criteria:
 
 - Teacher không gọi được admin endpoints.
 - Admin approve xong document xuất hiện trong Library.
+- Nếu document hỗ trợ RAG thì Backend gọi AI index và cập nhật `READY/FAILED`.
+- Nếu document `UNSUPPORTED` thì vẫn publish bình thường, không gọi AI index.
 - Admin reject xong Teacher owner thấy lý do.
 - `ARCHIVED` không còn trong Library.
-
+- Backend Maven test pass.
 ### BE-07 - Library API
 
 - TIP-ID: BE-07

@@ -3,6 +3,8 @@ package com.lmsrag.backend.client.ai;
 import com.lmsrag.backend.config.AiServiceProperties;
 import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentRequest;
 import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentResult;
+import com.lmsrag.backend.dto.ai.AiIndexDocumentRequest;
+import com.lmsrag.backend.dto.ai.AiIndexDocumentResult;
 import com.lmsrag.backend.dto.ai.AiSuccessResponse;
 import com.lmsrag.backend.entity.Document;
 import lombok.extern.slf4j.Slf4j;
@@ -44,14 +46,7 @@ public class AiServiceClient {
                     .body(new ParameterizedTypeReference<>() {
                     });
 
-            if (response == null || !Boolean.TRUE.equals(response.getSuccess()) || response.getData() == null) {
-                throw new AiServiceException(
-                        "AI_INVALID_RESPONSE",
-                        "AI Service trả response analyze-document không hợp lệ"
-                );
-            }
-
-            AiAnalyzeDocumentResult result = response.getData();
+            AiAnalyzeDocumentResult result = requireData(response, "analyze-document");
             log.info("[AI] Analyze thành công | documentId={} | ragStatus={} | chunks={}",
                     result.getDocumentId(), result.getRagStatus(), result.getEstimatedChunkCount());
             return result;
@@ -72,6 +67,55 @@ public class AiServiceClient {
                     e
             );
         }
+    }
+
+    public AiIndexDocumentResult indexDocument(Document document, boolean reindex) {
+        validateInternalKey();
+
+        AiIndexDocumentRequest request = AiIndexDocumentRequest.from(document, reindex);
+        log.info("[AI] Gọi index-document | documentId={} | storageKey={} | reindex={}",
+                document.getId(), document.getStorageKey(), reindex);
+
+        try {
+            AiSuccessResponse<AiIndexDocumentResult> response = restClient.post()
+                    .uri("/v1/index-document")
+                    .header(INTERNAL_KEY_HEADER, properties.getInternalApiKey())
+                    .body(request)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {
+                    });
+
+            AiIndexDocumentResult result = requireData(response, "index-document");
+            log.info("[AI] Index thành công | documentId={} | ragStatus={} | chunks={}",
+                    result.getDocumentId(), result.getRagStatus(), result.getChunkCount());
+            return result;
+        } catch (RestClientResponseException e) {
+            log.warn("[AI] Index thất bại từ AI Service | documentId={} | status={} | body={}",
+                    document.getId(), e.getStatusCode(), e.getResponseBodyAsString());
+            throw new AiServiceException(
+                    "AI_INDEX_FAILED",
+                    "AI Service index-document thất bại: HTTP " + e.getStatusCode(),
+                    e
+            );
+        } catch (RestClientException e) {
+            log.warn("[AI] Không gọi được AI Service index-document | documentId={} | error={}",
+                    document.getId(), e.getMessage());
+            throw new AiServiceException(
+                    "AI_SERVICE_UNAVAILABLE",
+                    "Không gọi được AI Service index-document",
+                    e
+            );
+        }
+    }
+
+    private <T> T requireData(AiSuccessResponse<T> response, String endpointName) {
+        if (response == null || !Boolean.TRUE.equals(response.getSuccess()) || response.getData() == null) {
+            throw new AiServiceException(
+                    "AI_INVALID_RESPONSE",
+                    "AI Service trả response " + endpointName + " không hợp lệ"
+            );
+        }
+        return response.getData();
     }
 
     private void validateInternalKey() {

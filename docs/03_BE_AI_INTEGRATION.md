@@ -101,6 +101,8 @@ Nếu rag_status = UNSUPPORTED:
 
 MVP có thể gọi `index-document` bằng `@Async` hoặc worker đơn giản. Không dùng queue phức tạp trong core MVP.
 
+Implementation status BE-06: Backend đã gọi `/v1/index-document` trong `approveReview()` khi `rag_status=READY_TO_INDEX`; kết quả thành công cập nhật `rag_status=READY`, `indexed_at`, job chunk count; lỗi cập nhật `rag_status=FAILED` và `rag_error_code/message`.
+
 ## 5. Shared storage
 
 Docker named volume:
