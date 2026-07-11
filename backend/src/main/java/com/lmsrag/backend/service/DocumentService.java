@@ -347,9 +347,26 @@ public class DocumentService {
     // ===== LIBRARY =====
     @Transactional(readOnly = true)
     public Page<DocumentResponse> getLibraryDocuments(String subject, String topic, String chapter, Pageable pageable) {
+        if (isBlank(subject) && isBlank(topic) && isBlank(chapter)) {
+            return documentRepository.findByPublicationStatusOrderByPublishedAtDesc(PublicationStatus.PUBLISHED, pageable)
+                    .map(DocumentMapper::toResponse);
+        }
+
         return documentRepository.findLibraryDocuments(
-                PublicationStatus.PUBLISHED, subject, topic, chapter, pageable
+                PublicationStatus.PUBLISHED,
+                normalizeFilter(subject),
+                normalizeFilter(topic),
+                normalizeFilter(chapter),
+                pageable
         ).map(DocumentMapper::toResponse);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String normalizeFilter(String value) {
+        return isBlank(value) ? null : value.trim();
     }
 
     @Transactional(readOnly = true)

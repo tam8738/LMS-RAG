@@ -42,8 +42,8 @@ public class DocumentController {
     @Operation(summary = "Upload tài liệu kèm metadata")
     @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DocumentResponse>> uploadDocument(
-            @RequestPart("file") @NotNull MultipartFile file,
-            @RequestPart("metadata") @NotNull String metadataJson) {
+            @RequestParam("file") @NotNull MultipartFile file,
+            @RequestParam("metadata") @NotNull String metadataJson) {
         log.info("[CONTROLLER] Nhận request upload document | fileName={} | fileSize={} bytes | metadataJson={}",
                 file.getOriginalFilename(), file.getSize(), metadataJson);
 
