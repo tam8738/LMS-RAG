@@ -33,6 +33,18 @@ public class DocumentMapper {
                 .errorMessage(document.getErrorMessage())
                 .processedAt(document.getProcessedAt())
 
+                .ragStatus(document.getRagStatus())
+                .analysisErrorCode(document.getAnalysisErrorCode())
+                .analysisErrorMessage(document.getAnalysisErrorMessage())
+                .unsupportedReason(document.getUnsupportedReason())
+                .pageCount(document.getPageCount())
+                .estimatedTokenCount(document.getEstimatedTokenCount())
+                .estimatedChunkCount(document.getEstimatedChunkCount())
+                .analyzedAt(document.getAnalyzedAt())
+                .ragErrorCode(document.getRagErrorCode())
+                .ragErrorMessage(document.getRagErrorMessage())
+                .indexedAt(document.getIndexedAt())
+
                 .reviewedBy(document.getReviewedBy() != null ? document.getReviewedBy().getId() : null)
                 .reviewerName(document.getReviewedBy() != null ? document.getReviewedBy().getName() : null)
                 .reviewedAt(document.getReviewedAt())

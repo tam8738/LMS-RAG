@@ -292,7 +292,7 @@ Có thể bổ sung:
 
 ```sql
 ALTER TABLE document_processing_jobs
-ADD COLUMN job_type VARCHAR(30) NOT NULL DEFAULT 'INDEX';
+ADD COLUMN job_type VARCHAR(30) NOT NULL DEFAULT 'ANALYZE';
 ```
 
 ## 13. Nguồn SQL triển khai

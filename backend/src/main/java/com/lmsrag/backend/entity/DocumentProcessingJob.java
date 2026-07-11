@@ -1,5 +1,6 @@
 package com.lmsrag.backend.entity;
 
+import com.lmsrag.backend.enums.ProcessingJobType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,6 +25,11 @@ public class DocumentProcessingJob {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", nullable = false)
     private Document document;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "job_type", nullable = false, length = 30)
+    @Builder.Default
+    private ProcessingJobType jobType = ProcessingJobType.ANALYZE;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

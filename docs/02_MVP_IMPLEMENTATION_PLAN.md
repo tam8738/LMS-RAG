@@ -143,8 +143,8 @@ Quy ước trạng thái:
 
 | Task | Owner | Priority | Depends on | Trạng thái | Ghi chú tracking |
 |---|---|---:|---|---|---|
-| BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; đổi `ddl-auto` sang `validate`; compile + test pass |
-| BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`, `DocumentRepository`, `DocumentProcessingJobRepository`; code compile + test pass |
+| BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; REF-02 thêm V4 `rag_status` và analysis/index fields; đổi `ddl-auto` sang `validate`; compile + test pass |
+| BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`; REF-02 thêm `RagStatus` và các field analyze/index vào `Document`/`DocumentResponse`; code compile + test pass |
 | BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; đã test Docker upload TXT thành công và AI container đọc được file qua shared volume |
 | BE-04 - AI analyze client sau upload | Tâm/Khánh | P0 | BE-03, AI-04 | TODO | Backend gọi AI `/v1/analyze-document` sau upload, cập nhật `processing_status`, `rag_status`, analysis fields và job status |
 | BE-05 - My Documents API | Tâm | P0 | BE-04 | IN_PROGRESS | Đã có list/detail/update/delete/submit-review; cần expose `rag_status`, analysis result, chỉ submit khi `processing_status=PROCESSED` |
@@ -247,6 +247,27 @@ Backend document/review/library đã chạy được từng phần.
 MVP chưa E2E hoàn chỉnh vì thiếu analyze/index split, Backend AI client và RAG proxy.
 ```
 
+
+### 6.7. Snapshot REF-02 - Backend schema/model
+
+Đã hoàn thành:
+
+```txt
+V4__add_rag_status_and_analysis_fields.sql
+RagStatus enum
+ProcessingStatus thêm ANALYZING, giữ PROCESSING tạm thời để không gãy flow cũ
+Document thêm rag_status và analysis/index fields
+DocumentResponse/DocumentMapper expose các field mới
+Backend Maven test pass
+```
+
+Chưa làm trong REF-02:
+
+```txt
+Chưa đổi upload flow sang ANALYZING
+Chưa gọi AI /v1/analyze-document
+Chưa gọi AI /v1/index-document sau approve
+```
 ## 7. Backend implementation plan
 
 ### BE-01 - Chuẩn hóa migration/database schema

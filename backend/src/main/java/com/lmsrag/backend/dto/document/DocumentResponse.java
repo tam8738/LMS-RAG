@@ -3,6 +3,7 @@ package com.lmsrag.backend.dto.document;
 import com.lmsrag.backend.enums.DocumentFileType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
+import com.lmsrag.backend.enums.RagStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -34,6 +35,18 @@ public class DocumentResponse {
     private String errorCode;
     private String errorMessage;
     private Instant processedAt;
+
+    private RagStatus ragStatus;
+    private String analysisErrorCode;
+    private String analysisErrorMessage;
+    private String unsupportedReason;
+    private Integer pageCount;
+    private Integer estimatedTokenCount;
+    private Integer estimatedChunkCount;
+    private Instant analyzedAt;
+    private String ragErrorCode;
+    private String ragErrorMessage;
+    private Instant indexedAt;
 
     private Long reviewedBy;
     private String reviewerName;

@@ -3,6 +3,7 @@ package com.lmsrag.backend.entity;
 import com.lmsrag.backend.enums.DocumentFileType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
+import com.lmsrag.backend.enums.RagStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -92,6 +93,41 @@ public class Document {
 
     @Column(name = "processed_at")
     private Instant processedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rag_status", nullable = false, length = 30)
+    @Builder.Default
+    private RagStatus ragStatus = RagStatus.NOT_ANALYZED;
+
+    @Column(name = "analysis_error_code", length = 50)
+    private String analysisErrorCode;
+
+    @Column(name = "analysis_error_message", columnDefinition = "TEXT")
+    private String analysisErrorMessage;
+
+    @Column(name = "unsupported_reason", length = 100)
+    private String unsupportedReason;
+
+    @Column(name = "page_count")
+    private Integer pageCount;
+
+    @Column(name = "estimated_token_count")
+    private Integer estimatedTokenCount;
+
+    @Column(name = "estimated_chunk_count")
+    private Integer estimatedChunkCount;
+
+    @Column(name = "analyzed_at")
+    private Instant analyzedAt;
+
+    @Column(name = "rag_error_code", length = 50)
+    private String ragErrorCode;
+
+    @Column(name = "rag_error_message", columnDefinition = "TEXT")
+    private String ragErrorMessage;
+
+    @Column(name = "indexed_at")
+    private Instant indexedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
