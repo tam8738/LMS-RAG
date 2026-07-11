@@ -166,7 +166,7 @@ Hành vi:
 
 ## 7. Answer question
 
-Implementation status AI-02: đã có repository retrieval `search_similar_chunks` đọc `document_chunks` theo `document_ids`. HTTP endpoint `/v1/answer-question`, generation và response citation hoàn chỉnh thuộc AI-03, chưa có trong code hiện tại.
+Implementation status AI-03: endpoint `/v1/answer-question` đã có trong AI Service. MVP hiện trả extractive answer từ retrieved chunks và citations từ `document_chunks`; chưa dùng LLM chat/generation provider riêng.
 
 ### `POST /v1/answer-question`
 
@@ -229,7 +229,7 @@ Không có context phù hợp vẫn trả `200`:
 }
 ```
 
-AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thiếu.
+AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thiếu. Trong MVP hiện tại, answer được compose trực tiếp từ retrieved chunks nên `tokens_used=0`; nếu sau này thêm LLM generation thì vẫn phải giữ nguyên nguyên tắc chỉ dùng retrieved context.
 
 ## 8. Error codes
 

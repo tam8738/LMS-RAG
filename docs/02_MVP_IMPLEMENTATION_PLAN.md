@@ -172,7 +172,7 @@ Quy ước trạng thái:
 |---|---|---:|---|---|---|
 | AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; regression test cùng AI-02 pass 28 tests |
 | AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; repository tests pass 14 tests |
-| AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | TODO | Cần trả answer/not_found/citations |
+| AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`, embed question, retrieval, extractive answer, citations; AI core tests pass 35 tests |
 
 ### 6.4. Infra, integration và QA tasks
 
@@ -1090,6 +1090,7 @@ Acceptance criteria:
 - Depends on: AI-02
 - Concurrency: EXCLUSIVE
 - Estimate: 1 ngày
+- Status: DONE
 
 Endpoint:
 
@@ -1097,7 +1098,16 @@ Endpoint:
 POST /v1/answer-question
 ```
 
-Response cần có:
+Việc đã làm:
+
+- Thêm schema `AnswerQuestionRequest`, `AnswerQuestionResult`, `AnswerCitation`.
+- Thêm service `AnswerQuestionService` để embed câu hỏi, gọi `search_similar_chunks` và format kết quả.
+- Thêm route `/v1/answer-question` có `X-Internal-Key` giống các internal API khác.
+- Trả `not_found=true` nếu retrieval không có chunk.
+- Trả citations dựa trên row thật từ `document_chunks`, không tạo citation giả.
+- MVP hiện dùng extractive answer từ retrieved chunks; chưa thêm LLM generation/chat provider.
+
+Response có:
 
 ```txt
 answer
@@ -1123,7 +1133,7 @@ Acceptance criteria:
 - Answer chỉ dựa trên retrieved context.
 - Không tạo citation giả.
 - Internal key sai trả 401.
-
+- `pytest tests/test_answer_question_api.py tests/test_process_document_api.py tests/test_document_chunk_repository.py` pass 35 tests.
 ## 10. Infra/Docker/shared volume
 
 ### INFRA-01 - Docker compose tích hợp Backend + AI + PostgreSQL
@@ -1324,7 +1334,7 @@ Manual E2E checklist:
 ### AI -> Backend
 
 - [ ] `/v1/process-document` trả `document_id`, `status`, `page_count`, `chunk_count`.
-- [ ] `/v1/answer-question` trả `answer`, `not_found`, `citations`.
+- [x] `/v1/answer-question` trả `answer`, `not_found`, `citations`.
 - [ ] Error codes theo contract.
 - [ ] Retrieval chỉ theo `document_ids`.
 

@@ -19,13 +19,14 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - OpenAI embedding provider.
 - PostgreSQL repository atomic replace.
 - Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
+- `POST /v1/answer-question` trả extractive answer, `not_found` và citations.
 - `POST /v1/process-document` cần theo contract v1.4, không dùng `lecture_id`.
 - Unit/API mock tests.
 
 Chưa có:
 
 - E2E thật Backend -> shared file -> OpenAI -> pgvector.
-- RAG answer và citation.
+- LLM generation/chat provider cho answer tự nhiên hơn.
 
 ## 2. Process pipeline
 
@@ -130,7 +131,7 @@ EMBEDDING_DIMENSIONS=1536
 
 ## 3. Retrieval pipeline
 
-Trạng thái AI-02: đã có repository `search_similar_chunks` để query `document_chunks` theo `document_ids`. Endpoint HTTP `/v1/answer-question` và bước generation vẫn thuộc AI-03.
+Trạng thái AI-02/AI-03: đã có repository `search_similar_chunks` và endpoint `/v1/answer-question`. MVP hiện compose extractive answer từ retrieved chunks; LLM generation có thể bổ sung sau.
 
 ```txt
 question
@@ -164,22 +165,23 @@ Quy tắc:
 
 ## 4. RAG answer
 
+Trạng thái AI-03: đã có endpoint `/v1/answer-question` ở mức MVP. Luồng hiện tại là extractive, tức là câu trả lời được compose trực tiếp từ các chunks tìm được, chưa gọi LLM generation/chat provider riêng.
+
 ```txt
 retrieved chunks
--> build context có source markers
--> generation prompt
--> answer
--> map source markers về citations
+-> compose extractive answer từ top chunks
+-> tạo citations từ chính retrieved chunks
+-> trả answer/not_found/citations/tokens_used
 ```
 
-Prompt phải yêu cầu:
+Quy tắc bắt buộc:
 
-- Chỉ dùng context.
+- Chỉ dùng retrieved context.
 - Không tự bổ sung kiến thức ngoài tài liệu.
-- Nếu thiếu dữ liệu, nói không tìm thấy.
+- Nếu không có chunk, trả `not_found=true`.
 - Không tạo citation không tồn tại.
 - Trả lời theo `language`.
-
+- `tokens_used=0` trong MVP vì chưa gọi generation model.
 ## 5. Citation
 
 Mỗi citation:
