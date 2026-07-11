@@ -23,6 +23,7 @@ dist/
 # Java
 
 target/
+.m2repo/
 *.class
 *.jar
 *.war
