@@ -93,6 +93,24 @@ public class Document {
     @Column(name = "processed_at")
     private Instant processedAt;
 
+    @Column(name = "rag_eligible")
+    private Boolean ragEligible;
+
+    @Column(name = "page_count")
+    private Integer pageCount;
+
+    @Column(name = "estimated_token_count")
+    private Integer estimatedTokenCount;
+
+    @Column(name = "estimated_chunk_count")
+    private Integer estimatedChunkCount;
+
+    @Column(name = "unsupported_reason", length = 100)
+    private String unsupportedReason;
+
+    @Column(name = "analyzed_at")
+    private Instant analyzedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;

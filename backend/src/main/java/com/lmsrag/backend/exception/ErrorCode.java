@@ -89,6 +89,11 @@ public enum ErrorCode {
     LESSON_EMPTY(HttpStatus.BAD_REQUEST, "Bài học không được để trống"),
 
     // =========================================================
+    // ===== AI SERVICE =====
+    // =========================================================
+    AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "Lỗi khi giao tiếp với AI Service"),
+
+    // =========================================================
     // ===== SYSTEM =====
     // =========================================================
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống"),

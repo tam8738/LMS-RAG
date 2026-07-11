@@ -6,6 +6,7 @@ import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
 import com.lmsrag.backend.entity.Document;
 import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.entity.User;
+import com.lmsrag.backend.enums.ProcessingJobType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.enums.UserRole;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
@@ -38,6 +41,7 @@ public class DocumentService {
     private final DocumentProcessingJobRepository documentProcessingJobRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AiValidationService aiValidationService;
 
     // Lấy user hiện tại từ JWT
     private User getCurrentUser() {
@@ -127,21 +131,38 @@ public class DocumentService {
             log.info("[UPLOAD] Đã cập nhật storage_key | documentId={} | storageKey={}",
                     saved.getId(), storageKey);
 
-            // Tạo processing job
-            log.info("[UPLOAD] Tạo processing job | documentId={}", saved.getId());
+            // Tạo analyze job và gọi AI Service bất đồng bộ
+            log.info("[UPLOAD] Tạo analyze job | documentId={}", saved.getId());
             DocumentProcessingJob job = DocumentProcessingJob.builder()
                     .document(saved)
+                    .jobType(ProcessingJobType.ANALYZE)
                     .status(ProcessingStatus.PROCESSING)
                     .startedAt(Instant.now())
                     .build();
             documentProcessingJobRepository.save(job);
-            log.info("[UPLOAD] Đã tạo processing job | documentId={} | jobId={}",
+            log.info("[UPLOAD] Đã tạo analyze job | documentId={} | jobId={}",
                     saved.getId(), job.getId());
 
-            saved.setProcessingStatus(ProcessingStatus.PROCESSING);
             Document result = documentRepository.save(saved);
-            log.info("[UPLOAD] Hoàn tất upload | documentId={} | storageKey={} | status=PROCESSING",
+            log.info("[UPLOAD] Hoàn tất upload | documentId={} | storageKey={} | status=UPLOADED",
                     result.getId(), result.getStorageKey());
+
+            // Sau khi upload transaction commit, chuyển sang ANALYZING rồi fire-and-forget gọi AI Service.
+            Long resultId = result.getId();
+            Long jobId = job.getId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    Document freshDoc = documentRepository.findById(resultId).orElse(null);
+                    DocumentProcessingJob freshJob = documentProcessingJobRepository.findById(jobId).orElse(null);
+                    if (freshDoc != null && freshJob != null) {
+                        aiValidationService.startAnalysis(freshDoc, freshJob);
+                    } else {
+                        log.warn("[UPLOAD] Không tìm thấy document/job sau commit để gọi AI validation | documentId={} | jobId={}",
+                                resultId, jobId);
+                    }
+                }
+            });
 
             return DocumentMapper.toResponse(result);
         } catch (Exception e) {
@@ -200,7 +221,7 @@ public class DocumentService {
 
     // ===== UPDATE =====
     @Transactional
-    public DocumentResponse updateDocument(Long id, DocumentUpdateRequest request) {
+    public DocumentResponse updateDocument(Long id, DocumentUpdateRequest request, MultipartFile file) {
         User currentUser = getCurrentUser();
         Document document = requireDocument(id);
         requireOwner(document, currentUser);
@@ -230,8 +251,92 @@ public class DocumentService {
             document.setTags(request.getTags());
         }
 
+        boolean fileReplaced = false;
+        if (file != null && !file.isEmpty()) {
+            replaceDocumentFile(document, file);
+            fileReplaced = true;
+        }
+
         Document updated = documentRepository.save(document);
+
+        if (fileReplaced) {
+            DocumentProcessingJob job = createAnalyzeJob(updated);
+            scheduleAnalysisAfterCommit(updated, job);
+        }
+
         return DocumentMapper.toResponse(updated);
+    }
+
+    private void replaceDocumentFile(Document document, MultipartFile file) {
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new AppException(ErrorCode.FILE_TOO_LARGE);
+        }
+        storageService.validateFile(file);
+
+        String oldStorageKey = document.getStorageKey();
+        String extension = storageService.getFileExtension(file.getOriginalFilename());
+        int newVersion = document.getFileVersion() + 1;
+
+        String newStorageKey = storageService.store(file, document.getId(), newVersion);
+
+        document.setOriginalFilename(file.getOriginalFilename());
+        document.setStoredFilename("source." + extension);
+        document.setStorageKey(newStorageKey);
+        document.setFileVersion(newVersion);
+        document.setFileType(storageService.resolveFileType(file.getOriginalFilename()));
+        document.setMimeType(file.getContentType());
+        document.setFileSize(file.getSize());
+
+        // File thay đổi -> cần analyze lại
+        document.setProcessingStatus(ProcessingStatus.UPLOADED);
+        document.setProcessedAt(null);
+        document.setRagEligible(null);
+        document.setPageCount(null);
+        document.setEstimatedTokenCount(null);
+        document.setEstimatedChunkCount(null);
+        document.setUnsupportedReason(null);
+        document.setAnalyzedAt(null);
+        document.setErrorCode(null);
+        document.setErrorMessage(null);
+
+        // Xóa file cũ sau khi đã lưu file mới thành công
+        try {
+            storageService.delete(oldStorageKey);
+        } catch (Exception e) {
+            log.warn("[UPDATE] Xóa file cũ thất bại | documentId={} | oldStorageKey={} | error={}",
+                    document.getId(), oldStorageKey, e.getMessage());
+        }
+
+        log.info("[UPDATE] Đã thay thế file | documentId={} | version={} | storageKey={}",
+                document.getId(), newVersion, newStorageKey);
+    }
+
+    private DocumentProcessingJob createAnalyzeJob(Document document) {
+        DocumentProcessingJob job = DocumentProcessingJob.builder()
+                .document(document)
+                .jobType(ProcessingJobType.ANALYZE)
+                .status(ProcessingStatus.PROCESSING)
+                .startedAt(Instant.now())
+                .build();
+        return documentProcessingJobRepository.save(job);
+    }
+
+    private void scheduleAnalysisAfterCommit(Document document, DocumentProcessingJob job) {
+        Long documentId = document.getId();
+        Long jobId = job.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                Document freshDoc = documentRepository.findById(documentId).orElse(null);
+                DocumentProcessingJob freshJob = documentProcessingJobRepository.findById(jobId).orElse(null);
+                if (freshDoc != null && freshJob != null) {
+                    aiValidationService.startAnalysis(freshDoc, freshJob);
+                } else {
+                    log.warn("[UPDATE] Không tìm thấy document/job sau commit để gọi AI validation | documentId={} | jobId={}",
+                            documentId, jobId);
+                }
+            }
+        });
     }
 
     // ===== DELETE =====
@@ -346,19 +451,52 @@ public class DocumentService {
 
     // ===== LIBRARY =====
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> getLibraryDocuments(String subject, String topic, String chapter, Pageable pageable) {
-        if (isBlank(subject) && isBlank(topic) && isBlank(chapter)) {
+    public Page<DocumentResponse> getLibraryDocuments(
+            String subject,
+            String topic,
+            String chapter,
+            String q,
+            String tags,
+            Long uploadedBy,
+            Pageable pageable
+    ) {
+        boolean hasFilter = !isBlank(subject)
+                || !isBlank(topic)
+                || !isBlank(chapter)
+                || !isBlank(q)
+                || !isBlank(tags)
+                || uploadedBy != null;
+
+        if (!hasFilter) {
             return documentRepository.findByPublicationStatusOrderByPublishedAtDesc(PublicationStatus.PUBLISHED, pageable)
                     .map(DocumentMapper::toResponse);
         }
 
         return documentRepository.findLibraryDocuments(
-                PublicationStatus.PUBLISHED,
+                PublicationStatus.PUBLISHED.name(),
                 normalizeFilter(subject),
                 normalizeFilter(topic),
                 normalizeFilter(chapter),
+                normalizeFilter(q),
+                uploadedBy,
+                normalizeTags(tags),
                 pageable
         ).map(DocumentMapper::toResponse);
+    }
+
+    private String normalizeTags(String tags) {
+        if (isBlank(tags)) {
+            return null;
+        }
+        // Accept comma-separated tags, e.g. "database,normalization" -> '["database","normalization"]'
+        String[] parts = tags.split(",");
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(parts[i].trim().replace("\"", "\\\"")).append("\"");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     private boolean isBlank(String value) {

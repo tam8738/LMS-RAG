@@ -96,12 +96,15 @@ public class DocumentController {
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy chi tiết thành công"));
     }
 
-    @Operation(summary = "Cập nhật metadata tài liệu")
-    @PatchMapping("/my/documents/{documentId}")
+    @Operation(summary = "Cập nhật metadata và/hoặc file tài liệu")
+    @PatchMapping(value = "/my/documents/{documentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DocumentResponse>> updateDocument(
             @PathVariable Long documentId,
-            @Valid @RequestBody DocumentUpdateRequest request) {
-        DocumentResponse response = documentService.updateDocument(documentId, request);
+            @Valid @RequestPart("metadata") DocumentUpdateRequest request,
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        log.info("[CONTROLLER] Nhận request cập nhật document | documentId={} | hasFile={}",
+                documentId, file != null && !file.isEmpty());
+        DocumentResponse response = documentService.updateDocument(documentId, request, file);
         return ResponseEntity.ok(ApiResponse.success(response, "Cập nhật thành công"));
     }
 

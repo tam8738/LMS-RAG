@@ -23,11 +23,14 @@ public class LibraryController {
     @Operation(summary = "Lấy danh sách tài liệu trong Library")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getLibrary(
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) String topic,
             @RequestParam(required = false) String chapter,
+            @RequestParam(required = false) String tags,
+            @RequestParam(required = false) Long uploadedBy,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<DocumentResponse> response = documentService.getLibraryDocuments(subject, topic, chapter, pageable);
+        Page<DocumentResponse> response = documentService.getLibraryDocuments(subject, topic, chapter, q, tags, uploadedBy, pageable);
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách Library thành công"));
     }
 

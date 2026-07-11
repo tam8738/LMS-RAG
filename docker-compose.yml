@@ -79,6 +79,10 @@ services:
       # ========= Storage =========
       UPLOAD_ROOT: /storage/uploads
 
+      # ========= AI Service =========
+      AI_SERVICE_BASE_URL: http://ai-service:8000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+
       # ========= Spring =========
       SPRING_PROFILES_ACTIVE: docker
 

@@ -35,6 +35,13 @@ public class DocumentResponse {
     private String errorMessage;
     private Instant processedAt;
 
+    private Boolean ragEligible;
+    private Integer pageCount;
+    private Integer estimatedTokenCount;
+    private Integer estimatedChunkCount;
+    private String unsupportedReason;
+    private Instant analyzedAt;
+
     private Long reviewedBy;
     private String reviewerName;
     private Instant reviewedAt;

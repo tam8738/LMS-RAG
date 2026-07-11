@@ -30,20 +30,31 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     // Admin: lấy danh sách chờ duyệt
     List<Document> findByPublicationStatusOrderByUpdatedAtAsc(PublicationStatus status);
 
-    // Library filter
-    @Query("""
-        SELECT d FROM Document d
-        WHERE d.publicationStatus = :status
+    // Library filter with full-text search and metadata filters.
+    // Native query is used to leverage PostgreSQL ILIKE and jsonb @> operator.
+    @Query(value = """
+        SELECT * FROM documents d
+        WHERE d.publication_status = :status
           AND (:subject IS NULL OR d.subject = :subject)
-          AND (:topic IS NULL OR LOWER(d.topic) LIKE LOWER(CONCAT('%', :topic, '%')))
-          AND (:chapter IS NULL OR LOWER(d.chapter) LIKE LOWER(CONCAT('%', :chapter, '%')))
-        ORDER BY d.publishedAt DESC
-        """)
+          AND (:topic IS NULL OR d.topic ILIKE CONCAT('%', :topic, '%'))
+          AND (:chapter IS NULL OR d.chapter ILIKE CONCAT('%', :chapter, '%'))
+          AND (:q IS NULL OR d.title ILIKE CONCAT('%', :q, '%')
+                          OR d.description ILIKE CONCAT('%', :q, '%')
+                          OR d.subject ILIKE CONCAT('%', :q, '%')
+                          OR d.topic ILIKE CONCAT('%', :q, '%')
+                          OR d.chapter ILIKE CONCAT('%', :q, '%'))
+          AND (:uploadedBy IS NULL OR d.uploaded_by = :uploadedBy)
+          AND (:tags IS NULL OR d.tags @> CAST(:tags AS jsonb))
+        ORDER BY d.published_at DESC
+        """, nativeQuery = true)
     Page<Document> findLibraryDocuments(
-            @Param("status") PublicationStatus status,
+            @Param("status") String status,
             @Param("subject") String subject,
             @Param("topic") String topic,
             @Param("chapter") String chapter,
+            @Param("q") String q,
+            @Param("uploadedBy") Long uploadedBy,
+            @Param("tags") String tags,
             Pageable pageable
     );
 }

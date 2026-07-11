@@ -1,5 +1,6 @@
 package com.lmsrag.backend.entity;
 
+import com.lmsrag.backend.enums.ProcessingJobType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -29,6 +30,11 @@ public class DocumentProcessingJob {
     @Column(nullable = false, length = 30)
     @Builder.Default
     private ProcessingStatus status = ProcessingStatus.PROCESSING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "job_type", nullable = false, length = 20)
+    @Builder.Default
+    private ProcessingJobType jobType = ProcessingJobType.ANALYZE;
 
     @Column(name = "chunk_count")
     private Integer chunkCount;

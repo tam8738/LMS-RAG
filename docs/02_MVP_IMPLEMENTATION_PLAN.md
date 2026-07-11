@@ -1,7 +1,7 @@
 # Kế hoạch triển khai MVP document-centric
 
-**Phiên bản:** 1.5
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.6
+**Cập nhật:** 12/07/2026
 **Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI process -> Teacher submit review -> Admin approve -> Library -> RAG citation
 
 ## 1. Scope đã khóa
@@ -45,14 +45,19 @@ Teacher A login
 -> upload PDF/TXT
 -> nhập metadata subject/topic/chapter/tags
 -> Backend tạo Document + lưu file
--> Backend tự gọi AI Service ở background
--> AI parse/clean/chunk/embed và lưu document_chunks
+-> Backend tự gọi AI Service analyze ở background
+-> AI trả can_rag, rag_status
+-> Backend cập nhật processing_status = ANALYZED
 -> Teacher A submit review
 -> Admin approve
--> Document xuất hiện trong Library
+-> publication_status = PUBLISHED, processing_status = PROCESSING
+-> Document xuất hiện trong Library ngay (song song)
+-> Backend tự gọi AI Service index RAG ở background
+-> AI parse/clean/chunk/embed và lưu document_chunks
+-> Backend cập nhật processing_status = PROCESSED
 -> Teacher B login
 -> mở Document trong Library
--> hỏi RAG trên document đó
+-> hỏi RAG trên document đó (chỉ khi processing_status = PROCESSED)
 -> nhận answer + citation đúng nguồn
 ```
 
@@ -65,19 +70,16 @@ Teacher A login
 - `users` entity/repository/service.
 - `UserRole`, `UserStatus`.
 - `ApiResponse`, exception handler.
-- Một số entity cũ: `Course`, `Lecture`, `CourseMember`.
+- `Document`, `DocumentProcessingJob` entity/repository/service/controller.
+- Upload API, My Documents API, Admin review API, Library API.
+- `AiServiceClient` gọi AI Service `/v1/analyze-document` bất đồngộ.
+- Flyway migrations V1-V4.
 
 ### Backend chưa có
 
-- Migration chính thức cho schema MVP.
-- `Document` entity/service/controller.
-- Upload file/shared storage.
-- Processing job.
-- AI client.
-- Admin review API.
-- Library API.
-- RAG proxy API.
-- Teacher management API.
+- RAG proxy API (`/api/v1/rag/answer`).
+- Admin Teacher management API (BE-09, should-have).
+- Migration/index RAG sau admin approve (gọi `/v1/index-document`).
 
 ### Frontend hiện có
 
@@ -91,14 +93,13 @@ Teacher A login
 - Text cleaning/chunking.
 - Embedding provider.
 - Repository lưu chunks vào pgvector.
-- `/v1/process-document` ở mức đã scaffold.
+- `/v1/analyze-document` để đánh giá khả năng RAG.
+- `/v1/answer-question` để trả lời câu hỏi dựa trên retrieval.
 
 ### AI Service còn cần chỉnh theo scope mới
 
-- Bỏ `lecture_id` khỏi schema/code nếu còn.
-- `document_chunks` insert theo schema mới không có `lecture_id`.
-- Thêm retrieval theo `document_ids`.
-- Thêm `/v1/answer-question`.
+- Thêm `/v1/index-document` để tạo embedding sau khi admin approve (tách biệt với analyze).
+- Cập nhật retrieval theo `document_ids` nếu cần thay đổi.
 
 ## 4. Task graph tổng quan
 
@@ -144,11 +145,11 @@ Quy ước trạng thái:
 | BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; đổi `ddl-auto` sang `validate`; compile + test pass |
 | BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`, `DocumentRepository`, `DocumentProcessingJobRepository`; code compile + test pass |
 | BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; đã test Docker upload TXT thành công và AI container đọc được file qua shared volume |
-| BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | TODO | Blocker chính của E2E: Backend chưa có `AiServiceClient`/worker sau upload, chưa tự gọi AI `/v1/process-document`, chưa tự cập nhật `documents.processing_status` và `document_processing_jobs.status` sang `PROCESSED/FAILED` |
-| BE-05 - My Documents API | Tâm | P0 | BE-04 | IN_PROGRESS | Đã có list/detail/update/delete/submit-review cho owner; đã test list và submit bị chặn đúng khi document chưa `PROCESSED`; còn thiếu reprocess endpoint và tích hợp với BE-04 |
-| BE-06 - Admin review API | Tâm | P0 | BE-05 | DONE | Đã có review queue/detail/approve/reject/archive; đã test submit review sau khi set `PROCESSED` thủ công, Admin thấy queue và approve thành `PUBLISHED` thành công |
-| BE-07 - Library API | Tâm | P0 | BE-06 | IN_PROGRESS | Đã có list/detail chỉ trả `PUBLISHED`; đã test Teacher B mở `/api/v1/library` và `/api/v1/library/{id}` thành công; filter hiện mới có `subject/topic/chapter`, còn thiếu `q/tags/uploaded_by` theo plan |
-| BE-08 - RAG proxy API | Tâm | P0 | BE-07, AI-03 | TODO | Backend kiểm quyền rồi mới gọi AI |
+| BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | IN_PROGRESS | BE gọi AI Service `POST /v1/analyze-document` bất đồngộ qua `WebClient` sau upload; đang cập nhật theo flow mới: analyze success -> `processing_status=ANALYZED` (thay vì `PROCESSED`); cập nhật `rag_eligible`, `page_count`, `estimated_token_count`, `estimated_chunk_count`, `unsupported_reason`, `analyzed_at`; đã test Docker upload PDF thành công, AI trả `can_rag=true` |
+| BE-05 - My Documents API | Tâm | P0 | BE-04 | IN_PROGRESS | Đã có list/detail/update/delete/submit-review cho owner; `PATCH /my/documents/{id}` hỗ trợ cập nhật cả metadata và file mới; đang cập nhật submit review yêu cầu `processing_status=ANALYZED` (thay vì `PROCESSED`) theo flow mới; endpoint `/reprocess` riêng chưa có nhưng đã cover bằng update file |
+| BE-06 - Admin review API | Tâm | P0 | BE-05 | IN_PROGRESS | Đã có review queue/detail/approve/reject/archive; đang cập nhật approve theo flow mới: approve -> `publication_status=PUBLISHED` + `processing_status=PROCESSING`, document xuất hiện trong Library ngay lập tức (song song), đồng thời fire-and-forget gọi AI Service `/v1/index-document`; khi index xong -> `processing_status=PROCESSED`; đã test approve cơ bản thành công |
+| BE-07 - Library API | Tâm | P0 | BE-06 | DONE | Đã có list/detail chỉ trả `PUBLISHED`; hỗ trợ filter `q` (search title/description/subject/topic/chapter), `subject`, `topic`, `chapter`, `tags` (comma-separated, JSONB contains), `uploadedBy`; đã test Teacher B mở `/api/v1/library` và `/api/v1/library/{id}` thành công |
+| BE-08 - RAG proxy API | Tâm | P0 | BE-07, AI-03 | IN_PROGRESS | Đang thiết kế: `POST /api/v1/rag/answer`; kiểm tra permission và yêu cầu `processing_status=PROCESSED` + `publication_status=PUBLISHED` trước khi gọi AI `/v1/answer-question`; sẽ tái sử dụng `AiServiceClient` + WebClient sync |
 | BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | SHOULD_HAVE | Không chặn core demo |
 
 ### 6.2. Frontend tasks
@@ -180,7 +181,7 @@ Quy ước trạng thái:
 |---|---|---:|---|---|---|
 | DOCS-01 - Cập nhật docs document-centric | Khánh | P0 | Quyết định scope | DONE | PRD, integration, schema contract, backend DB guide, AI contract, implementation plan đã cập nhật |
 | INFRA-01 - Docker/shared volume | Tâm + Khánh | P0 | BE-03, AI-01 | DONE | `docker-compose.yml` đã có `postgres`, `backend`, `ai-service`, `pgadmin`, volume `uploads`; Backend mount `/storage/uploads` read-write, AI mount read-only; đã test cùng một file tồn tại trong cả hai container |
-| INT-01 - Backend upload -> AI process | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | IN_PROGRESS | Đã test thủ công: Backend upload -> shared volume -> gọi trực tiếp AI `/v1/process-document` -> AI ghi `document_chunks`; chưa hoàn thành vì Backend chưa tự gọi AI và chưa tự cập nhật status |
+| INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
 | INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | IN_PROGRESS | Review -> Library đã test bằng cách set `PROCESSED` thủ công; RAG đã test trực tiếp qua AI `/v1/answer-question`; còn thiếu Backend RAG proxy, Frontend và E2E không can thiệp DB |
 | QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | TODO | Chạy kịch bản Teacher A/Admin/Teacher B |
 
@@ -239,6 +240,61 @@ Docker/shared volume đã chạy được.
 Backend document/review/library đã chạy được từng phần.
 MVP chưa E2E hoàn chỉnh vì thiếu Backend auto-processing worker và RAG proxy.
 ```
+
+### 6.7. Snapshot kiểm thử thực tế 12/07/2026
+
+Môi trường đã kiểm thử:
+
+```txt
+docker compose up -d --build
+```
+
+Services hoạt động:
+
+```txt
+postgres: healthy
+backend: up, Flyway migrate OK
+ai-service: healthy
+```
+
+Các bước đã pass:
+
+1. Backend login bằng seed user `teacher1@test.com` thành công.
+2. Backend upload PDF qua `POST /api/v1/documents` thành công.
+3. Document mới tạo có `processing_status=UPLOADED`, sau đó chuyển `ANALYZING` và hiện tại đang cập nhật `PROCESSED` (sẽ đổi thành `ANALYZED` theo flow mới).
+4. AI Service trả `can_rag=true`, `estimated_chunk_count=263`.
+5. BE tự cập nhật `rag_eligible=true`, `page_count`, `estimated_token_count`, `estimated_chunk_count`, `analyzed_at`.
+6. `PATCH /api/v1/my/documents/{id}` hỗ trợ cập nhật metadata và file mới; thay file tạo analyze job mới.
+7. Library API hỗ trợ filter `q`, `subject`, `topic`, `chapter`, `tags`, `uploadedBy`.
+
+Flow mới đang được cập nhật:
+
+```txt
+UPLOADED → ANALYZING → ANALYZED → submit review → PENDING_REVIEW
+→ admin approve → PUBLISHED + PROCESSING → index RAG → PROCESSED
+→ hỏi RAG / gen quiz
+```
+
+Blocker còn lại cho core E2E:
+
+```txt
+BE-04 đang adjust: analyze success phải cập nhật ANALYZED thay vì PROCESSED.
+BE-05 đang adjust: submit review yêu cầu ANALYZED thay vì PROCESSED.
+BE-06 đang adjust: approve phải gọi /v1/index-document và cập nhật PROCESSED sau index.
+BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer.
+AI Service chưa có /v1/index-document (cần Khánh implement hoặc dùng /v1/process-document cũ tạm).
+Frontend chưa có app để chạy demo UI.
+```
+
+### 6.8. Lịch sử thay đổi thiết kế Backend (BE-04/05/06/08)
+
+| Task | Thiết kế trước | Thiết kế sau | Lý do thay đổi |
+|---|---|---|---|
+| **BE-04** | Sau upload, BE gọi AI `/v1/process-document` hoặc `/v1/analyze-document`, cập nhật `processing_status=PROCESSED` | Sau upload, BE gọi AI `/v1/analyze-document`, cập nhật `processing_status=ANALYZED` | Tách biệt analyze (đánh giá) và index (tạo embedding). Không tốn tiền embedding cho tài liệu bị reject. |
+| **BE-05** | Submit review yêu cầu `processing_status=PROCESSED` | Submit review yêu cầu `processing_status=ANALYZED` | Theo flow mới, analyze xong là đủ để submit. |
+| **BE-06** | Admin approve -> `publication_status=PUBLISHED`, document vào Library. Không có bước index riêng. | Admin approve -> `publication_status=PUBLISHED` + `processing_status=PROCESSING`. Document vào Library **ngay lập tức** (song song). BE gọi AI `/v1/index-document` ở background. Index xong -> `PROCESSED`. | Document có thể hiển thị trong Library sớm mà không cần đợi index RAG xong. RAG question chỉ được khi đã `PROCESSED`. |
+| **BE-08** | Hỏi RAG khi `processing_status=PROCESSED` (nghĩa là analyze xong) | Hỏi RAG khi `processing_status=PROCESSED` (nghĩa là **đã index RAG xong**) và `publication_status=PUBLISHED` | Đảm bảo embedding đã được tạo trước khi trả lời. |
+| **ProcessingStatus** | `UPLOADED, ANALYZING, PROCESSING, PROCESSED, FAILED` | `UPLOADED, ANALYZING, ANALYZED, PROCESSING, PROCESSED, FAILED` | Thêm `ANALYZED` để phân biệt analyze xong và index xong. |
 
 ## 7. Backend implementation plan
 
@@ -476,27 +532,42 @@ Luồng:
 
 ```txt
 upload transaction commit
--> event AFTER_COMMIT
--> @Async worker
--> set processing_status = PROCESSING
--> POST AI /v1/process-document
--> success: PROCESSED + processed_at + chunk_count
--> fail: FAILED + error_code/error_message
+-> TransactionSynchronization.afterCommit
+-> set processing_status = ANALYZING
+-> POST AI /v1/analyze-document (WebClient async, fire-and-forget)
+-> AI success: ANALYZED + rag_eligible + page_count + estimated_token_count + estimated_chunk_count + unsupported_reason + analyzed_at
+-> AI fail: FAILED + error_code/error_message
 ```
 
-AI request theo contract v1.4:
+AI request theo contract mới:
 
 ```json
 {
   "document_id": 12,
   "storage_key": "documents/12/v1/source.pdf",
   "file_type": "PDF",
-  "reprocess": false,
   "metadata": {
     "subject": "Cơ sở dữ liệu",
     "topic": "Chuẩn hóa dữ liệu",
     "chapter": "Chương 3",
     "tags": ["database", "normalization"]
+  }
+}
+```
+
+AI response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "document_id": 12,
+    "can_rag": true,
+    "rag_status": "SUPPORTED",
+    "page_count": 10,
+    "estimated_token_count": 4200,
+    "estimated_chunk_count": 263,
+    "unsupported_reason": null
   }
 }
 ```
@@ -509,10 +580,11 @@ X-Internal-Key: <INTERNAL_API_KEY>
 
 Acceptance criteria:
 
-- Upload API không bị treo để chờ AI xử lý lâu.
-- AI success cập nhật `PROCESSED`.
+- Upload API không bị treo để chờ AI xử lý lâu (fire-and-forget qua WebClient).
+- AI success cập nhật `ANALYZED` và các trường RAG eligibility.
 - AI lỗi cập nhật `FAILED`.
-- Không có hai job `PROCESSING` cùng document.
+- Document status ban đầu là `UPLOADED`, sau đó chuyển `ANALYZING` rồi `ANALYZED/FAILED`.
+- Không có hai job `ANALYZING` cùng document.
 - Không gửi `lecture_id` hoặc `course_id` sang AI.
 
 ### BE-05 - My Documents API
@@ -529,11 +601,12 @@ Endpoints:
 ```txt
 GET    /api/v1/my/documents
 GET    /api/v1/my/documents/{documentId}
-PATCH  /api/v1/my/documents/{documentId}
+PATCH  /api/v1/my/documents/{documentId}   (multipart: metadata + optional file)
 DELETE /api/v1/my/documents/{documentId}
-POST   /api/v1/my/documents/{documentId}/reprocess
 POST   /api/v1/my/documents/{documentId}/submit-review
 ```
+
+Note: endpoint `/reprocess` riêng chưa có; thay file trong `PATCH` đã tạo analyze job mới.
 
 Rules:
 
@@ -543,7 +616,7 @@ Rules:
 - Submit review chỉ khi:
 
 ```txt
-processing_status = PROCESSED
+processing_status = ANALYZED
 publication_status = DRAFT hoặc REJECTED
 ```
 
@@ -601,6 +674,11 @@ reviewed_by = admin_id
 reviewed_at = now
 published_at = now
 publication_status = PUBLISHED
+processing_status = PROCESSING
+-> Document xuất hiện trong Library ngay lập tức
+-> fire-and-forget gọi AI /v1/index-document ở background
+-> index success: processing_status = PROCESSED
+-> index fail: processing_status = FAILED
 ```
 
 Khi reject:
@@ -615,7 +693,8 @@ publication_status = REJECTED
 Acceptance criteria:
 
 - Teacher không gọi được admin endpoints.
-- Admin approve xong document xuất hiện trong Library.
+- Admin approve xong document xuất hiện trong Library ngay lập tức (không đợi index RAG xong).
+- Admin approve xong BE tự gọi AI `/v1/index-document` ở background.
 - Admin reject xong Teacher owner thấy lý do.
 - `ARCHIVED` không còn trong Library.
 
@@ -688,18 +767,22 @@ Request:
 
 Backend xử lý:
 
-1. Validate question/document_ids/top_k.
-2. Kiểm permission từng document:
-   - Owner được hỏi document của mình nếu `PROCESSED`.
-   - Teacher khác chỉ được hỏi document `PUBLISHED`.
-3. Gọi AI `/v1/answer-question`.
-4. Trả answer/citations về FE.
+1. Validate request (1-10 document IDs, question không rỗng, top_k từ 3-8).
+2. Deduplicate `document_ids`.
+3. Kiểm tra từng document:
+   - Document phải tồn tại.
+   - `publication_status = PUBLISHED`.
+   - `processing_status = PROCESSED` (đã index RAG xong).
+   - Admin/Teacher đều có quyền hỏi khi thỏa mãn 2 điều kiện trên.
+4. Gọi AI `/v1/answer-question` đồng bộ (sync) vì FE đang chờ response.
+5. Trả answer/citations về FE.
 
 Acceptance criteria:
 
-- Không gọi AI nếu có document không có quyền.
-- Không gửi document chưa `PROCESSED` sang AI.
-- Citation trả về FE giữ đủ `document_id`, `page_number`, `chunk_index`, `excerpt`, `score`.
+- Không gọi AI nếu có document không `PUBLISHED` hoặc chưa `PROCESSED`.
+- Không gửi document chưa index RAG sang AI.
+- Citation trả về FE giữ đủ `chunk_id`, `document_id`, `page_number`, `chunk_index`, `excerpt`, `score`.
+- Response đồng bộ, FE không cần polling.
 
 ### BE-09 - Admin Teacher management Should-have
 
@@ -1264,9 +1347,8 @@ Login response nên có:
 POST   /api/v1/documents
 GET    /api/v1/my/documents
 GET    /api/v1/my/documents/{documentId}
-PATCH  /api/v1/my/documents/{documentId}
+PATCH  /api/v1/my/documents/{documentId}   (multipart: metadata + optional file)
 DELETE /api/v1/my/documents/{documentId}
-POST   /api/v1/my/documents/{documentId}/reprocess
 POST   /api/v1/my/documents/{documentId}/submit-review
 ```
 
@@ -1304,6 +1386,12 @@ POST /api/v1/rag/answer
   "storage_key": "documents/12/v1/source.pdf",
   "processing_status": "PROCESSED",
   "publication_status": "PUBLISHED",
+  "rag_eligible": true,
+  "page_count": 10,
+  "estimated_token_count": 4200,
+  "estimated_chunk_count": 263,
+  "unsupported_reason": null,
+  "analyzed_at": "2026-07-07T09:35:00Z",
   "uploaded_by": 2,
   "uploader_name": "Teacher A",
   "reviewed_by": 1,
