@@ -166,6 +166,8 @@ Hành vi:
 
 ## 7. Answer question
 
+Implementation status AI-02: đã có repository retrieval `search_similar_chunks` đọc `document_chunks` theo `document_ids`. HTTP endpoint `/v1/answer-question`, generation và response citation hoàn chỉnh thuộc AI-03, chưa có trong code hiện tại.
+
 ### `POST /v1/answer-question`
 
 Request:
@@ -243,6 +245,7 @@ AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thi
 | `NO_CHUNKS_FOUND` | 422 | Không có chunks cho document IDs |
 | `PROVIDER_UNAVAILABLE` | 503 | OpenAI chưa cấu hình/không sẵn sàng |
 | `PROVIDER_TIMEOUT` | 504 | OpenAI timeout |
+| `RETRIEVAL_ERROR` | 503 | Lỗi query retrieval từ `document_chunks` |
 | `DATABASE_ERROR` | 503 | PostgreSQL/pgvector lỗi |
 | `INTERNAL_ERROR` | 500 | Lỗi không dự kiến |
 

@@ -18,13 +18,13 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - Chunker có overlap.
 - OpenAI embedding provider.
 - PostgreSQL repository atomic replace.
+- Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
 - `POST /v1/process-document` cần theo contract v1.4, không dùng `lecture_id`.
 - Unit/API mock tests.
 
 Chưa có:
 
 - E2E thật Backend -> shared file -> OpenAI -> pgvector.
-- Retrieval theo `document_ids`.
 - RAG answer và citation.
 
 ## 2. Process pipeline
@@ -129,6 +129,8 @@ EMBEDDING_DIMENSIONS=1536
 - Unique `(document_id, chunk_index)`.
 
 ## 3. Retrieval pipeline
+
+Trạng thái AI-02: đã có repository `search_similar_chunks` để query `document_chunks` theo `document_ids`. Endpoint HTTP `/v1/answer-question` và bước generation vẫn thuộc AI-03.
 
 ```txt
 question

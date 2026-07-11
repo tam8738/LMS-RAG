@@ -98,3 +98,16 @@ class EmbeddedDocument(BaseModel):
     def chunk_count(self) -> int:
         """Số vector phải luôn bằng số embedded chunks."""
         return len(self.chunks)
+
+
+class RetrievedDocumentChunk(BaseModel):
+    """Chunk retrieved from pgvector for RAG answer and citation."""
+
+    chunk_id: int = Field(gt=0)
+    document_id: int = Field(gt=0)
+    page_number: int | None = Field(default=None, ge=1)
+    chunk_index: int = Field(ge=0)
+    content: str = Field(min_length=1)
+    token_count: int = Field(ge=1)
+    distance: float = Field(ge=0)
+    score: float = Field(ge=0)

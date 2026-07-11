@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from app.schemas.document import EmbeddedDocument
+from app.schemas.document import EmbeddedDocument, RetrievedDocumentChunk
 
 
 class DocumentChunkRepository(ABC):
@@ -15,4 +15,14 @@ class DocumentChunkRepository(ABC):
         document: EmbeddedDocument,
     ) -> int:
         """Thay toàn bộ chunks atomically và trả số rows đã insert."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def search_similar_chunks(
+        self,
+        document_ids: list[int],
+        query_embedding: list[float],
+        top_k: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Find nearest chunks inside the authorized document scope."""
         raise NotImplementedError

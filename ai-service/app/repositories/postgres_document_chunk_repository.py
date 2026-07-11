@@ -12,7 +12,7 @@ from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.db.connection import get_connection
 from app.db.pgvector_store import to_vector_literal
 from app.repositories.document_chunk_repository import DocumentChunkRepository
-from app.schemas.document import EmbeddedDocument
+from app.schemas.document import EmbeddedDocument, RetrievedDocumentChunk
 
 # SQL tách thành hằng số để dễ đọc/test và luôn truyền dữ liệu qua parameters.
 _DELETE_DOCUMENT_CHUNKS_SQL = """
@@ -30,6 +30,21 @@ INSERT INTO document_chunks (
     embedding
 )
 VALUES (%s, %s, %s, %s, %s, %s::vector)
+"""
+
+_SEARCH_SIMILAR_CHUNKS_SQL = """
+SELECT
+    id,
+    document_id,
+    page_number,
+    chunk_index,
+    content,
+    token_count,
+    embedding <=> %s::vector AS distance
+FROM document_chunks
+WHERE document_id = ANY(%s::bigint[])
+ORDER BY embedding <=> %s::vector, document_id, chunk_index
+LIMIT %s
 """
 
 # Factory trả context manager connection; test thay bằng fake transaction DB.
@@ -97,6 +112,106 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
             ) from exc
 
         return len(rows)
+
+    def search_similar_chunks(
+        self,
+        document_ids: list[int],
+        query_embedding: list[float],
+        top_k: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Return top-k nearest chunks filtered by Backend-authorized documents."""
+        normalized_document_ids = self._validate_search_input(
+            document_ids,
+            query_embedding,
+            top_k,
+        )
+        query_vector = to_vector_literal(query_embedding)
+
+        try:
+            with self.connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        _SEARCH_SIMILAR_CHUNKS_SQL,
+                        (
+                            query_vector,
+                            normalized_document_ids,
+                            query_vector,
+                            top_k,
+                        ),
+                    )
+                    rows = cursor.fetchall()
+        except psycopg.Error as exc:
+            raise ServiceError(
+                ErrorCode.RETRIEVAL_ERROR,
+                "Không thể retrieval document chunks từ PostgreSQL",
+                status_code=503,
+                details=[
+                    ErrorDetail(
+                        field="document_ids",
+                        message=",".join(
+                            str(value) for value in normalized_document_ids
+                        ),
+                    )
+                ],
+            ) from exc
+
+        return [self._to_retrieved_chunk(row) for row in rows]
+
+    def _validate_search_input(
+        self,
+        document_ids: list[int],
+        query_embedding: list[float],
+        top_k: int,
+    ) -> list[int]:
+        """Validate retrieval input before spending a database connection."""
+        if not document_ids:
+            raise self._invalid_input(
+                "document_ids",
+                "document_ids phải có ít nhất một phần tử",
+            )
+        if any(document_id <= 0 for document_id in document_ids):
+            raise self._invalid_input(
+                "document_ids",
+                "Mọi document_id phải lớn hơn 0",
+            )
+        if top_k <= 0:
+            raise self._invalid_input("top_k", "top_k phải lớn hơn 0")
+        if len(query_embedding) != self.expected_dimensions:
+            raise self._invalid_input(
+                "embedding_dimensions",
+                (
+                    f"Cần {self.expected_dimensions}, "
+                    f"nhận {len(query_embedding)}"
+                ),
+            )
+        if any(not math.isfinite(value) for value in query_embedding):
+            raise self._invalid_input(
+                "query_embedding",
+                "Query embedding chứa NaN hoặc Infinity",
+            )
+
+        normalized_document_ids: list[int] = []
+        seen: set[int] = set()
+        for document_id in document_ids:
+            if document_id not in seen:
+                seen.add(document_id)
+                normalized_document_ids.append(document_id)
+        return normalized_document_ids
+
+    @staticmethod
+    def _to_retrieved_chunk(row: tuple[Any, ...]) -> RetrievedDocumentChunk:
+        """Map one SQL row to the retrieval model used by the RAG layer."""
+        distance = float(row[6])
+        return RetrievedDocumentChunk(
+            chunk_id=int(row[0]),
+            document_id=int(row[1]),
+            page_number=row[2],
+            chunk_index=int(row[3]),
+            content=str(row[4]),
+            token_count=int(row[5]),
+            distance=distance,
+            score=max(0.0, 1.0 - distance),
+        )
 
     def _validate_document(
         self,

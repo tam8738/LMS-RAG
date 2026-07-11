@@ -170,8 +170,8 @@ Quy ước trạng thái:
 
 | Task | Owner | Priority | Depends on | Trạng thái | Ghi chú tracking |
 |---|---|---:|---|---|---|
-| AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; `pytest tests/test_process_document_api.py tests/test_document_chunk_repository.py` pass 24 tests |
-| AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | TODO | Chưa có retrieval/RAG endpoint E2E |
+| AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; regression test cùng AI-02 pass 28 tests |
+| AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; repository tests pass 14 tests |
 | AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | TODO | Cần trả answer/not_found/citations |
 
 ### 6.4. Infra, integration và QA tasks
@@ -1066,17 +1066,22 @@ Acceptance criteria:
 - Depends on: BE-01 schema, AI-01
 - Concurrency: EXCLUSIVE
 - Estimate: 0.5 ngày
+- Status: DONE
 
-Việc cần làm:
+Việc đã làm:
 
-- Query vector trong `document_chunks` theo `document_ids`.
-- Join `documents` để lấy title/subject/topic/chapter nếu cần citation/context.
-- Không query toàn Library.
+- Thêm model `RetrievedDocumentChunk` cho kết quả retrieval/citation.
+- Thêm interface `search_similar_chunks(document_ids, query_embedding, top_k)`.
+- Query vector trong `document_chunks` theo `document_ids` bằng pgvector cosine distance.
+- Deduplicate `document_ids`, validate `top_k`, vector dimensions và NaN/Infinity trước khi mở DB.
+- Trả `chunk_id`, `document_id`, `page_number`, `chunk_index`, `content`, `token_count`, `distance`, `score`.
+- Không query toàn Library và không tự kiểm permission trong AI Service.
 
 Acceptance criteria:
 
 - Không rò chunks của document ngoài scope.
-- Có mock/integration test với nhiều document.
+- Có mock test với nhiều document.
+- `pytest tests/test_document_chunk_repository.py` pass 14 tests.
 
 ### AI-03 - Answer question endpoint
 
