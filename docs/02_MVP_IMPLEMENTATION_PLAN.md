@@ -143,7 +143,7 @@ Quy ước trạng thái:
 |---|---|---:|---|---|---|
 | BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; đổi `ddl-auto` sang `validate`; compile + test pass |
 | BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`, `DocumentRepository`, `DocumentProcessingJobRepository`; code compile + test pass |
-| BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | TODO | Upload không được yêu cầu Course/Lecture |
+| BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; compile + test pass |
 | BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | TODO | Backend cần gọi AI background sau upload |
 | BE-05 - My Documents API | Tâm | P0 | BE-04 | TODO | CRUD/submit/reprocess cho owner |
 | BE-06 - Admin review API | Tâm | P0 | BE-05 | TODO | Approve/reject/archive |
