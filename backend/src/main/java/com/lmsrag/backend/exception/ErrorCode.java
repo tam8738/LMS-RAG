@@ -59,6 +59,17 @@ public enum ErrorCode {
     DOCUMENT_UPLOAD_FAILED(HttpStatus.BAD_REQUEST, "Upload tài liệu thất bại"),
 
     // =========================================================
+    // ===== FILE UPLOAD =====
+    // =========================================================
+    FILE_REQUIRED(HttpStatus.BAD_REQUEST, "Vui lòng chọn file tải lên"),
+    METADATA_REQUIRED(HttpStatus.BAD_REQUEST, "Vui lòng cung cấp thông tin tài liệu"),
+    FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "Dung lượng file không được vượt quá 20MB"),
+    FILE_INVALID_TYPE(HttpStatus.BAD_REQUEST, "Chỉ chấp nhận file PDF hoặc TXT"),
+    FILE_EMPTY(HttpStatus.BAD_REQUEST, "File tải lên không được để trống"),
+    FILE_STORE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Lưu file thất bại"),
+    UPLOAD_NOT_ALLOWED(HttpStatus.FORBIDDEN, "Chỉ giảng viên mới được upload tài liệu"),
+
+    // =========================================================
     // ===== COURSE / LESSON (legacy) =====
     // =========================================================
     COURSE_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "Tên khóa học không được để trống"),

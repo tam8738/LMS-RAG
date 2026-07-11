@@ -4,31 +4,40 @@ import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
 import com.lmsrag.backend.entity.Document;
+import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.entity.User;
-import com.lmsrag.backend.enums.DocumentFileType;
 import com.lmsrag.backend.enums.ProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
+import com.lmsrag.backend.enums.UserRole;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.mapper.DocumentMapper;
+import com.lmsrag.backend.repository.DocumentProcessingJobRepository;
 import com.lmsrag.backend.repository.DocumentRepository;
 import com.lmsrag.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
 
+    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+
     private final DocumentRepository documentRepository;
+    private final DocumentProcessingJobRepository documentProcessingJobRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
 
     // Lấy user hiện tại từ JWT
     private User getCurrentUser() {
@@ -50,35 +59,127 @@ public class DocumentService {
         }
     }
 
-    // ===== CREATE =====
+    // ===== UPLOAD =====
     @Transactional
-    public DocumentResponse createDocument(DocumentCreateRequest request) {
-        User currentUser = getCurrentUser();
+    public DocumentResponse uploadDocument(MultipartFile file, DocumentCreateRequest metadata) {
+        log.info("[UPLOAD] Bắt đầu upload document | fileName={} | fileSize={} bytes | contentType={}",
+                file != null ? file.getOriginalFilename() : "null",
+                file != null ? file.getSize() : 0,
+                file != null ? file.getContentType() : "null");
 
+        if (metadata != null) {
+            log.info("[UPLOAD] Metadata received | title={} | subject={} | topic={} | chapter={} | tags={}",
+                    metadata.getTitle(), metadata.getSubject(), metadata.getTopic(),
+                    metadata.getChapter(), metadata.getTags());
+        } else {
+            log.warn("[UPLOAD] Metadata is null");
+        }
+
+        // Validate cả file và metadata phải có
+        validateUploadRequest(file, metadata);
+        log.info("[UPLOAD] Validate file và metadata thành công");
+
+        User currentUser = getCurrentUser();
+        log.info("[UPLOAD] User hiện tại | userId={} | email={} | role={}",
+                currentUser.getId(), currentUser.getEmail(), currentUser.getRole());
+
+        requireTeacher(currentUser);
+        log.info("[UPLOAD] User {} là TEACHER, được phép upload", currentUser.getEmail());
+
+        String extension = storageService.getFileExtension(file.getOriginalFilename());
+        String tempStorageKey = "documents/temp-" + java.util.UUID.randomUUID() + "/v1/source." + extension;
+
+        // Tạo Document entity với đầy đủ file info trước khi save
+        // (IDENTITY strategy insert ngay lập tức để lấy id)
         Document document = Document.builder()
                 .uploadedBy(currentUser)
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .subject(request.getSubject())
-                .topic(request.getTopic())
-                .chapter(request.getChapter())
-                .tags(request.getTags() != null ? request.getTags() : List.of())
-
-                // File info sẽ được cập nhật khi upload
-                .originalFilename("")
-                .storedFilename("")
-                .storageKey("")
+                .title(metadata.getTitle())
+                .description(metadata.getDescription())
+                .subject(metadata.getSubject())
+                .topic(metadata.getTopic())
+                .chapter(metadata.getChapter())
+                .tags(metadata.getTags() != null ? metadata.getTags() : List.of())
+                .originalFilename(file.getOriginalFilename())
+                .storedFilename("source." + extension)
+                .storageKey(tempStorageKey)
                 .fileVersion(1)
-                .fileType(DocumentFileType.PDF)
-                .mimeType("")
-                .fileSize(0L)
-
+                .fileType(storageService.resolveFileType(file.getOriginalFilename()))
+                .mimeType(file.getContentType())
+                .fileSize(file.getSize())
                 .processingStatus(ProcessingStatus.UPLOADED)
                 .publicationStatus(PublicationStatus.DRAFT)
                 .build();
 
         Document saved = documentRepository.save(document);
-        return DocumentMapper.toResponse(saved);
+        log.info("[UPLOAD] Đã tạo Document | documentId={} | uploadedBy={}",
+                saved.getId(), currentUser.getEmail());
+
+        try {
+            // Lưu file vật lý
+            log.info("[UPLOAD] Bắt đầu lưu file vật lý | documentId={} | version={}",
+                    saved.getId(), saved.getFileVersion());
+            String storageKey = storageService.store(file, saved.getId(), saved.getFileVersion());
+            log.info("[UPLOAD] Lưu file thành công | documentId={} | storageKey={}",
+                    saved.getId(), storageKey);
+
+            // Cập nhật storage_key chính xác
+            saved.setStorageKey(storageKey);
+            log.info("[UPLOAD] Đã cập nhật storage_key | documentId={} | storageKey={}",
+                    saved.getId(), storageKey);
+
+            // Tạo processing job
+            log.info("[UPLOAD] Tạo processing job | documentId={}", saved.getId());
+            DocumentProcessingJob job = DocumentProcessingJob.builder()
+                    .document(saved)
+                    .status(ProcessingStatus.PROCESSING)
+                    .startedAt(Instant.now())
+                    .build();
+            documentProcessingJobRepository.save(job);
+            log.info("[UPLOAD] Đã tạo processing job | documentId={} | jobId={}",
+                    saved.getId(), job.getId());
+
+            saved.setProcessingStatus(ProcessingStatus.PROCESSING);
+            Document result = documentRepository.save(saved);
+            log.info("[UPLOAD] Hoàn tất upload | documentId={} | storageKey={} | status=PROCESSING",
+                    result.getId(), result.getStorageKey());
+
+            return DocumentMapper.toResponse(result);
+        } catch (Exception e) {
+            // Nếu có lỗi, xóa file đã lưu (nếu có) và ném lỗi
+            log.error("[UPLOAD] Upload failed for document id={} | error={}", saved.getId(), e.getMessage(), e);
+            storageService.delete(saved.getStorageKey());
+            documentRepository.delete(saved);
+            log.warn("[UPLOAD] Đã rollback document id={} khỏi database", saved.getId());
+            throw e instanceof AppException appException ? appException : new AppException(ErrorCode.DOCUMENT_UPLOAD_FAILED);
+        }
+    }
+
+    private void validateUploadRequest(MultipartFile file, DocumentCreateRequest metadata) {
+        if (file == null || file.isEmpty()) {
+            log.warn("[UPLOAD] Upload rejected: file is missing or empty");
+            throw new AppException(ErrorCode.FILE_REQUIRED);
+        }
+
+        if (metadata == null) {
+            log.warn("[UPLOAD] Upload rejected: metadata is missing");
+            throw new AppException(ErrorCode.METADATA_REQUIRED);
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            log.warn("[UPLOAD] Upload rejected: file size {} bytes exceeds 20MB", file.getSize());
+            throw new AppException(ErrorCode.FILE_TOO_LARGE);
+        }
+
+        log.info("[UPLOAD] Đang validate file | name={} | size={} | contentType={}",
+                file.getOriginalFilename(), file.getSize(), file.getContentType());
+        storageService.validateFile(file);
+    }
+
+    private void requireTeacher(User user) {
+        if (user.getRole() != UserRole.TEACHER) {
+            log.warn("[UPLOAD] Upload rejected: user {} with role {} is not a TEACHER", user.getEmail(), user.getRole());
+            throw new AppException(ErrorCode.UPLOAD_NOT_ALLOWED);
+        }
     }
 
     // ===== READ =====
@@ -146,7 +247,8 @@ public class DocumentService {
             throw new AppException(ErrorCode.DOCUMENT_NOT_DELETABLE);
         }
 
-        // TODO: Xóa file vật lý trong storage
+        // Xóa file vật lý trong storage
+        storageService.delete(document.getStorageKey());
         documentRepository.delete(document);
     }
 
