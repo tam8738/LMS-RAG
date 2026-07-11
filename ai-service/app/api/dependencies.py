@@ -12,9 +12,9 @@ from app.services.answer_question_service import AnswerQuestionService
 from app.services.chunk_embedding_service import ChunkEmbeddingService
 from app.services.document_chunking_pipeline import DocumentChunkingPipeline
 from app.services.document_validator import DocumentValidator
+from app.services.index_document_service import IndexDocumentService
 from app.services.process_document_service import ProcessDocumentService
 from app.services.storage import StorageResolver
-
 
 
 @lru_cache(maxsize=1)
@@ -26,11 +26,12 @@ def get_analyze_document_service() -> AnalyzeDocumentService:
         chunking_pipeline=DocumentChunkingPipeline(),
     )
 
+
 @lru_cache(maxsize=1)
 def get_process_document_service() -> ProcessDocumentService:
     """Lắp ráp object graph và tái sử dụng service/OpenAI client giữa requests.
 
-    Khởi tạo lazy khi process endpoint được gọi, không phải khi import app.
+    Khởi tạo lazy khi process/index endpoint được gọi, không phải khi import app.
     Vì vậy public health vẫn chạy nếu local chưa có OPENAI_API_KEY.
     """
     try:
@@ -49,6 +50,15 @@ def get_process_document_service() -> ProcessDocumentService:
         embedding_service=ChunkEmbeddingService(embedding_provider),
         chunk_repository=PostgresDocumentChunkRepository(),
     )
+
+
+@lru_cache(maxsize=1)
+def get_index_document_service() -> IndexDocumentService:
+    """Assemble the new index endpoint on top of the full processing pipeline."""
+    return IndexDocumentService(
+        process_document_service=get_process_document_service(),
+    )
+
 
 @lru_cache(maxsize=1)
 def get_answer_question_service() -> AnswerQuestionService:

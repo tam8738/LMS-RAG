@@ -244,6 +244,8 @@ Hành vi:
 6. Atomic replace chunks trong transaction: delete chunks cũ theo `document_id`, insert chunks mới, commit.
 7. Trả `chunk_count`; không cập nhật bảng `documents`.
 
+Implementation status AI-05: endpoint `/v1/index-document` đã có trong AI Service. Endpoint hiện tái sử dụng `ProcessDocumentService` để chạy pipeline đầy đủ và atomic replace chunks trong `document_chunks`; response trả `rag_status=READY` để Backend cập nhật document.
+
 ## 8. Answer question
 
 Implementation status AI-03: endpoint `/v1/answer-question` đã có trong AI Service. MVP hiện trả extractive answer từ retrieved chunks và citations từ `document_chunks`; chưa dùng LLM chat/generation provider riêng.

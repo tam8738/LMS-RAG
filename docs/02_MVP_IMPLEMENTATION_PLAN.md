@@ -93,7 +93,7 @@ Teacher A login
 - Text cleaning/chunking.
 - Embedding provider.
 - Repository lưu chunks vào pgvector.
-- `/v1/process-document` legacy đã có; REF-03 đã thêm `/v1/analyze-document`; còn cần tách `/v1/index-document`.
+- `/v1/process-document` legacy đã có; REF-03/REF-04 đã tách xong `/v1/analyze-document` và `/v1/index-document`.
 
 ### Trạng thái AI Service theo scope mới
 
@@ -178,7 +178,7 @@ Quy ước trạng thái:
 | AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`; Backend phải chỉ gọi với document `PUBLISHED + READY` |
 
 | AI-04 - Analyze document endpoint | Khánh | P0 | AI-01 | DONE | Đã thêm `/v1/analyze-document`: validate/parse nhẹ/estimate, trả READY_TO_INDEX hoặc UNSUPPORTED, không ghi chunks; test pass |
-| AI-05 - Index document endpoint | Khánh | P0 | AI-04, AI-02 | TODO | Thêm `/v1/index-document`: parse/clean/chunk/embed/atomic replace chunks, trả READY/chunk_count |
+| AI-05 - Index document endpoint | Khánh | P0 | AI-04, AI-02 | DONE | Đã thêm `/v1/index-document`: parse/clean/chunk/embed/atomic replace chunks, trả `rag_status=READY` và `chunk_count`; test pass |
 
 ### 6.4. Infra, integration và QA tasks
 
@@ -245,7 +245,7 @@ Kết luận snapshot:
 AI Service core đã chạy được với database/file thật.
 Docker/shared volume đã chạy được.
 Backend document/review/library đã chạy được từng phần.
-MVP chưa E2E hoàn chỉnh vì thiếu analyze/index split, Backend AI client và RAG proxy.
+MVP chưa E2E hoàn chỉnh vì Backend chưa tích hợp đủ AI client, review->index flow và RAG proxy.
 ```
 
 
@@ -1274,6 +1274,60 @@ Acceptance criteria:
 - Payload thiếu/sai field trả validation error.
 - `pytest tests/test_analyze_document_api.py` pass 6 tests.
 - `pytest tests/test_analyze_document_api.py tests/test_process_document_api.py tests/test_answer_question_api.py tests/test_document_chunk_repository.py` pass 41 tests.
+
+### AI-05 - Index document endpoint
+
+- Owner: Khánh
+- Priority: P0
+- Depends on: AI-04, AI-02
+- Concurrency: EXCLUSIVE
+- Estimate: 0.5 ngày
+- Status: DONE
+
+Endpoint:
+
+```txt
+POST /v1/index-document
+```
+
+Việc đã làm:
+
+- Thêm schema `IndexDocumentRequest` và `IndexDocumentResult`.
+- Thêm service `IndexDocumentService` để bọc pipeline xử lý đầy đủ hiện có.
+- Endpoint `/v1/index-document` tái sử dụng `ProcessDocumentService`: resolve file, validate, parse, clean/chunk, embed và atomic replace chunks trong `document_chunks`.
+- Response trả `rag_status=READY`, `page_count`, `chunk_count` để Backend cập nhật document sau khi index thành công.
+- Endpoint này không tự cập nhật bảng `documents`; Backend vẫn là owner của status `INDEXING/READY/FAILED`.
+- Endpoint legacy `/v1/process-document` vẫn giữ để backward compatibility/test cũ.
+
+Response có:
+
+```txt
+document_id
+rag_status
+page_count
+chunk_count
+```
+
+Code liên quan:
+
+```txt
+ai-service/app/schemas/index_document.py
+ai-service/app/services/index_document_service.py
+ai-service/app/api/routes/index_document.py
+ai-service/app/api/dependencies.py
+ai-service/app/api/router.py
+ai-service/tests/test_index_document_api.py
+```
+
+Acceptance criteria:
+
+- Backend gọi được `/v1/index-document` bằng `X-Internal-Key`.
+- Request không còn `lecture_id`; nếu gửi field legacy thì bị reject theo `extra=forbid`.
+- `reindex=true` được map sang `reprocess=true` trong pipeline cũ để replace chunks.
+- Pipeline lỗi thì trả error envelope theo contract chung.
+- Thành công trả `rag_status=READY` và số chunk đã lưu.
+- `pytest tests/test_index_document_api.py` pass 6 tests.
+- `pytest tests/test_analyze_document_api.py tests/test_index_document_api.py tests/test_process_document_api.py tests/test_answer_question_api.py tests/test_document_chunk_repository.py` pass 47 tests.
 ## 10. Infra/Docker/shared volume
 
 ### INFRA-01 - Docker compose tích hợp Backend + AI + PostgreSQL
@@ -1474,7 +1528,7 @@ Manual E2E checklist:
 ### AI -> Backend
 
 - [x] `/v1/analyze-document` trả `document_id`, `status`, `rag_status`, `page_count`, estimate.
-- [ ] `/v1/index-document` trả `document_id`, `rag_status`, `chunk_count`.
+- [x] `/v1/index-document` trả `document_id`, `rag_status`, `chunk_count`.
 - [x] `/v1/answer-question` trả `answer`, `not_found`, `citations`.
 - [ ] Error codes theo contract.
 - [ ] Retrieval chỉ theo `document_ids`.
