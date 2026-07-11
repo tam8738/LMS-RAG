@@ -294,11 +294,11 @@ RAG tests:
 - `/v1/process-document` legacy.
 - `/v1/answer-question` MVP.
 
-Cần làm tiếp sau REF-01:
+Trạng thái sau REF-03:
 
 ```txt
-AI-04: thêm /v1/analyze-document
-AI-05: thêm /v1/index-document
+AI-04: DONE - đã thêm /v1/analyze-document
+AI-05: TODO - thêm /v1/index-document
 BE-04: Backend gọi analyze sau upload
 BE-06: Backend gọi index sau Admin approve
 BE-08: Backend RAG proxy chỉ gọi khi PUBLISHED + READY

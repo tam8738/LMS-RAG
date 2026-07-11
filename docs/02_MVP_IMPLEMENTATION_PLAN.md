@@ -93,14 +93,15 @@ Teacher A login
 - Text cleaning/chunking.
 - Embedding provider.
 - Repository lưu chunks vào pgvector.
-- `/v1/process-document` legacy đã có; REF-01 cần tách `/v1/analyze-document` và `/v1/index-document`.
+- `/v1/process-document` legacy đã có; REF-03 đã thêm `/v1/analyze-document`; còn cần tách `/v1/index-document`.
 
-### AI Service còn cần chỉnh theo scope mới
+### Trạng thái AI Service theo scope mới
 
-- Bỏ `lecture_id` khỏi schema/code nếu còn.
+- Đã bỏ `lecture_id` khỏi schema/code chính.
 - `document_chunks` insert theo schema mới không có `lecture_id`.
-- Thêm retrieval theo `document_ids`.
-- Thêm `/v1/answer-question`.
+- Đã thêm retrieval theo `document_ids`.
+- Đã thêm `/v1/answer-question`.
+- Đã thêm `/v1/analyze-document` để validate/parse nhẹ và estimate trước khi index.
 
 ## 4. Task graph tổng quan
 
@@ -176,7 +177,7 @@ Quy ước trạng thái:
 | AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; sẽ dùng khi `rag_status=READY` |
 | AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`; Backend phải chỉ gọi với document `PUBLISHED + READY` |
 
-| AI-04 - Analyze document endpoint | Khánh | P0 | AI-01 | TODO | Thêm `/v1/analyze-document`: validate/parse nhẹ/estimate, trả READY_TO_INDEX hoặc UNSUPPORTED, không ghi chunks |
+| AI-04 - Analyze document endpoint | Khánh | P0 | AI-01 | DONE | Đã thêm `/v1/analyze-document`: validate/parse nhẹ/estimate, trả READY_TO_INDEX hoặc UNSUPPORTED, không ghi chunks; test pass |
 | AI-05 - Index document endpoint | Khánh | P0 | AI-04, AI-02 | TODO | Thêm `/v1/index-document`: parse/clean/chunk/embed/atomic replace chunks, trả READY/chunk_count |
 
 ### 6.4. Infra, integration và QA tasks
@@ -1215,6 +1216,64 @@ Acceptance criteria:
 - Không tạo citation giả.
 - Internal key sai trả 401.
 - `pytest tests/test_answer_question_api.py tests/test_process_document_api.py tests/test_document_chunk_repository.py` pass 35 tests.
+
+### AI-04 - Analyze document endpoint
+
+- Owner: Khánh
+- Priority: P0
+- Depends on: AI-01
+- Concurrency: EXCLUSIVE
+- Estimate: 0.5 ngày
+- Status: DONE
+
+Endpoint:
+
+```txt
+POST /v1/analyze-document
+```
+
+Việc đã làm:
+
+- Thêm schema `AnalyzeDocumentRequest` và `AnalyzeDocumentResult`.
+- Thêm service `AnalyzeDocumentService` để resolve `storage_key`, validate file, parse/chunk nhẹ và estimate số trang/token/chunk.
+- Thêm route `/v1/analyze-document` có `X-Internal-Key` giống các internal API khác.
+- Nếu tài liệu đọc được text thì trả `processing_status=PROCESSED`, `rag_status=READY_TO_INDEX`.
+- Nếu tài liệu rỗng/không có text layer thì trả `processing_status=PROCESSED`, `rag_status=UNSUPPORTED`, `unsupported_reason=EMPTY_DOCUMENT`.
+- Endpoint này không sinh embedding và không ghi `document_chunks`; phần đó để cho AI-05 `/v1/index-document`.
+
+Response có:
+
+```txt
+document_id
+status
+rag_status
+rag_supported
+page_count
+estimated_token_count
+estimated_chunk_count
+unsupported_reason
+```
+
+Code liên quan:
+
+```txt
+ai-service/app/schemas/analyze_document.py
+ai-service/app/services/analyze_document_service.py
+ai-service/app/api/routes/analyze_document.py
+ai-service/app/api/dependencies.py
+ai-service/app/api/router.py
+ai-service/tests/test_analyze_document_api.py
+```
+
+Acceptance criteria:
+
+- File PDF/TXT có text trả `READY_TO_INDEX`.
+- File rỗng hoặc PDF scan không text trả `UNSUPPORTED`, không coi là lỗi hệ thống.
+- Không ghi chunks/vector trong bước analyze.
+- Internal key sai trả 401.
+- Payload thiếu/sai field trả validation error.
+- `pytest tests/test_analyze_document_api.py` pass 6 tests.
+- `pytest tests/test_analyze_document_api.py tests/test_process_document_api.py tests/test_answer_question_api.py tests/test_document_chunk_repository.py` pass 41 tests.
 ## 10. Infra/Docker/shared volume
 
 ### INFRA-01 - Docker compose tích hợp Backend + AI + PostgreSQL
@@ -1414,7 +1473,7 @@ Manual E2E checklist:
 
 ### AI -> Backend
 
-- [ ] `/v1/analyze-document` trả `document_id`, `status`, `rag_status`, `page_count`, estimate.
+- [x] `/v1/analyze-document` trả `document_id`, `status`, `rag_status`, `page_count`, estimate.
 - [ ] `/v1/index-document` trả `document_id`, `rag_status`, `chunk_count`.
 - [x] `/v1/answer-question` trả `answer`, `not_found`, `citations`.
 - [ ] Error codes theo contract.

@@ -167,10 +167,10 @@ Success `200`, tài liệu không hỗ trợ RAG nhưng vẫn có thể publish 
     "status": "PROCESSED",
     "rag_status": "UNSUPPORTED",
     "rag_supported": false,
-    "page_count": 20,
+    "page_count": 0,
     "estimated_token_count": 0,
     "estimated_chunk_count": 0,
-    "unsupported_reason": "PDF_SCAN_NO_TEXT"
+    "unsupported_reason": "EMPTY_DOCUMENT"
   },
   "message": "Tài liệu không hỗ trợ RAG nhưng vẫn có thể kiểm duyệt và công bố"
 }
@@ -185,6 +185,8 @@ Hành vi:
 5. Ước lượng `estimated_token_count` và `estimated_chunk_count`.
 6. Trả `READY_TO_INDEX` nếu đủ điều kiện RAG; trả `UNSUPPORTED` nếu tài liệu vẫn lưu được nhưng không thể RAG.
 7. Không cập nhật bảng `documents`; Backend cập nhật status.
+
+Implementation status AI-04: endpoint `/v1/analyze-document` đã có trong AI Service. Endpoint hiện dùng `StorageResolver`, `DocumentValidator` và `DocumentChunkingPipeline` để validate/parse nhẹ/estimate; chưa sinh embedding và chưa ghi `document_chunks`.
 
 ## 7. Index document
 
