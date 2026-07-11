@@ -143,11 +143,11 @@ Quy ước trạng thái:
 |---|---|---:|---|---|---|
 | BE-01 - Migration/database schema | Tâm | P0 | Docs schema | DONE | Đã thêm Flyway dependency; tạo V1, V2, V3 migration; đổi `ddl-auto` sang `validate`; compile + test pass |
 | BE-02 - Entity/enum/repository | Tâm | P0 | BE-01 | DONE | Đầy đủ entity `Document`, `DocumentProcessingJob`, enum `ProcessingStatus`/`PublicationStatus`/`DocumentFileType`, `DocumentRepository`, `DocumentProcessingJobRepository`; code compile + test pass |
-| BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; compile + test pass |
-| BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | TODO | Backend cần gọi AI background sau upload |
-| BE-05 - My Documents API | Tâm | P0 | BE-04 | TODO | CRUD/submit/reprocess cho owner |
-| BE-06 - Admin review API | Tâm | P0 | BE-05 | TODO | Approve/reject/archive |
-| BE-07 - Library API | Tâm | P0 | BE-06 | TODO | Chỉ trả `PUBLISHED` |
+| BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; đã test Docker upload TXT thành công và AI container đọc được file qua shared volume |
+| BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | TODO | Blocker chính của E2E: Backend chưa có `AiServiceClient`/worker sau upload, chưa tự gọi AI `/v1/process-document`, chưa tự cập nhật `documents.processing_status` và `document_processing_jobs.status` sang `PROCESSED/FAILED` |
+| BE-05 - My Documents API | Tâm | P0 | BE-04 | IN_PROGRESS | Đã có list/detail/update/delete/submit-review cho owner; đã test list và submit bị chặn đúng khi document chưa `PROCESSED`; còn thiếu reprocess endpoint và tích hợp với BE-04 |
+| BE-06 - Admin review API | Tâm | P0 | BE-05 | DONE | Đã có review queue/detail/approve/reject/archive; đã test submit review sau khi set `PROCESSED` thủ công, Admin thấy queue và approve thành `PUBLISHED` thành công |
+| BE-07 - Library API | Tâm | P0 | BE-06 | IN_PROGRESS | Đã có list/detail chỉ trả `PUBLISHED`; đã test Teacher B mở `/api/v1/library` và `/api/v1/library/{id}` thành công; filter hiện mới có `subject/topic/chapter`, còn thiếu `q/tags/uploaded_by` theo plan |
 | BE-08 - RAG proxy API | Tâm | P0 | BE-07, AI-03 | TODO | Backend kiểm quyền rồi mới gọi AI |
 | BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | SHOULD_HAVE | Không chặn core demo |
 
@@ -170,18 +170,18 @@ Quy ước trạng thái:
 
 | Task | Owner | Priority | Depends on | Trạng thái | Ghi chú tracking |
 |---|---|---:|---|---|---|
-| AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; regression test cùng AI-02 pass 28 tests |
-| AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; repository tests pass 14 tests |
-| AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`, embed question, retrieval, extractive answer, citations; AI core tests pass 35 tests |
+| AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; Docker test thật đã gọi `/v1/process-document` với `document_id=2`, AI đọc `documents/2/v1/source.txt`, trả `PROCESSED`, `page_count=1`, `chunk_count=1` |
+| AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; đã xác nhận `document_chunks` có row thật cho `document_id=2` sau process |
+| AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`, embed question, retrieval, extractive answer, citations; Docker test thật trả `not_found=false`, citation trỏ về `chunk_id=1`, `document_id=2`; MVP vẫn là extractive answer, chưa có LLM generation riêng |
 
 ### 6.4. Infra, integration và QA tasks
 
 | Task | Owner | Priority | Depends on | Trạng thái | Ghi chú tracking |
 |---|---|---:|---|---|---|
 | DOCS-01 - Cập nhật docs document-centric | Khánh | P0 | Quyết định scope | DONE | PRD, integration, schema contract, backend DB guide, AI contract, implementation plan đã cập nhật |
-| INFRA-01 - Docker/shared volume | Tâm + Khánh | P0 | BE-03, AI-01 | TODO | Cần thêm/chuẩn hóa ai-service, uploads volume, env |
-| INT-01 - Backend upload -> AI process | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | TODO | Chưa E2E thật theo scope mới |
-| INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | TODO | Luồng demo cuối |
+| INFRA-01 - Docker/shared volume | Tâm + Khánh | P0 | BE-03, AI-01 | DONE | `docker-compose.yml` đã có `postgres`, `backend`, `ai-service`, `pgadmin`, volume `uploads`; Backend mount `/storage/uploads` read-write, AI mount read-only; đã test cùng một file tồn tại trong cả hai container |
+| INT-01 - Backend upload -> AI process | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | IN_PROGRESS | Đã test thủ công: Backend upload -> shared volume -> gọi trực tiếp AI `/v1/process-document` -> AI ghi `document_chunks`; chưa hoàn thành vì Backend chưa tự gọi AI và chưa tự cập nhật status |
+| INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | IN_PROGRESS | Review -> Library đã test bằng cách set `PROCESSED` thủ công; RAG đã test trực tiếp qua AI `/v1/answer-question`; còn thiếu Backend RAG proxy, Frontend và E2E không can thiệp DB |
 | QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | TODO | Chạy kịch bản Teacher A/Admin/Teacher B |
 
 ### 6.5. Cách cập nhật bảng tracking
@@ -191,6 +191,54 @@ Khi hoàn thành một task, người phụ trách cập nhật:
 1. Đổi `Trạng thái` sang `IN_PROGRESS`, `DONE` hoặc `BLOCKED`.
 2. Ghi ngắn bằng chứng vào `Ghi chú tracking`, ví dụ endpoint đã có, test đã pass, hoặc đang bị chặn bởi task nào.
 3. Nếu task đổi contract API/schema, cập nhật docs liên quan trong cùng PR.
+
+### 6.6. Snapshot kiểm thử thực tế 11/07/2026
+
+Môi trường đã kiểm thử:
+
+```txt
+docker compose up -d --build ai-service backend
+```
+
+Services hoạt động:
+
+```txt
+postgres: healthy
+backend: up, Flyway validate/migrate OK
+ai-service: healthy
+```
+
+Các bước đã pass:
+
+1. Backend login bằng seed user `teacher.a@example.com` thành công.
+2. Backend upload TXT qua `POST /api/v1/documents` thành công.
+3. Document mới tạo có `processing_status=PROCESSING`, `publication_status=DRAFT` và `storage_key=documents/2/v1/source.txt`.
+4. Backend lưu file vào `/storage/uploads/documents/2/v1/source.txt`.
+5. AI container đọc được đúng file này qua shared volume read-only.
+6. AI `/v1/health` trả `UP`.
+7. AI `/v1/health/pgvector` trả `UP`, database `lms_rag`, pgvector `0.8.2`.
+8. Gọi trực tiếp AI `POST /v1/process-document` với `document_id=2` trả `PROCESSED`, `page_count=1`, `chunk_count=1`.
+9. Bảng `document_chunks` có row thật cho `document_id=2`.
+10. Gọi trực tiếp AI `POST /v1/answer-question` với `document_ids=[2]` trả answer, `not_found=false` và citation thật.
+11. Luồng review/library Backend đã pass khi set `PROCESSED` thủ công: Teacher submit review, Admin approve, Teacher B thấy document trong Library.
+
+Blocker còn lại cho core E2E:
+
+```txt
+BE-04 chưa có: Backend upload xong chưa tự gọi AI /v1/process-document.
+BE-04 chưa có: Backend chưa tự cập nhật documents/job sang PROCESSED hoặc FAILED theo response AI.
+BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer để kiểm quyền rồi gọi AI.
+Frontend chưa có app để chạy demo UI.
+```
+
+Kết luận snapshot:
+
+```txt
+AI Service core đã chạy được với database/file thật.
+Docker/shared volume đã chạy được.
+Backend document/review/library đã chạy được từng phần.
+MVP chưa E2E hoàn chỉnh vì thiếu Backend auto-processing worker và RAG proxy.
+```
 
 ## 7. Backend implementation plan
 
