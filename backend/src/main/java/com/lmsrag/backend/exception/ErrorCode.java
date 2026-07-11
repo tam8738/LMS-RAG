@@ -16,77 +16,73 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     // =========================================================
-    // ===== USER =====
-    // =========================================================
-    EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "Email must not be empty"),
-    EMAIL_INVALID(HttpStatus.BAD_REQUEST, "Invalid email format"),
-    EMAIL_EXISTED(HttpStatus.BAD_REQUEST, "Email already exists"),
-    USER_EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "Email is already in use"),
-
-    PASSWORD_REQUIRED(HttpStatus.BAD_REQUEST, "Password must not be empty"),
-    PASSWORD_WEAK(HttpStatus.BAD_REQUEST, "Password is too weak"),
-
-    NAME_REQUIRED(HttpStatus.BAD_REQUEST, "Name must not be empty"),
-
-    ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "Role must not be empty"),
-    ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "Role not found"),
-
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
-    USER_UPDATE_FAILED(HttpStatus.BAD_REQUEST, "Failed to update user"),
-    USER_DELETE_FAILED(HttpStatus.BAD_REQUEST, "Failed to delete user"),
-
-    // =========================================================
     // ===== AUTH =====
     // =========================================================
-    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "Unauthenticated"),
-    UNAUTHORIZED(HttpStatus.FORBIDDEN, "Access denied"),
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email or password is incorrect"),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid token"),
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"),
+    UNAUTHORIZED(HttpStatus.FORBIDDEN, "Không có quyền truy cập"),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "Truy cập bị từ chối"),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng"),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Token không hợp lệ"),
 
     // =========================================================
-    // ===== LEVEL =====
+    // ===== USER =====
     // =========================================================
-    // TODO: LEVEL_NOT_FOUND và COURSE_LEVEL_NOT_FOUND đang trùng ý nghĩa
-    // ("Level not found"). Nên gộp về 1 mã duy nhất (LEVEL_NOT_FOUND) và
-    // cập nhật lại nơi đang dùng COURSE_LEVEL_NOT_FOUND / COURSE_LEVEL_REQUIRED
-    // trước khi xoá, để tránh lỗi biên dịch ở chỗ khác (vd: validate annotation,
-    // service layer). Tạm giữ cả hai để không phá vỡ code hiện có.
-    LEVEL_NOT_FOUND(HttpStatus.NOT_FOUND, "Level not found"),
-    COURSE_LEVEL_REQUIRED(HttpStatus.BAD_REQUEST, "LevelId must not be null"),
-    COURSE_LEVEL_NOT_FOUND(HttpStatus.NOT_FOUND, "Level not found"),
+    EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "Email không được để trống"),
+    EMAIL_INVALID(HttpStatus.BAD_REQUEST, "Email không hợp lệ"),
+    EMAIL_EXISTED(HttpStatus.BAD_REQUEST, "Email đã tồn tại"),
+    USER_EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "Email đã được sử dụng"),
 
-    // =========================================================
-    // ===== COURSE =====
-    // =========================================================
-    COURSE_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "Course name must not be empty"),
-    COURSE_DESCRIPTION_REQUIRED(HttpStatus.BAD_REQUEST, "Description must not be empty"),
-    COURSE_THUMBNAIL_REQUIRED(HttpStatus.BAD_REQUEST, "Thumbnail_URL must not be empty"),
+    PASSWORD_REQUIRED(HttpStatus.BAD_REQUEST, "Mật khẩu không được để trống"),
+    PASSWORD_WEAK(HttpStatus.BAD_REQUEST, "Mật khẩu quá yếu"),
 
-    COURSE_SCORE_REQUIRED(HttpStatus.BAD_REQUEST, "Score must not be null"),
-    COURSE_SCORE_INVALID(HttpStatus.BAD_REQUEST, "Score must be greater than 0"),
+    NAME_REQUIRED(HttpStatus.BAD_REQUEST, "Tên không được để trống"),
 
-    COURSE_CREATED_BY_REQUIRED(HttpStatus.BAD_REQUEST, "CreatedBy must not be null"),
-    COURSE_CREATED_BY_INVALID(HttpStatus.BAD_REQUEST, "CreatedBy must be a valid integer"),
-    COURSE_CREATOR_NOT_FOUND(HttpStatus.NOT_FOUND, "User (creator) not found"),
+    ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "Vai trò không được để trống"),
+    ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy vai trò"),
 
-    COURSE_STATE_INVALID(HttpStatus.BAD_REQUEST, "Invalid course state"),
-    COURSE_CREATE_FAILED(HttpStatus.BAD_REQUEST, "Failed to create course"),
-
-    COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "Course not found"),
-    COURSE_UPDATE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot update a published course"),
-    COURSE_ALREADY_PUBLISHED(HttpStatus.BAD_REQUEST, "Course has already been published"),
-    COURSE_DELETE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Cannot delete a published course"),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
+    USER_UPDATE_FAILED(HttpStatus.BAD_REQUEST, "Cập nhật người dùng thất bại"),
+    USER_DELETE_FAILED(HttpStatus.BAD_REQUEST, "Xóa người dùng thất bại"),
 
     // =========================================================
-    // ===== LESSON =====
+    // ===== DOCUMENT =====
     // =========================================================
-    LESSON_EMPTY(HttpStatus.BAD_REQUEST, "Lesson must not be empty"),
+    DOCUMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài liệu"),
+    DOCUMENT_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "Tài liệu không được phép chỉnh sửa ở trạng thái này"),
+    DOCUMENT_NOT_DELETABLE(HttpStatus.BAD_REQUEST, "Tài liệu không được phép xóa ở trạng thái này"),
+    DOCUMENT_NOT_PROCESSED(HttpStatus.BAD_REQUEST, "Tài liệu chưa được xử lý xong"),
+    DOCUMENT_CANNOT_SUBMIT(HttpStatus.BAD_REQUEST, "Tài liệu không thể gửi duyệt ở trạng thái này"),
+    DOCUMENT_CANNOT_APPROVE(HttpStatus.BAD_REQUEST, "Tài liệu không thể approve ở trạng thái này"),
+    DOCUMENT_CANNOT_REJECT(HttpStatus.BAD_REQUEST, "Tài liệu không thể reject ở trạng thái này"),
+    DOCUMENT_CANNOT_ARCHIVE(HttpStatus.BAD_REQUEST, "Tài liệu không thể archive ở trạng thái này"),
+    DOCUMENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Không có quyền truy cập tài liệu"),
+    DOCUMENT_UPLOAD_FAILED(HttpStatus.BAD_REQUEST, "Upload tài liệu thất bại"),
+
+    // =========================================================
+    // ===== COURSE / LESSON (legacy) =====
+    // =========================================================
+    COURSE_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "Tên khóa học không được để trống"),
+    COURSE_DESCRIPTION_REQUIRED(HttpStatus.BAD_REQUEST, "Mô tả không được để trống"),
+    COURSE_THUMBNAIL_REQUIRED(HttpStatus.BAD_REQUEST, "Thumbnail không được để trống"),
+    COURSE_SCORE_REQUIRED(HttpStatus.BAD_REQUEST, "Điểm không được để trống"),
+    COURSE_SCORE_INVALID(HttpStatus.BAD_REQUEST, "Điểm phải lớn hơn 0"),
+    COURSE_CREATED_BY_REQUIRED(HttpStatus.BAD_REQUEST, "người tạo không được để trống"),
+    COURSE_CREATED_BY_INVALID(HttpStatus.BAD_REQUEST, "người tạo không hợp lệ"),
+    COURSE_CREATOR_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người tạo"),
+    COURSE_STATE_INVALID(HttpStatus.BAD_REQUEST, "Trạng thái khóa học không hợp lệ"),
+    COURSE_CREATE_FAILED(HttpStatus.BAD_REQUEST, "Tạo khóa học thất bại"),
+    COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy khóa học"),
+    COURSE_UPDATE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Không thể cập nhật khóa học đã công bố"),
+    COURSE_ALREADY_PUBLISHED(HttpStatus.BAD_REQUEST, "Khóa học đã được công bố"),
+    COURSE_DELETE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Không thể xóa khóa học đã công bố"),
+    LESSON_EMPTY(HttpStatus.BAD_REQUEST, "Bài học không được để trống"),
 
     // =========================================================
     // ===== SYSTEM =====
     // =========================================================
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"),
-    URL_NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found");
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống"),
+    URL_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài nguyên"),
+    INVALID_INPUT(HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ");
 
     /** HTTP status tương ứng với mã lỗi này */
     private final HttpStatus status;

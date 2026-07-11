@@ -70,6 +70,14 @@ chunks, khóa chính, khóa phụ, index và seed demo.
 
 Đọc để hiểu thuật toán xử lý tài liệu, retrieval, RAG, citation và test AI.
 
+### 8. Thiết kế hệ thống tổng quan
+
+```txt
+08_SYSTEM_DESIGN.md
+```
+
+Đọc để có cái nhìn tổng thể về kiến trúc, luồng dữ liệu, API, database, security và phases triển khai.
+
 ## 3. Quyết định đã khóa
 
 - Document là trung tâm của hệ thống.
