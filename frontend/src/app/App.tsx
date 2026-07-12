@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Screen, User } from "./types";
 import { MOCK_USERS } from "./mockData";
 import { getDefaultScreenForRole, isScreenAllowed } from "./navigation";
+import { authService } from "./services/authService";
 import { AppLayout } from "./components/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { LibraryPage } from "./pages/LibraryPage";
@@ -28,16 +29,41 @@ export default function App() {
 
   const [currentDocId, setCurrentDocId] = useState<number | null>(null);
 
-  // Authentication Handlers
-  const handleLogin = (userId: number) => {
-    const user = MOCK_USERS[userId];
-    if (user && user.status === "ACTIVE") {
+  useEffect(() => {
+    // Restore session from token
+    const user = authService.restoreUser();
+    if (user) {
       setCurrentUser(user);
       setCurrentScreen(getDefaultScreenForRole(user.role));
+    }
+
+    // Handle unauthorized redirect
+    const handleUnauthorized = () => {
+      setCurrentUser(null);
+      setCurrentScreen("login");
+    };
+    window.addEventListener("auth-unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("auth-unauthorized", handleUnauthorized);
+    };
+  }, []);
+
+  // Authentication Handlers
+  const handleLogin = (userIdOrUser: number | User) => {
+    if (typeof userIdOrUser === "number") {
+      const user = MOCK_USERS[userIdOrUser];
+      if (user && user.status === "ACTIVE") {
+        setCurrentUser(user);
+        setCurrentScreen(getDefaultScreenForRole(user.role));
+      }
+    } else {
+      setCurrentUser(userIdOrUser);
+      setCurrentScreen(getDefaultScreenForRole(userIdOrUser.role));
     }
   };
 
   const handleLogout = () => {
+    authService.logout();
     setCurrentUser(null);
     setCurrentScreen("login");
   };

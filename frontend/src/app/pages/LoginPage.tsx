@@ -12,7 +12,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-export function LoginPage({ onLogin }: { onLogin: (userId: number) => void }) {
+import { User } from "../types";
+import { authService } from "../services/authService";
+
+export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -21,12 +24,12 @@ export function LoginPage({ onLogin }: { onLogin: (userId: number) => void }) {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !password) {
       setError("Vui lòng nhập đầy đủ Email và Mật khẩu.");
@@ -35,40 +38,72 @@ export function LoginPage({ onLogin }: { onLogin: (userId: number) => void }) {
 
     setLoading(true);
 
-    setTimeout(() => {
-      // Check credentials
+    try {
+      const user = await authService.login(trimmedEmail, password);
+      setSuccess("Đăng nhập thành công! Đang chuyển hướng...");
+      setTimeout(() => {
+        setLoading(false);
+        onLogin(user);
+      }, 600);
+    } catch (err: any) {
+      // Fallback to local mock credentials
+      const lowerEmail = trimmedEmail.toLowerCase();
       if (
-        (trimmedEmail === "nguyenvana@university.edu.vn" || trimmedEmail === "teacher@edu.vn") &&
+        (lowerEmail === "nguyenvana@university.edu.vn" || lowerEmail === "teacher@edu.vn" || lowerEmail === "teacher.a@example.com") &&
         password === "123456"
       ) {
-        setSuccess("Đăng nhập thành công! Đang chuyển hướng...");
+        setSuccess("Đăng nhập thành công (Dev Mode)! Đang chuyển hướng...");
         setTimeout(() => {
           setLoading(false);
-          onLogin(1); // 1 = TS. Nguyễn Văn A (Teacher)
+          onLogin({
+            id: 1,
+            name: "TS. Nguyễn Văn A",
+            email: lowerEmail,
+            role: "teacher",
+            status: "ACTIVE"
+          });
         }, 800);
       } else if (
-        (trimmedEmail === "daotao@university.edu.vn" || trimmedEmail === "admin@edu.vn") &&
+        (lowerEmail === "daotao@university.edu.vn" || lowerEmail === "admin@edu.vn" || lowerEmail === "admin@example.com") &&
         password === "123456"
       ) {
-        setSuccess("Đăng nhập thành công! Đang chuyển hướng...");
+        setSuccess("Đăng nhập thành công (Dev Mode)! Đang chuyển hướng...");
         setTimeout(() => {
           setLoading(false);
-          onLogin(2); // 2 = Phòng Đào Tạo (Admin)
+          onLogin({
+            id: 2,
+            name: "Phòng Đào Tạo",
+            email: lowerEmail,
+            role: "admin",
+            status: "ACTIVE"
+          });
         }, 800);
       } else {
         setLoading(false);
-        setError("Email hoặc Mật khẩu không chính xác (Mật khẩu mặc định: 123456).");
+        setError(err.message || "Không thể kết nối đến máy chủ auth hoặc sai tài khoản.");
       }
-    }, 600);
+    }
   };
 
   const handleSimulateLogin = (userId: number) => {
     setError("");
-    setSuccess("Đăng nhập thành công (Dev Mode)! Đang chuyển hướng...");
+    setSuccess("Đăng nhập thành công (Simulated)! Đang chuyển hướng...");
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      onLogin(userId);
+      onLogin(userId === 2 ? {
+        id: 2,
+        name: "Phòng Đào Tạo",
+        email: "daotao@university.edu.vn",
+        role: "admin",
+        status: "ACTIVE"
+      } : {
+        id: 1,
+        name: "TS. Nguyễn Văn A",
+        email: "nguyenvana@university.edu.vn",
+        role: "teacher",
+        status: "ACTIVE"
+      });
     }, 800);
   };
 
