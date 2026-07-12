@@ -1,306 +1,60 @@
-import { useState, useEffect } from 'react';
-
-import useCourses from './hooks/useCourses';
-import useNotifications from './hooks/useNotifications';
-import useLectures from './hooks/useLectures';
-import useDocuments from './hooks/useDocuments';
-import useSummaries from './hooks/useSummaries';
-import useQuizzes from './hooks/useQuizzes';
-import useChat from './hooks/useChat';
 import useAuth from './hooks/useAuth';
-
 import LoginPage from './pages/auth/LoginPage';
-import AppLayout from './components/layout/AppLayout';
-import TeacherDashboard from './pages/teacher/TeacherDashboard';
-import CoursesPage from './pages/teacher/CoursesPage';
-import CourseDetailPage from './pages/teacher/CourseDetailPage';
-import LectureDetailPage from './pages/teacher/LectureDetailPage';
-import StudentDashboard from './pages/student/StudentDashboard';
-import StudentCoursesPage from './pages/student/StudentCoursesPage';
-import StudentCourseDetailPage from './pages/student/StudentCourseDetailPage';
-import LectureViewPage from './pages/student/LectureViewPage';
-
-
-
-function NotFoundState({ title, message, actionLabel, onAction }) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto my-12 animate-slide-up-fade">
-      <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-        </svg>
-      </div>
-      <h3 className="text-sm font-bold text-slate-800 mb-1">{title}</h3>
-      <p className="text-xs text-slate-500 mb-5 max-w-xs leading-relaxed">{message}</p>
-      <button
-        onClick={onAction}
-        className="bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer border-none"
-      >
-        {actionLabel}
-      </button>
-    </div>
-  );
-}
 
 export default function App() {
-  // ─── Auth state ───────────────────────────────────────────────────────────
-  const [view, setView] = useState('login');
-  const [selectedCourseId, setSelectedCourseId] = useState(null);
-  const [selectedLectureId, setSelectedLectureId] = useState(null);
-  const [selectedLectureTab, setSelectedLectureTab] = useState(null);
-
   const {
     user,
     handleLogin,
-    handleLogout,
-    handleUpdateProfile
-  } = useAuth({
-    onLogin: (loggedInUser) => {
-      setView(loggedInUser.role === 'teacher' ? 'teacher-dashboard' : 'student-dashboard');
-    },
-    onLogout: () => {
-      setView('login');
-      setSelectedCourseId(null);
-      setSelectedLectureId(null);
-      setSelectedLectureTab(null);
-    }
-  });
+    handleLogout
+  } = useAuth();
 
-  // ─── Data state ───────────────────────────────────────────────────────────
-  const { lectures, handleAddLecture } = useLectures();
-  const { docs, handleAddDoc, handleUpdateDocStatus: rawUpdateDocStatus } = useDocuments();
-  const { summaries, handleGenerateSummary, handleUpdateSummary: rawUpdateSummary } = useSummaries();
-  const { quizzes, handleGenerateQuiz, handleUpdateQuizStatus: rawUpdateQuizStatus, handleDeleteQuestion } = useQuizzes({ lectures });
-  const { chatHistory, handleSendMessage: rawSendMessage } = useChat({ docs });
-
-  // ─── Notifications state & persistence ────────────────────────────────────
-  const {
-    notifications,
-    setNotifications,
-    addNotification
-  } = useNotifications(user);
-
-  // ─── Navigation ───────────────────────────────────────────────────────────
-  const navigate = (v, params) => {
-    setView(v);
-    if (params) {
-      if ('selectedCourseId' in params) setSelectedCourseId(params.selectedCourseId ?? null);
-      if ('selectedLectureId' in params) setSelectedLectureId(params.selectedLectureId ?? null);
-      if ('lectureTab' in params) setSelectedLectureTab(params.lectureTab ?? null);
-    }
-  };
-
-  const {
-    courses,
-    enrolledIds,
-    handleCreateCourse,
-    handleJoinCourse
-  } = useCourses({ navigate });
-
-
-
-  // ─── Teacher actions ──────────────────────────────────────────────────────
-
-  const handleUpdateDocStatus = (docId, status) => {
-    rawUpdateDocStatus(docId, status, (id, docName) => {
-      addNotification(
-        'Tài liệu đã xử lý xong',
-        `Tài liệu "${docName}" đã được xử lý xong và sẵn sàng.`,
-        'BookOpenCheck',
-        '#6C4DF6'
-      );
-    });
-  };
-
-  const handleUpdateSummary = (id, content, status) => {
-    rawUpdateSummary(id, content, status, () => {
-      addNotification(
-        'Tóm tắt mới được đăng',
-        'Giảng viên vừa công bố bản tóm tắt bài học mới.',
-        'BookOpenCheck',
-        '#6C4DF6'
-      );
-    });
-  };
-
-  const handleUpdateQuizStatus = (id, status) => {
-    rawUpdateQuizStatus(id, status, (quizTitle) => {
-      addNotification(
-        'Quiz mới đã mở',
-        `Bài kiểm tra "${quizTitle}" đang chờ bạn làm bài.`,
-        'Award',
-        '#F59E0B'
-      );
-    });
-  };
-
-  // ─── Student actions ─────────────────────────────────────────────────────
-
-  const handleSendMessage = (lectureId, content) => {
-    rawSendMessage(lectureId, content, () => {
-      addNotification(
-        'AI đã trả lời',
-        `Câu hỏi của bạn về "${content.length > 25 ? content.substring(0, 25) + '...' : content}" đã có phản hồi.`,
-        'MessageSquare',
-        '#0EA5E9'
-      );
-    });
-  };
-
-  // ─── Render ───────────────────────────────────────────────────────────────
   if (!user) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const selectedCourse = courses.find(c => c.id === selectedCourseId) ?? null;
-  const selectedLecture = lectures.find(l => l.id === selectedLectureId) ?? null;
-  const courseLectures = selectedCourse ? lectures.filter(l => l.courseId === selectedCourse.id) : [];
-  const lectureDocs = selectedLecture ? docs.filter(d => d.lectureId === selectedLecture.id) : [];
-  const lectureSummary = selectedLecture ? summaries.find(s => s.lectureId === selectedLecture.id) : undefined;
-  const lectureQuiz = selectedLecture ? quizzes.find(q => q.lectureId === selectedLecture.id) : undefined;
-
-  const renderContent = () => {
-    if (user.role === 'teacher') {
-      switch (view) {
-        case 'teacher-dashboard':
-          return <TeacherDashboard navigate={navigate} />;
-        case 'teacher-courses':
-          return <CoursesPage navigate={navigate} onCreateCourse={handleCreateCourse} />;
-        case 'teacher-course-detail':
-          if (!selectedCourse) {
-            return (
-              <NotFoundState
-                title="Không tìm thấy khóa học"
-                message="Khóa học bạn yêu cầu không tồn tại hoặc đã bị xóa khỏi hệ thống."
-                actionLabel="Quay lại danh sách khóa học"
-                onAction={() => navigate('teacher-courses')}
-              />
-            );
-          }
-          return (
-            <CourseDetailPage
-              course={selectedCourse}
-              navigate={navigate}
-              lectures={courseLectures}
-              onAddLecture={handleAddLecture}
-            />
-          );
-        case 'teacher-lecture-detail':
-          if (!selectedLecture) {
-            return (
-              <NotFoundState
-                title="Không tìm thấy bài giảng"
-                message="Bài giảng bạn yêu cầu không tồn tại hoặc đã bị xóa khỏi khóa học."
-                actionLabel="Quay lại chi tiết khóa học"
-                onAction={() => navigate('teacher-course-detail')}
-              />
-            );
-          }
-          return (
-            <LectureDetailPage
-              lecture={selectedLecture}
-              docs={lectureDocs}
-              summary={lectureSummary}
-              quiz={lectureQuiz}
-              navigate={navigate}
-              onUpdateDocStatus={handleUpdateDocStatus}
-              onAddDoc={handleAddDoc}
-              onGenerateSummary={() => handleGenerateSummary(selectedLecture.id)}
-              onUpdateSummary={handleUpdateSummary}
-              onGenerateQuiz={() => handleGenerateQuiz(selectedLecture.id)}
-              onUpdateQuizStatus={handleUpdateQuizStatus}
-              onDeleteQuestion={handleDeleteQuestion}
-            />
-          );
-        default:
-          return <TeacherDashboard navigate={navigate} />;
-      }
-    } else {
-      switch (view) {
-        case 'student-dashboard':
-          return <StudentDashboard user={user} navigate={navigate} enrolledIds={enrolledIds} />;
-        case 'student-courses':
-          return (
-            <StudentCoursesPage
-              navigate={navigate}
-              enrolledIds={enrolledIds}
-              onJoinCourse={handleJoinCourse}
-            />
-          );
-        case 'student-course-detail': {
-          if (!selectedCourse) {
-            return (
-              <NotFoundState
-                title="Không tìm thấy khóa học"
-                message="Khóa học bạn yêu cầu không tồn tại hoặc đã bị xóa khỏi hệ thống."
-                actionLabel="Quay lại danh sách khóa học"
-                onAction={() => navigate('student-courses')}
-              />
-            );
-          }
-          const cSummaries = summaries.filter(s => courseLectures.some(l => l.id === s.lectureId));
-          const cQuizzes = quizzes.filter(q => courseLectures.some(l => l.id === q.lectureId));
-          return (
-            <StudentCourseDetailPage
-              course={selectedCourse}
-              lectures={courseLectures}
-              summaries={cSummaries}
-              quizzes={cQuizzes}
-              navigate={navigate}
-            />
-          );
-        }
-        case 'student-lecture-view': {
-          const lect = selectedLecture ?? lectures.find(l => l.id === selectedLectureId);
-          const lCourse = lect ? courses.find(c => c.id === lect.courseId) ?? null : selectedCourse;
-          if (!lCourse || !lect) {
-            return (
-              <NotFoundState
-                title="Không tìm thấy bài giảng"
-                message="Bài giảng hoặc khóa học liên kết không tồn tại hoặc đã bị gỡ bỏ."
-                actionLabel="Quay lại danh sách khóa học"
-                onAction={() => navigate('student-courses')}
-              />
-            );
-          }
-          const lCourseLects = lectures.filter(l => l.courseId === lCourse.id);
-          const lIdx = lCourseLects.findIndex(l => l.id === lect.id);
-          const nextLect = lCourseLects[lIdx + 1] ?? null;
-          const lSummary = summaries.find(s => s.lectureId === lect.id);
-          const lQuiz = quizzes.find(q => q.lectureId === lect.id);
-          const lChatMessages = chatHistory[lect.id] ?? [];
-          return (
-            <LectureViewPage
-              lecture={lect}
-              nextLecture={nextLect}
-              course={lCourse}
-              summary={lSummary}
-              quiz={lQuiz}
-              chatMessages={lChatMessages}
-              navigate={navigate}
-              onSendMessage={handleSendMessage}
-              initialTab={selectedLectureTab ?? 'summary'}
-            />
-          );
-        }
-        default:
-          return <StudentDashboard user={user} navigate={navigate} enrolledIds={enrolledIds} />;
-      }
-    }
-  };
-
   return (
-    <AppLayout
-      user={user}
-      currentView={view}
-      navigate={navigate}
-      onLogout={handleLogout}
-      onUpdateProfile={handleUpdateProfile}
-      notifications={notifications}
-      setNotifications={setNotifications}
-      courseCount={courses.length}
-    >
-      {renderContent()}
-    </AppLayout>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 text-center backdrop-blur-md bg-white/95 relative overflow-hidden">
+        {/* Glow decoration */}
+        <div className="w-48 h-48 rounded-full bg-indigo-100/50 blur-2xl absolute -top-12 -left-12 pointer-events-none" />
+        <div className="w-48 h-48 rounded-full bg-violet-100/50 blur-2xl absolute -bottom-12 -right-12 pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
+            </svg>
+          </div>
+
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Đăng nhập thành công!</h2>
+          <p className="text-slate-500 text-sm mb-6">Chào mừng bạn quay trở lại hệ thống.</p>
+          
+          <div className="w-full bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 text-left">
+            <div className="flex justify-between items-center py-2 border-b border-slate-200/60">
+              <span className="text-xs text-slate-500 font-medium font-sans">Họ và tên:</span>
+              <span className="text-sm text-slate-800 font-semibold font-sans">{user.name}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-slate-200/60">
+              <span className="text-xs text-slate-500 font-medium font-sans">Email:</span>
+              <span className="text-sm text-slate-800 font-medium font-sans">{user.email}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-xs text-slate-500 font-medium font-sans">Vai trò:</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider font-sans bg-indigo-50 text-indigo-700 border border-indigo-100">
+                {user.role === 'teacher' ? 'Giảng viên' : 'Sinh viên'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl py-2.5 transition-all duration-200 shadow-md flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] border-none cursor-pointer"
+          >
+            <span className="font-sans">Đăng xuất</span>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
+
