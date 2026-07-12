@@ -2,7 +2,7 @@
 
 **Phiên bản:** 1.6
 **Cập nhật:** 12/07/2026
-**Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI process -> Teacher submit review -> Admin approve -> Library -> RAG citation
+**Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI analyze -> Teacher submit review -> Admin approve -> AI index RAG -> Library -> RAG citation
 
 ## 1. Scope đã khóa
 
@@ -213,22 +213,23 @@ Các bước đã pass:
 
 1. Backend login bằng seed user `teacher.a@example.com` thành công.
 2. Backend upload TXT qua `POST /api/v1/documents` thành công.
-3. Document mới tạo có `processing_status=PROCESSING`, `publication_status=DRAFT` và `storage_key=documents/2/v1/source.txt`.
+3. Snapshot cũ: Document từng tạo với `processing_status=PROCESSING` khi dùng flow process trực tiếp. Flow mới phải là `UPLOADED -> ANALYZING -> ANALYZED` sau upload/analyze.
 4. Backend lưu file vào `/storage/uploads/documents/2/v1/source.txt`.
 5. AI container đọc được đúng file này qua shared volume read-only.
 6. AI `/v1/health` trả `UP`.
 7. AI `/v1/health/pgvector` trả `UP`, database `lms_rag`, pgvector `0.8.2`.
-8. Gọi trực tiếp AI `POST /v1/process-document` với `document_id=2` trả `PROCESSED`, `page_count=1`, `chunk_count=1`.
+8. Gọi trực tiếp AI `POST /v1/process-document` từng trả `PROCESSED`, `page_count=1`, `chunk_count=1`. Trong flow mới, bước này tương ứng index RAG sau Admin approve và nên được expose bằng `/v1/index-document`.
 9. Bảng `document_chunks` có row thật cho `document_id=2`.
 10. Gọi trực tiếp AI `POST /v1/answer-question` với `document_ids=[2]` trả answer, `not_found=false` và citation thật.
-11. Luồng review/library Backend đã pass khi set `PROCESSED` thủ công: Teacher submit review, Admin approve, Teacher B thấy document trong Library.
+11. Snapshot cũ: review/library từng pass khi set `PROCESSED` thủ công. Flow mới phải submit review ở `ANALYZED`, còn `PROCESSED` chỉ dùng sau khi index RAG xong.
 
 Blocker còn lại cho core E2E:
 
 ```txt
-BE-04 chưa có: Backend upload xong chưa tự gọi AI /v1/process-document.
-BE-04 chưa có: Backend chưa tự cập nhật documents/job sang PROCESSED hoặc FAILED theo response AI.
-BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer để kiểm quyền rồi gọi AI.
+BE-04 đang cần chốt: Backend upload xong gọi AI `/v1/analyze-document` và cập nhật `ANALYZED/FAILED`.
+BE-05 đang cần chốt: submit review phải yêu cầu `ANALYZED`, không yêu cầu `PROCESSED`.
+BE-06 chưa hoàn chỉnh: Admin approve cần trigger index RAG (`/v1/index-document`) và cập nhật `PROCESSED/FAILED` sau index.
+BE-08 chưa có: Backend chưa có RAG proxy `/api/v1/rag/answer` để kiểm quyền rồi gọi AI.
 Frontend chưa có app để chạy demo UI.
 ```
 
@@ -261,7 +262,7 @@ Các bước đã pass:
 
 1. Backend login bằng seed user `teacher1@test.com` thành công.
 2. Backend upload PDF qua `POST /api/v1/documents` thành công.
-3. Document mới tạo có `processing_status=UPLOADED`, sau đó chuyển `ANALYZING` và hiện tại đang cập nhật `PROCESSED` (sẽ đổi thành `ANALYZED` theo flow mới).
+3. Document mới tạo có `processing_status=UPLOADED`, sau đó chuyển `ANALYZING`; analyze success phải cập nhật `ANALYZED`, không phải `PROCESSED`.
 4. AI Service trả `can_rag=true`, `estimated_chunk_count=263`.
 5. BE tự cập nhật `rag_eligible=true`, `page_count`, `estimated_token_count`, `estimated_chunk_count`, `analyzed_at`.
 6. `PATCH /api/v1/my/documents/{id}` hỗ trợ cập nhật metadata và file mới; thay file tạo analyze job mới.
@@ -636,7 +637,7 @@ Reprocess:
 Acceptance criteria:
 
 - Teacher A không xem/sửa/xóa draft của Teacher B.
-- Submit khi chưa `PROCESSED` trả lỗi.
+- Submit khi chưa `ANALYZED` trả lỗi.
 - `REJECTED` có thể sửa metadata và submit lại.
 - `PUBLISHED` không cho sửa file trong core MVP.
 
@@ -990,15 +991,15 @@ UI cần có:
 - Badge `publication_status`.
 - Actions theo trạng thái:
   - View detail.
-  - Submit review nếu `PROCESSED + DRAFT/REJECTED`.
+  - Submit review nếu `ANALYZED + DRAFT/REJECTED`.
   - Reprocess nếu failed hoặc cần xử lý lại.
   - Delete nếu được phép.
 
 Acceptance criteria:
 
 - Teacher chỉ thấy tài liệu của mình.
-- Status dễ đọc: UPLOADED/PROCESSING/PROCESSED/FAILED và DRAFT/PENDING/PUBLISHED/REJECTED/ARCHIVED.
-- Submit review disabled khi chưa processed.
+- Status dễ đọc: UPLOADED/ANALYZING/ANALYZED/PROCESSING/PROCESSED/FAILED và DRAFT/PENDING/PUBLISHED/REJECTED/ARCHIVED.
+- Submit review disabled khi chưa `ANALYZED`.
 
 ### FE-06 - Upload Document screen
 
@@ -1406,7 +1407,7 @@ POST /api/v1/rag/answer
 
 | Publication status | Owner Teacher | Teacher khác | Admin |
 |---|---|---|---|
-| `DRAFT` | Xem/sửa/xóa/reprocess/submit nếu processed | Không | Không cần |
+| `DRAFT` | Xem/sửa/xóa/reprocess/submit nếu `ANALYZED`, RAG nếu `PROCESSED` | Không | Không cần |
 | `PENDING_REVIEW` | Xem | Không | Xem/approve/reject |
 | `PUBLISHED` | Xem/RAG | Xem/RAG | Xem/archive |
 | `REJECTED` | Xem lý do/sửa/xóa/reprocess/submit lại | Không | Xem |
@@ -1448,9 +1449,9 @@ Manual E2E checklist:
 - [ ] Teacher A login.
 - [ ] Teacher A upload PDF/TXT không chọn Course/Lecture.
 - [ ] Document có metadata subject/topic/chapter/tags.
-- [ ] Backend gọi AI và document chuyển `PROCESSED`.
+- [ ] Backend gọi AI analyze và document chuyển `ANALYZED`.
 - [ ] `document_chunks` có rows theo `document_id`.
-- [ ] Teacher A submit review.
+- [ ] Teacher A submit review khi document `ANALYZED`.
 - [ ] Admin approve.
 - [ ] Teacher B thấy document trong Library.
 - [ ] Teacher B hỏi RAG và nhận citation.
@@ -1469,7 +1470,7 @@ Manual E2E checklist:
 
 ### AI -> Backend
 
-- [ ] `/v1/process-document` trả `document_id`, `status`, `page_count`, `chunk_count`.
+- [ ] `/v1/index-document` hoặc legacy `/v1/process-document` trả `document_id`, `status`, `page_count`, `chunk_count`.
 - [x] `/v1/answer-question` trả `answer`, `not_found`, `citations`.
 - [ ] Error codes theo contract.
 - [ ] Retrieval chỉ theo `document_ids`.
@@ -1570,9 +1571,9 @@ MVP đạt khi:
 
 - Không còn bước bắt buộc tạo/chọn Course/Lecture trong demo.
 - Teacher upload tài liệu và gắn metadata.
-- AI tự động xử lý tài liệu sau upload.
+- AI tự động analyze tài liệu sau upload.
 - Chunks/vector được lưu theo `document_id`.
-- Teacher submit review được sau khi processed.
+- Teacher submit review được sau khi `ANALYZED`.
 - Admin approve được.
 - Document published xuất hiện trong Library.
 - Teacher khác hỏi RAG trên document và nhận citation.

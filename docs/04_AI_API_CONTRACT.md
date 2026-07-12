@@ -1,7 +1,7 @@
 # AI Service Internal API Contract
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.5
+**Cập nhật:** 12/07/2026
 **Base URL Docker:** `http://ai-service:8000/v1`
 
 ## 1. Phạm vi core
@@ -9,9 +9,13 @@
 ```txt
 GET  /v1/health
 GET  /v1/health/pgvector
-POST /v1/process-document
+POST /v1/analyze-document
+POST /v1/index-document
 POST /v1/answer-question
 ```
+
+`POST /v1/process-document` là endpoint cũ có thể giữ tạm như implementation tương đương `index-document` trong giai đoạn chuyển tiếp.
+
 
 Summary và question generation là Should-have và chưa thuộc core contract.
 
@@ -143,7 +147,7 @@ Success `200`, tài liệu có thể RAG:
   "data": {
     "document_id": 12,
     "can_rag": true,
-    "rag_status": "READY_TO_PROCESS",
+    "rag_status": "READY_TO_INDEX",
     "page_count": 20,
     "estimated_token_count": 18420,
     "estimated_chunk_count": 24,
@@ -176,14 +180,18 @@ Hành vi:
 1. Resolve `storage_key` dưới `UPLOAD_ROOT`.
 2. Validate file tồn tại, đúng PDF/TXT và không quá size.
 3. Parse/clean/chunk nhẹ để biết có text usable hay không.
-4. Trả `READY_TO_PROCESS` nếu có thể chạy `/v1/process-document`.
+4. Trả `READY_TO_INDEX` nếu có thể chạy `/v1/index-document` sau khi Admin approve.
 5. Trả `UNSUPPORTED` nếu file hợp lệ nhưng không có text để RAG.
 6. Không cập nhật bảng `documents`; Backend là nơi cập nhật DB/status.
 
 Implementation status: endpoint `/v1/analyze-document` đã có trong AI Service, nằm ở file riêng để có thể gỡ bỏ ít ảnh hưởng code cũ.
-## 7. Process document
+## 7. Index document
 
-### `POST /v1/process-document`
+### `POST /v1/index-document`
+
+Endpoint này tạo chunks/embedding và ghi `document_chunks`. Backend gọi sau khi Admin approve. Trong giai đoạn chuyển tiếp, implementation có thể tái sử dụng logic cũ của `/v1/process-document`.
+
+### Legacy compatibility: `POST /v1/process-document`
 
 Request:
 
@@ -320,7 +328,7 @@ AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thi
 
 ## 9. Timeout và retry
 
-- Backend timeout process-document phải đủ cho tài liệu demo; gọi trong worker.
+- Backend timeout index-document/process-document phải đủ cho tài liệu demo; gọi trong worker.
 - Backend không tự retry vô hạn.
 - OpenAI retry có giới hạn trong AI Service.
 - Reprocess phải idempotent theo document và atomic replace.

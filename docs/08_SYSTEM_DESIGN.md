@@ -1,7 +1,7 @@
 # System Design - LMS-RAG Document-Centric MVP
 
-**Phiên bản:** 1.0  
-**Cập nhật:** 07/07/2026  
+**Phiên bản:** 1.1
+**Cập nhật:** 12/07/2026
 **Mục tiêu:** Tổng hợp thiết kế hệ thống từ các contract docs đã chốt
 
 ---
@@ -18,11 +18,13 @@ Teacher A login
   -> upload PDF/TXT
   -> nhập metadata subject/topic/chapter/tags
   -> Backend tạo Document + lưu file
-  -> Backend gọi AI Service background
-  -> AI parse/clean/chunk/embed và lưu document_chunks
+  -> Backend gọi AI Service analyze background
+  -> AI trả can_rag/estimated info và Backend cập nhật ANALYZED
   -> Teacher A submit review
   -> Admin approve
   -> Document xuất hiện trong Library
+  -> Backend gọi AI Service index RAG background
+  -> AI parse/clean/chunk/embed và lưu document_chunks
   -> Teacher B login
   -> mở Document trong Library
   -> hỏi RAG trên document đó
@@ -51,8 +53,9 @@ Teacher A login
 ┌─────────────────────────┐      ┌──────────────────────────┐
 │      AI Service         │      │    PostgreSQL + pgvector │
 │      FastAPI (Python)   │      │  users | documents       │
-│  process-document       │      │  document_processing_jobs│
-│  answer-question        │      │  document_chunks         │
+│  analyze-document       │      │  document_processing_jobs│
+│  index/process-document │      │  document_chunks         │
+│  answer-question        │      │                          │
 └─────────────────────────┘      └──────────────────────────┘
 ```
 
@@ -76,20 +79,22 @@ Teacher upload tài liệu
   -> nhập title/description/subject/topic/chapter/tags
   -> Backend validate và lưu file
   -> tạo Document: UPLOADED + DRAFT
-  -> tạo processing job
-  -> background call AI /v1/process-document
-  -> AI lưu chunks/vector
-  -> Backend cập nhật PROCESSED hoặc FAILED
+  -> tạo analyze job
+  -> background call AI /v1/analyze-document
+  -> AI parse nhẹ để xác định can_rag
+  -> Backend cập nhật ANALYZED hoặc FAILED
 ```
 
 ### 3.2. Review và công bố
 
 ```txt
-Teacher submit document PROCESSED
+Teacher submit document ANALYZED
   -> PENDING_REVIEW
   -> Admin approve
   -> PUBLISHED
   -> xuất hiện trong Library
+  -> nếu rag_eligible=true, Backend gọi AI /v1/index-document
+  -> index xong: PROCESSED
 ```
 
 ### 3.3. Library và RAG
@@ -99,6 +104,7 @@ Teacher mở Library
   -> lọc theo metadata
   -> chọn document được phép truy cập
   -> Backend kiểm quyền từng document_id
+  -> chỉ cho hỏi RAG khi document PUBLISHED và PROCESSED
   -> AI embedding câu hỏi
   -> retrieval chunks trong document_ids
   -> sinh answer từ context
@@ -116,7 +122,7 @@ Teacher mở Library
 - Gắn metadata: subject, topic, chapter, tags, description.
 - Quản lý tài liệu của mình ở trạng thái cho phép sửa.
 - Theo dõi trạng thái xử lý AI, retry/reprocess.
-- Dùng RAG trên tài liệu của mình đã `PROCESSED`.
+- Dùng RAG trên tài liệu của mình khi tài liệu đã được index RAG xong (`PROCESSED`).
 - Gửi tài liệu cho Admin duyệt.
 - Xem lý do từ chối, chỉnh sửa và gửi lại.
 - Dùng RAG trên tài liệu `PUBLISHED` của giảng viên khác.
@@ -139,10 +145,14 @@ Hệ thống có **một Admin duy nhất**, tạo bằng migration/seed.
 ### 5.1. Processing status
 
 ```txt
-UPLOADED -> PROCESSING -> PROCESSED
+UPLOADED -> ANALYZING -> ANALYZED
                       -> FAILED
 
-FAILED/PROCESSED --retry/reprocess--> PROCESSING
+ANALYZED --Admin approve--> PROCESSING -> PROCESSED
+                                      -> FAILED
+
+FAILED/ANALYZED/PROCESSED --retry/reprocess--> ANALYZING
+FAILED/PROCESSED --index lại--> PROCESSING
 ```
 
 ### 5.2. Publication status
@@ -158,8 +168,9 @@ PUBLISHED --Admin archive--> ARCHIVED
 ### Quy tắc
 
 - Hai trạng thái được lưu ở **hai cột riêng** trên `documents`.
-- Upload tự chạy processing nhưng **không tự submit review**.
-- Chỉ document `PROCESSED` được submit review.
+- Upload tự chạy analyze nhẹ nhưng **không tự submit review**.
+- Chỉ document `ANALYZED` được submit review.
+- `PROCESSED` nghĩa là đã index RAG xong.
 - Chỉ `PUBLISHED` xuất hiện trong Library.
 
 ---
@@ -168,7 +179,7 @@ PUBLISHED --Admin archive--> ARCHIVED
 
 | Publication status | Teacher owner | Teacher khác | Admin |
 |---|---|---|---|
-| `DRAFT` | Xem, sửa metadata/file, xóa, RAG nếu `PROCESSED`, submit | Không | Không cần |
+| `DRAFT` | Xem, sửa metadata/file, xóa, submit nếu `ANALYZED`, RAG nếu đã `PROCESSED` | Không | Không cần |
 | `PENDING_REVIEW` | Xem, không thay file | Không | Xem, approve, reject |
 | `PUBLISHED` | Xem/RAG | Xem/RAG | Xem, archive |
 | `REJECTED` | Xem lý do, sửa metadata/file, xóa, submit lại | Không | Xem lịch sử |
@@ -254,7 +265,7 @@ Tags: JSONB array
 | `file_type` | `VARCHAR(20)` | NOT NULL, CHECK `PDF`/`TXT` | Loại file |
 | `mime_type` | `VARCHAR(100)` | | MIME type |
 | `file_size` | `BIGINT` | NOT NULL, CHECK > 0 | Kích thước file |
-| `processing_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `UPLOADED`, CHECK `UPLOADED`/`PROCESSING`/`PROCESSED`/`FAILED` | Trạng thái xử lý AI |
+| `processing_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `UPLOADED`, CHECK `UPLOADED`/`ANALYZING`/`ANALYZED`/`PROCESSING`/`PROCESSED`/`FAILED` | Trạng thái analyze/index AI |
 | `publication_status` | `VARCHAR(30)` | NOT NULL, DEFAULT `DRAFT`, CHECK `DRAFT`/`PENDING_REVIEW`/`PUBLISHED`/`REJECTED`/`ARCHIVED` | Trạng thái kiểm duyệt |
 | `error_code` | `VARCHAR(50)` | | Mã lỗi AI |
 | `error_message` | `TEXT` | | Chi tiết lỗi AI |
@@ -346,9 +357,12 @@ POST /api/v1/rag/answer
 ```txt
 GET  /v1/health
 GET  /v1/health/pgvector
-POST /v1/process-document
+POST /v1/analyze-document
+POST /v1/index-document
 POST /v1/answer-question
 ```
+
+`/v1/process-document` là endpoint cũ có thể được giữ làm implementation tương đương index trong giai đoạn chuyển tiếp.
 
 ### 8.3. Authentication
 
@@ -552,9 +566,9 @@ MVP đạt khi:
 
 - Không còn bước bắt buộc tạo/chọn Course/Lecture trong demo.
 - Teacher upload tài liệu và gắn metadata.
-- AI tự động xử lý tài liệu sau upload.
-- Chunks/vector được lưu theo `document_id`.
-- Teacher submit review được sau khi processed.
+- AI tự động analyze tài liệu sau upload.
+- Chunks/vector được lưu theo `document_id` sau khi Admin approve và index RAG.
+- Teacher submit review được sau khi `ANALYZED`.
 - Admin approve được.
 - Document published xuất hiện trong Library.
 - Teacher khác hỏi RAG trên document và nhận citation.

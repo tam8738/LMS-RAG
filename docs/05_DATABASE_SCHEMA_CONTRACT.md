@@ -1,7 +1,7 @@
 # Database schema contract cho core MVP
 
-**Phiên bản:** 1.5
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.6
+**Cập nhật:** 12/07/2026
 **Owner migration:** Backend
 
 File này là contract ngắn gọn về database schema của MVP document-centric. File này chốt bảng nào tồn tại, quan hệ chính, ownership và các rule dữ liệu bắt buộc.
@@ -109,7 +109,7 @@ Các nhóm field bắt buộc:
 | Ownership | `uploaded_by`, `reviewed_by` |
 | Metadata | `title`, `description`, `subject`, `topic`, `chapter`, `tags` |
 | File | `original_filename`, `stored_filename`, `storage_key`, `file_version`, `file_type`, `mime_type`, `file_size` |
-| AI status | `processing_status`, `error_code`, `error_message`, `processed_at` |
+| AI status | `processing_status`, `rag_eligible`, `page_count`, `estimated_token_count`, `estimated_chunk_count`, `unsupported_reason`, `analyzed_at`, `error_code`, `error_message`, `processed_at` |
 | Review status | `publication_status`, `reviewed_at`, `rejection_reason`, `published_at` |
 | Audit | `created_at`, `updated_at` |
 
@@ -117,7 +117,7 @@ Enum/rule bắt buộc:
 
 ```txt
 file_type: PDF | TXT
-processing_status: UPLOADED | PROCESSING | PROCESSED | FAILED
+processing_status: UPLOADED | ANALYZING | ANALYZED | PROCESSING | PROCESSED | FAILED
 publication_status: DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | ARCHIVED
 tags: JSONB array
 storage_key: unique relative path
@@ -143,6 +143,7 @@ Field/rule chính:
 | `id` | Primary key |
 | `document_id` | FK tới `documents.id`, cascade delete |
 | `status` | `PROCESSING`, `PROCESSED`, `FAILED` |
+| `job_type` | `ANALYZE`, `INDEX`, `REPROCESS` |
 | `chunk_count` | Null hoặc >= 0 |
 | `error_code`, `error_message` | Lưu lỗi AI nếu có |
 | `started_at`, `completed_at`, `created_at`, `updated_at` | Audit/job timeline |
@@ -150,6 +151,9 @@ Field/rule chính:
 Rule bắt buộc:
 
 - Chỉ một job `PROCESSING` active cho cùng một `document_id`.
+- Dùng `job_type = ANALYZE` cho bước analyze nhẹ sau upload.
+- Dùng `job_type = INDEX` cho bước tạo chunks/embedding sau approve.
+- Không dùng `ANALYZING` làm `document_processing_jobs.status` nếu constraint job chỉ cho `PROCESSING/PROCESSED/FAILED`.
 - Có thể giữ nhiều job cũ `PROCESSED`/`FAILED` để xem lịch sử.
 
 ## 9. Contract bảng document_chunks
@@ -207,9 +211,14 @@ Không retrieval toàn Library trong MVP. Không dùng `subject`, `topic`, `chap
 Processing:
 
 ```txt
-UPLOADED -> PROCESSING -> PROCESSED
+UPLOADED -> ANALYZING -> ANALYZED
                       -> FAILED
-FAILED/PROCESSED -> PROCESSING nếu reprocess
+
+ANALYZED --Admin approve--> PROCESSING -> PROCESSED
+                                      -> FAILED
+
+FAILED/ANALYZED/PROCESSED -> ANALYZING nếu thay file/analyze lại
+FAILED/PROCESSED -> PROCESSING nếu index lại
 ```
 
 Publication:
@@ -226,10 +235,11 @@ Database chỉ kiểm enum hợp lệ. Backend service phải enforce transition
 
 Rule nghiệp vụ bắt buộc:
 
-- Chỉ submit review khi `processing_status = PROCESSED`.
+- Chỉ submit review khi `processing_status = ANALYZED`.
 - Chỉ `PUBLISHED` xuất hiện trong Library.
+- `PROCESSED` nghĩa là đã index RAG xong và có thể hỏi RAG.
 - Owner có thể RAG document của mình nếu `PROCESSED`.
-- Teacher khác chỉ RAG document `PUBLISHED`.
+- Teacher khác chỉ RAG document `PUBLISHED` và `PROCESSED`.
 
 ## 12. Nguồn SQL triển khai
 

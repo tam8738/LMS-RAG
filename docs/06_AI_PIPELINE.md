@@ -1,11 +1,11 @@
 # AI pipeline cho Document MVP
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.5
+**Cập nhật:** 12/07/2026
 **Owner:** AI Service
 
 File này chỉ mô tả thuật toán AI. API payload nằm trong
-`04_AI_API_CONTRACT.md`; database nằm trong `05_DATABASE_SCHEMA.md`.
+`04_AI_API_CONTRACT.md`; database nằm trong `05_DATABASE_SCHEMA_CONTRACT.md`.
 
 ## 1. Trạng thái hiện tại
 
@@ -21,7 +21,8 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
 - `POST /v1/analyze-document` kiểm tra tài liệu có thể RAG được không, không embedding và không ghi DB.
 - `POST /v1/answer-question` trả extractive answer, `not_found` và citations.
-- `POST /v1/process-document` cần theo contract v1.4, không dùng `lecture_id`.
+- `POST /v1/index-document` là endpoint mục tiêu cho bước tạo chunks/embedding sau Admin approve.
+- `POST /v1/process-document` là logic cũ có thể tái sử dụng làm implementation cho `index-document` trong giai đoạn chuyển tiếp.
 - Unit/API mock tests.
 
 Chưa có:
@@ -38,12 +39,12 @@ storage_key
 -> parse PDF/TXT
 -> clean text
 -> chunk theo token để estimate
--> trả can_rag/unsupported_reason
+-> trả can_rag/rag_status/unsupported_reason
 ```
 
-Analyze không gọi embedding provider và không ghi `document_chunks`.
+Analyze không gọi embedding provider và không ghi `document_chunks`. Nếu có text usable, `rag_status` mục tiêu là `READY_TO_INDEX`; nếu không có text usable, trả `UNSUPPORTED`.
 
-## 3. Process pipeline
+## 3. Index pipeline
 
 ```txt
 storage_key

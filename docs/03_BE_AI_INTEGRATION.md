@@ -1,11 +1,11 @@
 # Quyết định tích hợp Backend - AI Service
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.5
+**Cập nhật:** 12/07/2026
 **Phạm vi:** Document processing và document-scoped RAG
 
 File này chỉ ghi quyết định kiến trúc và ownership. Payload HTTP nằm trong
-`04_AI_API_CONTRACT.md`; SQL nằm trong `05_DATABASE_SCHEMA.md`.
+`04_AI_API_CONTRACT.md`; SQL nằm trong `05_DATABASE_SCHEMA_CONTRACT.md` và `07_BACKEND_DATABASE_SCHEMA_GUIDE.md`.
 
 ## 1. Định hướng dữ liệu
 
@@ -103,24 +103,40 @@ Không OCR, DOCX hoặc PPTX trực tiếp.
 
 Backend validate để phản hồi sớm. AI validate lại tại service boundary.
 
-## 7. Auto-processing
+## 7. Analyze và index flow
 
-AI endpoint xử lý đồng bộ từ góc nhìn Backend. Backend chạy lời gọi trong background worker:
+MVP mới tách hai bước AI để tránh tạo embedding cho tài liệu có thể bị reject.
+
+Sau upload, Backend chỉ gọi analyze nhẹ:
 
 ```txt
 upload transaction commit
--> application event
--> @TransactionalEventListener(AFTER_COMMIT)
--> @Async worker
--> POST /v1/process-document
--> update Document/job
+-> background worker/fire-and-forget
+-> POST /v1/analyze-document
+-> success: documents.processing_status = ANALYZED
+-> failed: documents.processing_status = FAILED
+```
+
+Analyze chỉ kiểm tra tài liệu có text usable để RAG hay không. Analyze không sinh embedding và không ghi `document_chunks`.
+
+Sau Admin approve, Backend mới gọi index RAG:
+
+```txt
+Admin approve
+-> documents.publication_status = PUBLISHED
+-> nếu rag_eligible = true: documents.processing_status = PROCESSING
+-> background worker/fire-and-forget
+-> POST /v1/index-document
+-> success: documents.processing_status = PROCESSED
+-> failed: documents.processing_status = FAILED
 ```
 
 Không giữ database transaction trong lúc gọi AI. Không dùng message queue trong MVP.
 
 Retry/reprocess:
 
-- Chỉ chạy khi `FAILED` hoặc Teacher thay file/yêu cầu lập chỉ mục lại.
+- Analyze lại khi Teacher thay file hoặc analyze bị `FAILED`.
+- Index lại khi đã approve nhưng index bị `FAILED` hoặc cần lập chỉ mục lại.
 - Chặn hai active job cho cùng document.
 - AI atomic replace chunks; lỗi insert phải rollback và giữ chunks cũ.
 
@@ -162,8 +178,8 @@ document_ids
 
 Backend kiểm quyền từng ID trước khi gọi AI:
 
-- Owner dùng document của mình khi `PROCESSED`.
-- Người khác chỉ dùng document `PUBLISHED`.
+- Owner dùng document của mình khi đã index RAG xong (`PROCESSED`).
+- Người khác chỉ dùng document `PUBLISHED` và đã index RAG xong (`PROCESSED`).
 
 AI retrieval chỉ query chunks thuộc `document_ids`. Subject/topic/chapter/tags có thể được truyền trong metadata nếu cần hiển thị hoặc logging, nhưng không thay thế permission check theo document.
 
