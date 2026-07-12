@@ -1,0 +1,117 @@
+import React, { useState, useEffect } from "react";
+import { Document, User } from "../types";
+import { MOCK_DOCUMENTS } from "../mockData";
+import { DocumentMetadataPanel, DocumentStatusTimeline, ProcessingErrorBanner, RejectionReasonBanner } from "../components/DetailWidgets";
+import { RagChatPanel } from "../components/RagChatPanel";
+import { DualStatusBadge } from "../components/DualStatusBadge";
+import { PageLoading } from "../components/EmptyState";
+import { ArrowLeft, Download, Edit2, Replace, Send, Trash2 } from "lucide-react";
+
+export function MyDocumentDetailPage({ 
+  documentId, 
+  user,
+  onBack 
+}: { 
+  documentId: number,
+  user: User,
+  onBack: () => void 
+}) {
+  const [doc, setDoc] = useState<Document | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const found = MOCK_DOCUMENTS.find(d => d.id === documentId && d.authorId === user.id);
+      setDoc(found || null);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [documentId, user.id]);
+
+  if (!doc) return <PageLoading />;
+
+  const pStatus = doc.publicationStatus;
+  const aiStatus = doc.processingStatus;
+
+  // Rules
+  const canEdit = pStatus === "DRAFT" || pStatus === "REJECTED";
+  const canSubmit = (pStatus === "DRAFT" || pStatus === "REJECTED") && aiStatus === "PROCESSED";
+  const ragEligible = aiStatus === "PROCESSED";
+
+  return (
+    <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
+      {/* Header Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-[13.5px] font-medium text-[#6B6963] hover:text-[#0E0D0B] transition-colors w-fit border-none bg-transparent cursor-pointer font-action"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Trở về danh sách
+        </button>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {canEdit && (
+            <button className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action">
+              <Replace className="w-3.5 h-3.5" /> Thay file
+            </button>
+          )}
+          {canEdit && (
+            <button className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action">
+              <Edit2 className="w-3.5 h-3.5" /> Sửa thông tin
+            </button>
+          )}
+          <button className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action">
+            <Download className="w-3.5 h-3.5" /> Tải file gốc
+          </button>
+          {canSubmit && (
+            <button className="h-8 px-4 flex items-center gap-1.5 bg-[#4F63D2] text-white text-[13px] font-medium rounded-lg hover:bg-[#3D50B8] transition-colors shadow-sm cursor-pointer border-none font-action">
+              <Send className="w-3.5 h-3.5" /> Gửi duyệt
+            </button>
+          )}
+          {canEdit && (
+            <button className="h-8 px-3 flex items-center justify-center bg-white border border-red-200 text-red-650 rounded-lg hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer" title="Xóa tài liệu">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+        
+        {/* Left Column: Info & Timeline */}
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-0 overflow-y-auto pr-1 scrollbar-hide">
+          
+          {/* Banners */}
+          {aiStatus === "FAILED" && doc.failReason && (
+            <ProcessingErrorBanner reason={doc.failReason} onRetry={() => console.log('retry')} />
+          )}
+          {pStatus === "REJECTED" && doc.rejectReason && (
+            <RejectionReasonBanner reason={doc.rejectReason} />
+          )}
+
+          <div className="mb-6 bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6">
+            <h1 className="text-[24px] font-sans-body font-semibold text-[#0E0D0B] leading-snug mb-3">
+              {doc.title}
+            </h1>
+            <div className="mb-4">
+              <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} />
+            </div>
+            <p className="text-[14.5px] text-[#6B6963] leading-relaxed font-sans">
+              {doc.description || "Chưa có mô tả."}
+            </p>
+          </div>
+
+          <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} />
+          
+          <div className="mt-6 pb-10">
+             <DocumentMetadataPanel doc={doc} isOwner={true} />
+          </div>
+        </div>
+
+        {/* Right Column: RAG Chat */}
+        <div className="lg:col-span-7 xl:col-span-8 h-[500px] lg:h-full">
+          <RagChatPanel document={doc} isEligible={ragEligible} />
+        </div>
+        
+      </div>
+    </div>
+  );
+}
