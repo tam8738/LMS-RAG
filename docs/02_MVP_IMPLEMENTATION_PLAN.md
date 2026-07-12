@@ -94,12 +94,13 @@ Teacher A login
 - Embedding provider.
 - Repository lưu chunks vào pgvector.
 - `/v1/analyze-document` để đánh giá khả năng RAG.
+- `/v1/index-document` để tạo chunks/embedding sau khi Admin approve; endpoint này dùng lại `ProcessDocumentService`.
 - `/v1/answer-question` để trả lời câu hỏi dựa trên retrieval.
 
 ### AI Service còn cần chỉnh theo scope mới
 
-- Thêm `/v1/index-document` để tạo embedding sau khi admin approve (tách biệt với analyze).
-- Cập nhật retrieval theo `document_ids` nếu cần thay đổi.
+- Chưa có LLM generation/chat provider riêng; MVP answer vẫn là extractive answer.
+- Có thể tối ưu retrieval theo `document_ids` nếu contract BE thay đổi.
 
 ## 4. Task graph tổng quan
 
@@ -174,6 +175,7 @@ Quy ước trạng thái:
 | AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; Docker test thật đã gọi `/v1/process-document` với `document_id=2`, AI đọc `documents/2/v1/source.txt`, trả `PROCESSED`, `page_count=1`, `chunk_count=1` |
 | AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; đã xác nhận `document_chunks` có row thật cho `document_id=2` sau process |
 | AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`, embed question, retrieval, extractive answer, citations; Docker test thật trả `not_found=false`, citation trỏ về `chunk_id=1`, `document_id=2`; MVP vẫn là extractive answer, chưa có LLM generation riêng |
+| AI-04 - Index document endpoint | Khánh | P0 | AI-01 | DONE | Đã thêm `/v1/index-document` dùng chung `ProcessDocumentService` với legacy `/v1/process-document`; phục vụ flow Admin approve -> index RAG -> lưu `document_chunks` |
 
 ### 6.4. Infra, integration và QA tasks
 
@@ -283,7 +285,7 @@ BE-04 đang adjust: analyze success phải cập nhật ANALYZED thay vì PROCES
 BE-05 đang adjust: submit review yêu cầu ANALYZED thay vì PROCESSED.
 BE-06 đang adjust: approve phải gọi /v1/index-document và cập nhật PROCESSED sau index.
 BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer.
-AI Service chưa có /v1/index-document (cần Khánh implement hoặc dùng /v1/process-document cũ tạm).
+AI Service đã có `/v1/index-document`; endpoint này reuse logic `/v1/process-document` để index RAG sau Admin approve.
 Frontend chưa có app để chạy demo UI.
 ```
 
@@ -1266,6 +1268,34 @@ Acceptance criteria:
 - Không tạo citation giả.
 - Internal key sai trả 401.
 - `pytest tests/test_answer_question_api.py tests/test_process_document_api.py tests/test_document_chunk_repository.py` pass 35 tests.
+### AI-04 - Index document endpoint
+
+- Owner: Khánh
+- Priority: P0
+- Depends on: AI-01
+- Concurrency: SAFE
+- Estimate: 0.25 ngày
+- Status: DONE
+
+Endpoint:
+
+```txt
+POST /v1/index-document
+```
+
+Việc đã làm:
+
+- Thêm route `/v1/index-document` có `X-Internal-Key`.
+- Dùng lại `ProcessDocumentRequest`, `ProcessDocumentResult` và `ProcessDocumentService`.
+- Không copy pipeline parse/clean/chunk/embed/save.
+- Giữ `/v1/process-document` để tương thích code cũ trong giai đoạn chuyển tiếp.
+
+Acceptance criteria:
+
+- `/v1/index-document` trả cùng data contract với `/v1/process-document`.
+- Missing/wrong internal key trả `UNAUTHORIZED_INTERNAL_CALL`.
+- Unit/API tests pass.
+
 ## 10. Infra/Docker/shared volume
 
 ### INFRA-01 - Docker compose tích hợp Backend + AI + PostgreSQL

@@ -21,8 +21,8 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
 - `POST /v1/analyze-document` kiểm tra tài liệu có thể RAG được không, không embedding và không ghi DB.
 - `POST /v1/answer-question` trả extractive answer, `not_found` và citations.
-- `POST /v1/index-document` là endpoint mục tiêu cho bước tạo chunks/embedding sau Admin approve.
-- `POST /v1/process-document` là logic cũ có thể tái sử dụng làm implementation cho `index-document` trong giai đoạn chuyển tiếp.
+- `POST /v1/index-document` đã có và dùng lại process pipeline để tạo chunks/embedding sau Admin approve.
+- `POST /v1/process-document` vẫn được giữ làm endpoint legacy/tương thích trong giai đoạn chuyển tiếp.
 - Unit/API mock tests.
 
 Chưa có:

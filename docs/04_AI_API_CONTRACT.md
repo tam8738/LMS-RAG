@@ -189,7 +189,7 @@ Implementation status: endpoint `/v1/analyze-document` đã có trong AI Service
 
 ### `POST /v1/index-document`
 
-Endpoint này tạo chunks/embedding và ghi `document_chunks`. Backend gọi sau khi Admin approve. Trong giai đoạn chuyển tiếp, implementation có thể tái sử dụng logic cũ của `/v1/process-document`.
+Endpoint này tạo chunks/embedding và ghi `document_chunks`. Backend gọi sau khi Admin approve. Implementation hiện đã có trong AI Service và dùng lại `ProcessDocumentService`; `/v1/process-document` được giữ để tương thích code cũ.
 
 ### Legacy compatibility: `POST /v1/process-document`
 
