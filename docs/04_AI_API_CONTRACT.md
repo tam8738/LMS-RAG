@@ -1,7 +1,7 @@
 # AI Service Internal API Contract
 
-**Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.5
+**Cập nhật:** 12/07/2026
 **Base URL Docker:** `http://ai-service:8000/v1`
 
 ## 1. Phạm vi core
@@ -9,9 +9,13 @@
 ```txt
 GET  /v1/health
 GET  /v1/health/pgvector
-POST /v1/process-document
+POST /v1/analyze-document
+POST /v1/index-document
 POST /v1/answer-question
 ```
+
+`POST /v1/process-document` là endpoint cũ có thể giữ tạm như implementation tương đương `index-document` trong giai đoạn chuyển tiếp.
+
 
 Summary và question generation là Should-have và chưa thuộc core contract.
 
@@ -112,9 +116,82 @@ Yêu cầu `X-Internal-Key`. Kiểm tra PostgreSQL và extension pgvector.
 }
 ```
 
-## 6. Process document
+## 6. Analyze document
 
-### `POST /v1/process-document`
+### `POST /v1/analyze-document`
+
+Endpoint này chỉ kiểm tra tài liệu có thể RAG được hay không. Endpoint này không sinh embedding và không ghi `document_chunks`.
+
+Request:
+
+```json
+{
+  "document_id": 12,
+  "storage_key": "documents/12/v1/source.pdf",
+  "file_type": "PDF"
+}
+```
+
+| Field | Required | Quy định |
+|---|---:|---|
+| `document_id` | Yes | Positive BIGINT |
+| `storage_key` | Yes | Relative path dưới `UPLOAD_ROOT` |
+| `file_type` | Yes | `PDF` hoặc `TXT` |
+| `metadata` | No | Không bắt buộc cho bước kiểm tra RAG |
+
+Success `200`, tài liệu có thể RAG:
+
+```json
+{
+  "success": true,
+  "data": {
+    "document_id": 12,
+    "can_rag": true,
+    "rag_status": "READY_TO_INDEX",
+    "page_count": 20,
+    "estimated_token_count": 18420,
+    "estimated_chunk_count": 24,
+    "unsupported_reason": null
+  },
+  "message": "Tài liệu có thể xử lý RAG"
+}
+```
+
+Success `200`, tài liệu không hỗ trợ RAG nhưng vẫn có thể lưu như tài liệu thường:
+
+```json
+{
+  "success": true,
+  "data": {
+    "document_id": 12,
+    "can_rag": false,
+    "rag_status": "UNSUPPORTED",
+    "page_count": 0,
+    "estimated_token_count": 0,
+    "estimated_chunk_count": 0,
+    "unsupported_reason": "EMPTY_DOCUMENT"
+  },
+  "message": "Tài liệu không hỗ trợ RAG"
+}
+```
+
+Hành vi:
+
+1. Resolve `storage_key` dưới `UPLOAD_ROOT`.
+2. Validate file tồn tại, đúng PDF/TXT và không quá size.
+3. Parse/clean/chunk nhẹ để biết có text usable hay không.
+4. Trả `READY_TO_INDEX` nếu có thể chạy `/v1/index-document` sau khi Admin approve.
+5. Trả `UNSUPPORTED` nếu file hợp lệ nhưng không có text để RAG.
+6. Không cập nhật bảng `documents`; Backend là nơi cập nhật DB/status.
+
+Implementation status: endpoint `/v1/analyze-document` đã có trong AI Service, nằm ở file riêng để có thể gỡ bỏ ít ảnh hưởng code cũ.
+## 7. Index document
+
+### `POST /v1/index-document`
+
+Endpoint này tạo chunks/embedding và ghi `document_chunks`. Backend gọi sau khi Admin approve. Implementation hiện đã có trong AI Service và dùng lại `ProcessDocumentService`; `/v1/process-document` được giữ để tương thích code cũ.
+
+### Legacy compatibility: `POST /v1/process-document`
 
 Request:
 
@@ -164,7 +241,9 @@ Hành vi:
 4. Atomic replace chunks.
 5. Trả count; không cập nhật bảng `documents`.
 
-## 7. Answer question
+## 8. Answer question
+
+Implementation status AI-03: endpoint `/v1/answer-question` đã có trong AI Service. MVP hiện trả extractive answer từ retrieved chunks và citations từ `document_chunks`; chưa dùng LLM chat/generation provider riêng.
 
 ### `POST /v1/answer-question`
 
@@ -227,7 +306,7 @@ Không có context phù hợp vẫn trả `200`:
 }
 ```
 
-AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thiếu.
+AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thiếu. Trong MVP hiện tại, answer được compose trực tiếp từ retrieved chunks nên `tokens_used=0`; nếu sau này thêm LLM generation thì vẫn phải giữ nguyên nguyên tắc chỉ dùng retrieved context.
 
 ## 8. Error codes
 
@@ -243,12 +322,13 @@ AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thi
 | `NO_CHUNKS_FOUND` | 422 | Không có chunks cho document IDs |
 | `PROVIDER_UNAVAILABLE` | 503 | OpenAI chưa cấu hình/không sẵn sàng |
 | `PROVIDER_TIMEOUT` | 504 | OpenAI timeout |
+| `RETRIEVAL_ERROR` | 503 | Lỗi query retrieval từ `document_chunks` |
 | `DATABASE_ERROR` | 503 | PostgreSQL/pgvector lỗi |
 | `INTERNAL_ERROR` | 500 | Lỗi không dự kiến |
 
 ## 9. Timeout và retry
 
-- Backend timeout process-document phải đủ cho tài liệu demo; gọi trong worker.
+- Backend timeout index-document/process-document phải đủ cho tài liệu demo; gọi trong worker.
 - Backend không tự retry vô hạn.
 - OpenAI retry có giới hạn trong AI Service.
 - Reprocess phải idempotent theo document và atomic replace.

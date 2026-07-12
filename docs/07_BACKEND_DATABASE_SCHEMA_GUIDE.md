@@ -1,7 +1,7 @@
 # Hướng dẫn Backend tạo database schema MVP
 
-**Phiên bản:** 1.0
-**Cập nhật:** 07/07/2026
+**Phiên bản:** 1.1
+**Cập nhật:** 12/07/2026
 **Owner:** Backend
 **Mục tiêu:** Tạo đầy đủ schema database cho MVP document-centric
 
@@ -166,6 +166,14 @@ CREATE TABLE documents (
 
     processing_status VARCHAR(30) NOT NULL DEFAULT 'UPLOADED',
     publication_status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+
+    rag_eligible BOOLEAN,
+    page_count INT,
+    estimated_token_count INT,
+    estimated_chunk_count INT,
+    unsupported_reason VARCHAR(100),
+    analyzed_at TIMESTAMPTZ,
+
     error_code VARCHAR(50),
     error_message TEXT,
     processed_at TIMESTAMPTZ,
@@ -187,8 +195,14 @@ CREATE TABLE documents (
         CHECK (file_type IN ('PDF', 'TXT')),
     CONSTRAINT ck_documents_processing_status
         CHECK (processing_status IN (
-            'UPLOADED', 'PROCESSING', 'PROCESSED', 'FAILED'
+            'UPLOADED', 'ANALYZING', 'ANALYZED', 'PROCESSING', 'PROCESSED', 'FAILED'
         )),
+    CONSTRAINT ck_documents_page_count
+        CHECK (page_count IS NULL OR page_count >= 0),
+    CONSTRAINT ck_documents_estimated_token_count
+        CHECK (estimated_token_count IS NULL OR estimated_token_count >= 0),
+    CONSTRAINT ck_documents_estimated_chunk_count
+        CHECK (estimated_chunk_count IS NULL OR estimated_chunk_count >= 0),
     CONSTRAINT ck_documents_publication_status
         CHECK (publication_status IN (
             'DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED', 'ARCHIVED'
@@ -235,7 +249,13 @@ Vai trò các cột chính:
 | `subject/topic/chapter/tags` | Metadata phân loại, không phải LMS relation |
 | `storage_key` | Đường dẫn tương đối để Backend/AI cùng tìm file |
 | `file_version` | Tăng khi thay file/reprocess bằng file mới |
-| `processing_status` | Trạng thái AI xử lý file |
+| `processing_status` | Trạng thái kỹ thuật: analyze nhẹ và index RAG |
+| `rag_eligible` | Kết quả analyze: tài liệu có thể RAG hay không |
+| `page_count` | Số trang ước tính sau analyze |
+| `estimated_token_count` | Số token ước tính sau analyze |
+| `estimated_chunk_count` | Số chunk ước tính sau analyze |
+| `unsupported_reason` | Lý do không hỗ trợ RAG, ví dụ PDF scan không có text |
+| `analyzed_at` | Thời điểm analyze xong |
 | `publication_status` | Trạng thái duyệt/công bố |
 | `reviewed_by/reviewed_at` | Admin duyệt hoặc từ chối |
 | `published_at` | Thời điểm tài liệu vào Library |
@@ -252,6 +272,7 @@ CREATE TABLE document_processing_jobs (
         REFERENCES documents(id) ON DELETE CASCADE,
 
     status VARCHAR(30) NOT NULL DEFAULT 'PROCESSING',
+    job_type VARCHAR(20) NOT NULL DEFAULT 'ANALYZE',
     chunk_count INT,
     error_code VARCHAR(50),
     error_message TEXT,
@@ -262,6 +283,8 @@ CREATE TABLE document_processing_jobs (
 
     CONSTRAINT ck_processing_jobs_status
         CHECK (status IN ('PROCESSING', 'PROCESSED', 'FAILED')),
+    CONSTRAINT ck_processing_jobs_type
+        CHECK (job_type IN ('ANALYZE', 'INDEX', 'REPROCESS')),
     CONSTRAINT ck_processing_jobs_chunk_count
         CHECK (chunk_count IS NULL OR chunk_count >= 0)
 );
@@ -281,6 +304,8 @@ WHERE status = 'PROCESSING';
 Lý do có unique partial index:
 
 - Một Document không nên có hai job `PROCESSING` cùng lúc.
+- `job_type` phân biệt job analyze nhẹ sau upload và job index RAG sau approve.
+- Không set `document_processing_jobs.status = ANALYZING`; trạng thái job chỉ cần `PROCESSING/PROCESSED/FAILED`.
 - Vẫn cho phép nhiều job cũ đã `PROCESSED` hoặc `FAILED` để xem lịch sử.
 
 ## 9. Migration V2 - document_chunks
@@ -331,7 +356,48 @@ Ghi chú cho Backend:
 - Khi cần subject/topic/chapter trong citation hoặc filter, join từ `document_chunks.document_id` sang `documents.id`.
 - AI reprocess sẽ delete/insert chunks theo `document_id` trong một transaction.
 
-## 10. Migration V3 - seed demo users
+## 10. Lưu ý Hibernate/JPA cho document_chunks
+
+`document_chunks.embedding` dùng kiểu `VECTOR(1536)` của pgvector. Hibernate/JPA mặc định không hiểu tốt kiểu dữ liệu này, nên Backend không nên để Hibernate tự generate hoặc tự map bảng `document_chunks` trong MVP.
+
+Quyết định cho MVP:
+
+- Backend tạo bảng `document_chunks` bằng SQL migration.
+- Backend không cần tạo `DocumentChunkEntity` trong Java.
+- Backend không cần khai báo `@OneToMany` từ `Document` sang chunks.
+- Bảng `documents` không có cột `chunk_id`, `chunk`, `chunks` hoặc field tương tự.
+- Quan hệ đúng là `document_chunks.document_id -> documents.id`.
+- Backend CRUD `Document` không bị ảnh hưởng vì chỉ thao tác bảng `documents` và `document_processing_jobs`.
+- AI Service ghi/thay thế/truy vấn `document_chunks` bằng SQL/psycopg.
+
+Nếu Backend cần biết số chunk của một Document, dùng:
+
+```txt
+document_processing_jobs.chunk_count
+```
+
+hoặc field tổng hợp do Backend cập nhật sau khi AI trả kết quả, không load toàn bộ chunks qua Hibernate.
+
+Nếu sau MVP Backend thật sự cần đọc chunks, có hai hướng:
+
+1. Dùng native query hoặc `JdbcTemplate` để đọc `document_chunks`.
+2. Cài thêm thư viện hỗ trợ pgvector cho Hibernate rồi mới cân nhắc map `DocumentChunkEntity`.
+
+Không nên làm trong MVP:
+
+```java
+@OneToMany(mappedBy = "document")
+private List<DocumentChunk> chunks;
+```
+
+Lý do:
+
+- Một Document có thể có rất nhiều chunks.
+- Load chunks qua entity dễ nặng và không cần cho CRUD Document.
+- Field `embedding VECTOR(1536)` làm mapping Hibernate phức tạp không cần thiết.
+- AI Service mới là owner logic của chunks/vector.
+
+## 11. Migration V3 - seed demo users
 
 Seed tối thiểu cần có:
 
@@ -351,16 +417,21 @@ ON CONFLICT (email) DO NOTHING;
 
 Không commit password thật hoặc hash không rõ nguồn vào repo public nếu nhóm xem đó là thông tin nhạy cảm. Với demo local, có thể thống nhất mật khẩu tạm như `123456` và ghi rõ chỉ dùng cho môi trường demo.
 
-## 11. State transition cần Backend enforce
+## 12. State transition cần Backend enforce
 
 Database chỉ kiểm enum hợp lệ. Backend service phải kiểm transition hợp lệ.
 
 Processing:
 
 ```txt
-UPLOADED -> PROCESSING -> PROCESSED
+UPLOADED -> ANALYZING -> ANALYZED
                       -> FAILED
-FAILED/PROCESSED -> PROCESSING nếu reprocess
+
+ANALYZED --Admin approve--> PROCESSING -> PROCESSED
+                                      -> FAILED
+
+FAILED/ANALYZED/PROCESSED -> ANALYZING nếu thay file/analyze lại
+FAILED/PROCESSED -> PROCESSING nếu index lại
 ```
 
 Publication:
@@ -375,12 +446,13 @@ PUBLISHED -> ARCHIVED
 
 Rule quan trọng:
 
-- Chỉ submit review khi `processing_status = 'PROCESSED'`.
+- Chỉ submit review khi `processing_status = 'ANALYZED'`.
 - Chỉ document `PUBLISHED` xuất hiện trong Library.
+- `PROCESSED` nghĩa là đã index RAG xong và có thể hỏi RAG.
 - Owner có thể RAG document của mình nếu `PROCESSED`.
-- Teacher khác chỉ RAG document `PUBLISHED`.
+- Teacher khác chỉ RAG document `PUBLISHED` và `PROCESSED`.
 
-## 12. Query mẫu Backend cần dùng
+## 13. Query mẫu Backend cần dùng
 
 Library:
 
@@ -434,7 +506,7 @@ ORDER BY dc.embedding <=> CAST(:query_embedding AS vector)
 LIMIT :top_k;
 ```
 
-## 13. Checklist để Backend tự kiểm tra
+## 14. Checklist để Backend tự kiểm tra
 
 Sau khi chạy migration, Backend kiểm tra:
 
@@ -481,7 +553,7 @@ ORDER BY tc.table_name, kcu.column_name;
 
 Không được có FK từ `documents` hoặc `document_chunks` sang `courses/lectures` trong MVP mới.
 
-## 14. Checklist bàn giao cho AI
+## 15. Checklist bàn giao cho AI
 
 Backend cần báo cho AI khi đã có:
 
@@ -493,7 +565,7 @@ Backend cần báo cho AI khi đã có:
 - [ ] Có ít nhất một row `documents` thật để AI test insert chunks.
 - [ ] Shared storage đã có file theo `storage_key`.
 
-## 15. Kết luận cho Backend
+## 16. Kết luận cho Backend
 
 Backend cần tạo đầy đủ schema nghiệp vụ, không chỉ bảng phục vụ AI. Bộ bảng tối thiểu, hợp lý và không thừa cho MVP mới là:
 

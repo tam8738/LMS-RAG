@@ -31,9 +31,18 @@ class FakeCursor:
 
     def execute(self, query: str, parameters: tuple) -> None:
         self.connection.events.append(("execute", query, parameters))
+        if "embedding <=>" in query:
+            if self.connection.fail_search:
+                raise psycopg.DatabaseError("search failed")
+            self.connection.last_result = list(self.connection.search_rows)
+            return
         if self.connection.fail_delete:
             raise psycopg.DatabaseError("delete failed")
         self.connection.rows.clear()
+
+    def fetchall(self) -> list[tuple]:
+        self.connection.events.append("fetchall")
+        return list(self.connection.last_result)
 
     def executemany(self, query: str, rows: list[tuple]) -> None:
         materialized_rows = list(rows)
@@ -72,10 +81,15 @@ class FakeConnection:
         *,
         fail_delete: bool = False,
         fail_insert_after: int | None = None,
+        search_rows: list[tuple] | None = None,
+        fail_search: bool = False,
     ) -> None:
         self.rows = list(initial_rows or [])
         self.fail_delete = fail_delete
         self.fail_insert_after = fail_insert_after
+        self.search_rows = list(search_rows or [])
+        self.fail_search = fail_search
+        self.last_result: list[tuple] = []
         self.events: list[object] = []
 
     def transaction(self) -> FakeTransaction:
@@ -336,6 +350,101 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             PostgresDocumentChunkRepository(expected_dimensions=0)
 
+    def test_search_similar_chunks_maps_rows_and_deduplicates_scope(self) -> None:
+        connection = FakeConnection(
+            search_rows=[
+                (120, 12, 5, 7, "Chuẩn hóa dữ liệu là quá trình...", 88, 0.08),
+                (121, 15, None, 0, "Nội dung TXT liên quan", 42, 0.33),
+            ]
+        )
+        factory = FakeConnectionFactory(connection)
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=factory,
+            expected_dimensions=3,
+        )
+
+        results = repository.search_similar_chunks(
+            document_ids=[12, 15, 12],
+            query_embedding=[0.1, 0.2, 0.3],
+            top_k=5,
+        )
+
+        self.assertEqual(factory.calls, 1)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0].chunk_id, 120)
+        self.assertEqual(results[0].document_id, 12)
+        self.assertEqual(results[0].page_number, 5)
+        self.assertEqual(results[0].chunk_index, 7)
+        self.assertEqual(results[0].distance, 0.08)
+        self.assertAlmostEqual(results[0].score, 0.92)
+        self.assertEqual(results[1].page_number, None)
+
+        execute_events = [
+            event
+            for event in connection.events
+            if isinstance(event, tuple) and event[0] == "execute"
+        ]
+        self.assertEqual(len(execute_events), 1)
+        query = execute_events[0][1]
+        parameters = execute_events[0][2]
+        self.assertIn("FROM document_chunks", query)
+        self.assertIn("document_id = ANY", query)
+        self.assertIn("embedding <=> %s::vector", query)
+        self.assertEqual(parameters, ("[0.1,0.2,0.3]", [12, 15], "[0.1,0.2,0.3]", 5))
+
+    def test_search_similar_chunks_returns_empty_list_when_no_rows(self) -> None:
+        connection = FakeConnection(search_rows=[])
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        results = repository.search_similar_chunks([12], [0.1, 0.2, 0.3], 3)
+
+        self.assertEqual(results, [])
+        self.assertIn("fetchall", connection.events)
+
+    def test_search_similar_chunks_rejects_invalid_input_before_connection(self) -> None:
+        invalid_cases = (
+            ([], [0.1, 0.2, 0.3], 3, "document_ids"),
+            ([0], [0.1, 0.2, 0.3], 3, "document_ids"),
+            ([12], [0.1, 0.2, 0.3], 0, "top_k"),
+            ([12], [0.1, 0.2], 3, "embedding_dimensions"),
+            ([12], [float("nan"), 0.2, 0.3], 3, "query_embedding"),
+        )
+
+        for document_ids, query_embedding, top_k, expected_field in invalid_cases:
+            with self.subTest(expected_field=expected_field):
+                factory = FakeConnectionFactory(FakeConnection())
+                repository = PostgresDocumentChunkRepository(
+                    connection_factory=factory,
+                    expected_dimensions=3,
+                )
+
+                with self.assertRaises(ServiceError) as context:
+                    repository.search_similar_chunks(
+                        document_ids,
+                        query_embedding,
+                        top_k,
+                    )
+
+                self.assertEqual(context.exception.code, ErrorCode.INVALID_INPUT)
+                self.assertEqual(context.exception.details[0].field, expected_field)
+                self.assertEqual(factory.calls, 0)
+
+    def test_search_similar_chunks_wraps_database_error(self) -> None:
+        connection = FakeConnection(fail_search=True)
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        with self.assertRaises(ServiceError) as context:
+            repository.search_similar_chunks([12], [0.1, 0.2, 0.3], 3)
+
+        self.assertEqual(context.exception.code, ErrorCode.RETRIEVAL_ERROR)
+        self.assertEqual(context.exception.status_code, 503)
+        self.assertEqual(context.exception.details[0].field, "document_ids")
 
 if __name__ == "__main__":
     unittest.main()

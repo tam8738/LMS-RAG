@@ -7,11 +7,23 @@ from app.embeddings.openai_provider import OpenAIEmbeddingProvider
 from app.repositories.postgres_document_chunk_repository import (
     PostgresDocumentChunkRepository,
 )
+from app.services.analyze_document_service import AnalyzeDocumentService
+from app.services.answer_question_service import AnswerQuestionService
 from app.services.chunk_embedding_service import ChunkEmbeddingService
 from app.services.document_chunking_pipeline import DocumentChunkingPipeline
 from app.services.document_validator import DocumentValidator
 from app.services.process_document_service import ProcessDocumentService
 from app.services.storage import StorageResolver
+
+
+@lru_cache(maxsize=1)
+def get_analyze_document_service() -> AnalyzeDocumentService:
+    """Lắp ráp service kiểm tra RAG nhẹ, không cần OpenAI/provider."""
+    return AnalyzeDocumentService(
+        storage_resolver=StorageResolver(),
+        document_validator=DocumentValidator(),
+        chunking_pipeline=DocumentChunkingPipeline(),
+    )
 
 
 @lru_cache(maxsize=1)
@@ -35,5 +47,23 @@ def get_process_document_service() -> ProcessDocumentService:
         document_validator=DocumentValidator(),
         chunking_pipeline=DocumentChunkingPipeline(),
         embedding_service=ChunkEmbeddingService(embedding_provider),
+        chunk_repository=PostgresDocumentChunkRepository(),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_answer_question_service() -> AnswerQuestionService:
+    """Assemble the RAG answer service lazily, same as document processing."""
+    try:
+        embedding_provider = OpenAIEmbeddingProvider()
+    except ValueError as exc:
+        raise ServiceError(
+            ErrorCode.PROVIDER_UNAVAILABLE,
+            "Embedding provider chưa được cấu hình",
+            status_code=503,
+        ) from exc
+
+    return AnswerQuestionService(
+        embedding_provider=embedding_provider,
         chunk_repository=PostgresDocumentChunkRepository(),
     )

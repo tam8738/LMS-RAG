@@ -232,6 +232,8 @@ class ProcessDocumentApiTest(unittest.TestCase):
             ("GET", "/v1/health/pgvector", "wrong"),
             ("POST", "/v1/process-document", None),
             ("POST", "/v1/process-document", "wrong"),
+            ("POST", "/v1/index-document", None),
+            ("POST", "/v1/index-document", "wrong"),
         )
         payload = {
             "document_id": 12,
@@ -364,6 +366,43 @@ class ProcessDocumentApiTest(unittest.TestCase):
         self.assertTrue(request.reprocess)
         self.assertEqual(request.metadata.topic, "Chuẩn hóa dữ liệu")
         self.assertEqual(request.metadata.tags, ["database", "normalization"])
+
+    def test_index_document_returns_contract_response(self) -> None:
+        self.service.process.return_value = ProcessDocumentResult(
+            document_id=12,
+            page_count=2,
+            chunk_count=8,
+        )
+
+        response = self.client.post(
+            "/v1/index-document",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_id": 12,
+                "storage_key": "documents/12/v1/source.pdf",
+                "file_type": "PDF",
+                "reprocess": False,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "success": True,
+                "data": {
+                    "document_id": 12,
+                    "status": "PROCESSED",
+                    "page_count": 2,
+                    "chunk_count": 8,
+                },
+                "message": "Tài liệu đã được index RAG thành công",
+            },
+        )
+        request = self.service.process.call_args.args[0]
+        self.assertEqual(request.document_id, 12)
+        self.assertEqual(request.file_type, DocumentFileType.PDF)
+        self.assertFalse(request.reprocess)
 
     def test_request_validation_uses_invalid_input_envelope(self) -> None:
         response = self.client.post(
