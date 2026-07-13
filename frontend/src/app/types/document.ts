@@ -1,4 +1,4 @@
-export type ProcessingStatus = "UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED";
+export type ProcessingStatus = "UPLOADED" | "ANALYZING" | "ANALYZED" | "PROCESSING" | "PROCESSED" | "FAILED";
 export type PublicationStatus = "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED" | "ARCHIVED";
 
 export interface Document {
@@ -21,6 +21,7 @@ export interface Document {
   fileSize: string;
   mimeType: string;
   storageKey?: string;
+  ragEligible?: boolean;
   pageCount?: number;
   chunkCount?: number;
   

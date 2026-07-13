@@ -1,7 +1,44 @@
 import { User } from "../types";
-import { parseJwt } from "../utils/jwt";
 
 export const authService = {
+  /**
+   * Fetch the current authenticated user's profile from the server
+   */
+  async getCurrentUserFromServer(): Promise<User> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    const response = await fetch("/api/v1/auth/me", {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      this.logout();
+      window.dispatchEvent(new Event("auth-unauthorized"));
+      throw new Error("Unauthorized or Forbidden");
+    }
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error?.message || result.message || "Failed to fetch user profile.");
+    }
+
+    const user = result.data;
+    if (user && user.status === "INACTIVE") {
+      this.logout();
+      throw new Error("Tài khoản của bạn đã bị vô hiệu hóa.");
+    }
+    if (user && user.role) {
+      user.role = user.role.toLowerCase() as "teacher" | "admin";
+    }
+    return user;
+  },
+
   /**
    * Log in with email and password
    */
@@ -21,15 +58,19 @@ export const authService = {
       throw new Error(result.error?.message || result.message || "Đăng nhập thất bại.");
     }
 
-    const token = result.data.token;
+    const token = result.data.accessToken;
+    if (!token) {
+      throw new Error("Không nhận được token từ máy chủ.");
+    }
     localStorage.setItem("token", token);
 
-    const user = this.restoreUser();
-    if (!user) {
-      throw new Error("Token không hợp lệ hoặc thiếu thông tin vai trò.");
+    try {
+      const user = await this.getCurrentUserFromServer();
+      return user;
+    } catch (err: any) {
+      this.logout();
+      throw new Error(err.message || "Không thể lấy thông tin tài khoản sau khi đăng nhập.");
     }
-
-    return user;
   },
 
   /**
@@ -40,49 +81,17 @@ export const authService = {
   },
 
   /**
-   * Restore user from token payload stored in localStorage
+   * Restore user from server using token stored in localStorage
    */
-  restoreUser(): User | null {
+  async restoreUser(): Promise<User | null> {
     const token = localStorage.getItem("token");
     if (!token) return null;
 
     try {
-      const payload = parseJwt(token);
-      if (!payload || !payload.role) {
-        localStorage.removeItem("token");
-        return null;
-      }
-
-      // 1. Validate exp expiration claim
-      if (payload.exp && payload.exp * 1000 < Date.now()) {
-        console.warn("JWT token has expired");
-        localStorage.removeItem("token");
-        return null;
-      }
-
-      const cleanedRole = payload.role.replace("ROLE_", "").toLowerCase();
-      
-      // 2. Reject unsupported roles
-      if (cleanedRole !== "admin" && cleanedRole !== "teacher") {
-        console.warn(`Unsupported role: ${cleanedRole}`);
-        localStorage.removeItem("token");
-        return null;
-      }
-
-      const userEmail = payload.sub;
-
-      return {
-        id: cleanedRole === "admin" ? 2 : 1, // Map to layout/view IDs
-        name: userEmail === "admin@example.com" ? "Admin" : 
-              userEmail === "teacher.a@example.com" ? "Teacher A" : 
-              userEmail === "teacher.b@example.com" ? "Teacher B" : userEmail.split("@")[0],
-        email: userEmail,
-        role: cleanedRole as "admin" | "teacher",
-        status: "ACTIVE",
-      };
+      const user = await this.getCurrentUserFromServer();
+      return user;
     } catch (e) {
-      console.error("Failed to parse user session:", e);
-      localStorage.removeItem("token");
+      this.logout();
       return null;
     }
   },

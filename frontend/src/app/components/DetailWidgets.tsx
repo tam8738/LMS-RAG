@@ -39,16 +39,28 @@ export function RejectionReasonBanner({ reason }: { reason: string }) {
 
 export function DocumentStatusTimeline({
   processing,
-  publication
+  publication,
+  ragEligible
 }: {
   processing: ProcessingStatus,
-  publication: PublicationStatus
+  publication: PublicationStatus,
+  ragEligible?: boolean
 }) {
+
+  let step2Label = "Phân tích AI";
+  if (processing === "ANALYZING") step2Label = "Đang phân tích";
+  else if (processing === "ANALYZED") step2Label = "Đã phân tích";
+  else if (processing === "FAILED" && !ragEligible) step2Label = "Lỗi phân tích";
+
+  let step3Label = "Index RAG";
+  if (processing === "PROCESSING") step3Label = "Đang index RAG";
+  else if (processing === "PROCESSED") step3Label = "Đã index RAG";
+  else if (processing === "FAILED" && ragEligible) step3Label = "Lỗi index RAG";
 
   const processingSteps = [
     { id: "UPLOADED", label: "Đã tải lên", icon: UploadCloud },
-    { id: "PROCESSING", label: "Đang xử lý", icon: Clock },
-    { id: processing === "FAILED" ? "FAILED" : "PROCESSED", label: processing === "FAILED" ? "Lỗi xử lý" : "Đã xử lý AI", icon: processing === "FAILED" ? XCircle : CheckCircle2 },
+    { id: "ANALYZED", label: step2Label, icon: processing === "ANALYZING" ? Clock : CheckCircle2 },
+    { id: "PROCESSED", label: step3Label, icon: processing === "PROCESSING" ? Clock : CheckCircle2 },
   ];
 
   const publicationSteps = [
@@ -61,19 +73,35 @@ export function DocumentStatusTimeline({
   }
 
   const getStepStatus = (current: string, stepId: string, type: "processing" | "publication") => {
-    if (current === stepId) return type === "processing" && current === "FAILED" ? "error" : type === "publication" && current === "REJECTED" ? "error" : "active";
+    if (type === "publication") {
+      if (current === stepId) return current === "REJECTED" ? "error" : "active";
+      const pbOrder = ["DRAFT", "REJECTED", "PENDING_REVIEW", "PUBLISHED", "ARCHIVED"];
+      const currIdx = pbOrder.indexOf(current);
+      const stepIdx = pbOrder.indexOf(stepId);
+      if (currIdx > stepIdx && current !== "REJECTED") return "completed";
+      if (current === "REJECTED" && stepId === "DRAFT") return "completed";
+      return "pending";
+    }
 
-    // Simple ordinal mapping for logic
-    const pOrder = ["UPLOADED", "PROCESSING", "PROCESSED", "FAILED"];
-    const pbOrder = ["DRAFT", "REJECTED", "PENDING_REVIEW", "PUBLISHED", "ARCHIVED"];
+    // For processing
+    if (stepId === "UPLOADED") {
+      return current === "UPLOADED" ? "active" : "completed";
+    }
 
-    const currIdx = type === "processing" ? pOrder.indexOf(current) : pbOrder.indexOf(current);
-    const stepIdx = type === "processing" ? pOrder.indexOf(stepId) : pbOrder.indexOf(stepId);
+    if (stepId === "ANALYZED") {
+      if (current === "ANALYZING") return "active";
+      if (current === "FAILED" && !ragEligible) return "error";
+      if (current === "ANALYZED" || current === "PROCESSING" || current === "PROCESSED") return "completed";
+      if (current === "FAILED" && ragEligible) return "completed";
+      return "pending";
+    }
 
-    if (currIdx > stepIdx && current !== "FAILED" && current !== "REJECTED") return "completed";
-    // FAILED implies it reached step 2 and failed at 3
-    if (type === "processing" && current === "FAILED" && stepIdx < 2) return "completed";
-    if (type === "publication" && current === "REJECTED" && stepId === "DRAFT") return "completed";
+    if (stepId === "PROCESSED") {
+      if (current === "PROCESSING") return "active";
+      if (current === "PROCESSED") return "completed";
+      if (current === "FAILED" && ragEligible) return "error";
+      return "pending";
+    }
 
     return "pending";
   };
