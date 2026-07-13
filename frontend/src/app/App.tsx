@@ -31,11 +31,23 @@ export default function App() {
 
   useEffect(() => {
     // Restore session from token
-    const user = authService.restoreUser();
-    if (user) {
-      setCurrentUser(user);
-      setCurrentScreen(getDefaultScreenForRole(user.role));
-    }
+    const initAuth = async () => {
+      try {
+        const user = await authService.restoreUser();
+        if (user) {
+          setCurrentUser(user);
+          setCurrentScreen(getDefaultScreenForRole(user.role));
+        } else {
+          setCurrentUser(null);
+          setCurrentScreen("login");
+        }
+      } catch (err) {
+        setCurrentUser(null);
+        setCurrentScreen("login");
+      }
+    };
+
+    initAuth();
 
     // Handle unauthorized redirect
     const handleUnauthorized = () => {

@@ -46,65 +46,9 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         onLogin(user);
       }, 600);
     } catch (err: any) {
-      // Fallback to local mock credentials
-      const lowerEmail = trimmedEmail.toLowerCase();
-      if (
-        (lowerEmail === "nguyenvana@university.edu.vn" || lowerEmail === "teacher@edu.vn" || lowerEmail === "teacher.a@example.com") &&
-        password === "123456"
-      ) {
-        setSuccess("Đăng nhập thành công (Dev Mode)! Đang chuyển hướng...");
-        setTimeout(() => {
-          setLoading(false);
-          onLogin({
-            id: 1,
-            name: "TS. Nguyễn Văn A",
-            email: lowerEmail,
-            role: "teacher",
-            status: "ACTIVE"
-          });
-        }, 800);
-      } else if (
-        (lowerEmail === "daotao@university.edu.vn" || lowerEmail === "admin@edu.vn" || lowerEmail === "admin@example.com") &&
-        password === "123456"
-      ) {
-        setSuccess("Đăng nhập thành công (Dev Mode)! Đang chuyển hướng...");
-        setTimeout(() => {
-          setLoading(false);
-          onLogin({
-            id: 2,
-            name: "Phòng Đào Tạo",
-            email: lowerEmail,
-            role: "admin",
-            status: "ACTIVE"
-          });
-        }, 800);
-      } else {
-        setLoading(false);
-        setError(err.message || "Không thể kết nối đến máy chủ auth hoặc sai tài khoản.");
-      }
-    }
-  };
-
-  const handleSimulateLogin = (userId: number) => {
-    setError("");
-    setSuccess("Đăng nhập thành công (Simulated)! Đang chuyển hướng...");
-    setLoading(true);
-    setTimeout(() => {
       setLoading(false);
-      onLogin(userId === 2 ? {
-        id: 2,
-        name: "Phòng Đào Tạo",
-        email: "daotao@university.edu.vn",
-        role: "admin",
-        status: "ACTIVE"
-      } : {
-        id: 1,
-        name: "TS. Nguyễn Văn A",
-        email: "nguyenvana@university.edu.vn",
-        role: "teacher",
-        status: "ACTIVE"
-      });
-    }, 800);
+      setError(err.message || "Không thể kết nối đến máy chủ auth hoặc sai tài khoản.");
+    }
   };
 
   return (
@@ -324,28 +268,6 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
               >
                 <span>Đăng nhập</span>
               </button>
-
-              <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
-                <p className="text-[12px] text-slate-400 font-mono-label text-center tracking-widest uppercase">
-                  Simulation Logins (Dev Mode)
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSimulateLogin(1)}
-                    className="h-8 px-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[13px] font-medium rounded-lg transition-colors border border-slate-100 cursor-pointer"
-                  >
-                    Giảng viên
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSimulateLogin(2)}
-                    className="h-8 px-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[13px] font-medium rounded-lg transition-colors border border-slate-100 cursor-pointer"
-                  >
-                    Quản trị viên
-                  </button>
-                </div>
-              </div>
             </form>
           </div>
         </div>
