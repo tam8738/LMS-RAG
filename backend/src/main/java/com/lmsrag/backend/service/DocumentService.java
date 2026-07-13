@@ -6,8 +6,8 @@ import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
 import com.lmsrag.backend.entity.Document;
 import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.entity.User;
+import com.lmsrag.backend.enums.AiProcessingStatus;
 import com.lmsrag.backend.enums.ProcessingJobType;
-import com.lmsrag.backend.enums.ProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.enums.UserRole;
 import com.lmsrag.backend.exception.AppException;
@@ -42,6 +42,7 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final AiValidationService aiValidationService;
+    private final AiIndexService aiIndexService;
 
     // Lấy user hiện tại từ JWT
     private User getCurrentUser() {
@@ -110,7 +111,7 @@ public class DocumentService {
                 .fileType(storageService.resolveFileType(file.getOriginalFilename()))
                 .mimeType(file.getContentType())
                 .fileSize(file.getSize())
-                .processingStatus(ProcessingStatus.UPLOADED)
+                .processingStatus(AiProcessingStatus.UPLOADED)
                 .publicationStatus(PublicationStatus.DRAFT)
                 .build();
 
@@ -136,7 +137,7 @@ public class DocumentService {
             DocumentProcessingJob job = DocumentProcessingJob.builder()
                     .document(saved)
                     .jobType(ProcessingJobType.ANALYZE)
-                    .status(ProcessingStatus.PROCESSING)
+                    .status(AiProcessingStatus.ANALYZING)
                     .startedAt(Instant.now())
                     .build();
             documentProcessingJobRepository.save(job);
@@ -288,7 +289,7 @@ public class DocumentService {
         document.setFileSize(file.getSize());
 
         // File thay đổi -> cần analyze lại
-        document.setProcessingStatus(ProcessingStatus.UPLOADED);
+        document.setProcessingStatus(AiProcessingStatus.UPLOADED);
         document.setProcessedAt(null);
         document.setRagEligible(null);
         document.setPageCount(null);
@@ -315,7 +316,7 @@ public class DocumentService {
         DocumentProcessingJob job = DocumentProcessingJob.builder()
                 .document(document)
                 .jobType(ProcessingJobType.ANALYZE)
-                .status(ProcessingStatus.PROCESSING)
+                .status(AiProcessingStatus.ANALYZING)
                 .startedAt(Instant.now())
                 .build();
         return documentProcessingJobRepository.save(job);
@@ -364,8 +365,8 @@ public class DocumentService {
         Document document = requireDocument(id);
         requireOwner(document, currentUser);
 
-        if (document.getProcessingStatus() != ProcessingStatus.PROCESSED) {
-            throw new AppException(ErrorCode.DOCUMENT_NOT_PROCESSED);
+        if (document.getProcessingStatus() != AiProcessingStatus.ANALYZED) {
+            throw new AppException(ErrorCode.DOCUMENT_NOT_ANALYZED);
         }
 
         if (document.getPublicationStatus() != PublicationStatus.DRAFT
@@ -410,7 +411,79 @@ public class DocumentService {
         document.setReviewedAt(Instant.now());
         document.setPublishedAt(Instant.now());
 
-        return DocumentMapper.toResponse(documentRepository.save(document));
+        Document approved = documentRepository.save(document);
+
+        // Sau khi approve và publish, nếu tài liệu đủ điều kiện RAG thì bắt đầu index bất đồng bộ.
+        if (Boolean.TRUE.equals(approved.getRagEligible())) {
+            startRagIndexJob(approved);
+        }
+
+        return DocumentMapper.toResponse(approved);
+    }
+
+    /**
+     * Tạo một index job mới và fire-and-forget gọi AI Service index RAG.
+     * Dùng chung cho approve và retry/reprocess.
+     */
+    private void startRagIndexJob(Document document) {
+        Long documentId = document.getId();
+        DocumentProcessingJob indexJob = DocumentProcessingJob.builder()
+                .document(document)
+                .jobType(ProcessingJobType.INDEX)
+                .status(AiProcessingStatus.PROCESSING)
+                .startedAt(Instant.now())
+                .build();
+        documentProcessingJobRepository.save(indexJob);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                Document freshDoc = documentRepository.findById(documentId).orElse(null);
+                DocumentProcessingJob freshJob = documentProcessingJobRepository.findById(indexJob.getId()).orElse(null);
+                if (freshDoc != null && freshJob != null) {
+                    aiIndexService.startIndex(freshDoc, freshJob);
+                } else {
+                    log.warn("[RAG] Không tìm thấy document/job sau commit để gọi index RAG | documentId={}",
+                            documentId);
+                }
+            }
+        });
+    }
+
+    /**
+     * Admin yêu cầu xử lý lại RAG cho tài liệu đã publish.
+     * Cho phép khi document PUBLISHED và đang ở trạng thái FAILED hoặc trước đó chưa index thành công.
+     */
+    @Transactional
+    public DocumentResponse reprocessRag(Long documentId) {
+        getCurrentUser(); // đảm bảo admin đã đăng nhập (phân quyền ở controller/security)
+        Document document = requireDocument(documentId);
+
+        if (document.getPublicationStatus() != PublicationStatus.PUBLISHED) {
+            throw new AppException(ErrorCode.DOCUMENT_CANNOT_REPROCESS_RAG);
+        }
+
+        if (!Boolean.TRUE.equals(document.getRagEligible())) {
+            throw new AppException(ErrorCode.DOCUMENT_CANNOT_REPROCESS_RAG);
+        }
+
+        // Chỉ cho phép reprocess khi đang failed hoặc chưa processed (tránh reprocess khi đang chạy)
+        if (document.getProcessingStatus() != AiProcessingStatus.FAILED
+                && document.getProcessingStatus() != AiProcessingStatus.ANALYZED
+                && document.getProcessingStatus() != AiProcessingStatus.PROCESSED) {
+            throw new AppException(ErrorCode.DOCUMENT_CANNOT_REPROCESS_RAG);
+        }
+
+        // Reset trạng thái để chờ index mới
+        document.setProcessingStatus(AiProcessingStatus.ANALYZED);
+        document.setErrorCode(null);
+        document.setErrorMessage(null);
+        documentRepository.save(document);
+
+        startRagIndexJob(document);
+
+        log.info("[RAG] Admin yêu cầu xử lý lại RAG | documentId={}", documentId);
+        return DocumentMapper.toResponse(document);
     }
 
     @Transactional

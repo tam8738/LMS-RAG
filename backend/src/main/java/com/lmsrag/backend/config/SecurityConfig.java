@@ -57,8 +57,9 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // Các endpoint public: không cần xác thực
                         .requestMatchers(
-                                "/api/v1/auth/**",
+                                "/api/v1/auth/login",          // Đăng nhập
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -66,6 +67,8 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/error"
                         ).permitAll()
+                        // Endpoint lấy thông tin user hiện tại yêu cầu đã đăng nhập
+                        .requestMatchers("/api/v1/auth/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/documents").hasRole("TEACHER")
                         .requestMatchers("/api/v1/my/**").hasRole("TEACHER")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

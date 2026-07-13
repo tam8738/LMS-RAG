@@ -141,7 +141,7 @@ Authorization: Bearer {{teacher_token}}
   "success": true,
   "data": {
     "id": 123,
-    "processing_status": "PROCESSED",
+    "processing_status": "ANALYZED",
     "publication_status": "DRAFT",
     "rag_eligible": true,
     ...
@@ -149,7 +149,7 @@ Authorization: Bearer {{teacher_token}}
 }
 ```
 
-Nếu `processing_status` chưa `PROCESSED`, đợi thêm và gọi lại.
+Nếu `processing_status` chưa `ANALYZED`, đợi thêm và gọi lại.
 
 ---
 
@@ -169,7 +169,7 @@ Authorization: Bearer {{teacher_token}}
   "success": true,
   "data": {
     "id": 123,
-    "processing_status": "PROCESSED",
+    "processing_status": "ANALYZED",
     "publication_status": "PENDING_REVIEW",
     ...
   },
@@ -238,7 +238,7 @@ Authorization: Bearer {{admin_token}}
   "success": true,
   "data": {
     "id": 123,
-    "processing_status": "PROCESSED",
+    "processing_status": "ANALYZED",
     "publication_status": "PUBLISHED",
     "reviewed_by": 1,
     "reviewer_name": "Admin",
@@ -320,5 +320,6 @@ Authorization: Bearer {{teacher_token}}
 ## Lưu ý
 
 - Nếu seed user `admin@example.com` hoặc `teacher.a@example.com` không tồn tại, hãy kiểm tra migration V3 hoặc tạo user thủ công.
-- Nếu document chưa `PROCESSED`, submit review sẽ trả lỗi `DOCUMENT_NOT_PROCESSED`.
+- Nếu document chưa `ANALYZED`, submit review sẽ trả lỗi `DOCUMENT_NOT_ANALYZED`.
 - Sau approve, document sẽ xuất hiện trong Library; sau reject thì không.
+- Lưu ý: approve hiện tại chỉ chuyển `publication_status` sang `PUBLISHED`. Index RAG sau approve là task tiếp theo (chưa implement trong MVP này).

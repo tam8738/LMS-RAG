@@ -6,11 +6,11 @@ import org.springframework.http.HttpStatus;
 /**
  * Danh sách tất cả mã lỗi nghiệp vụ trong hệ thống.
  * Mỗi mã lỗi gắn liền với một HTTP status và message mặc định,
- * được dùng làm "code" và "message" trong {@code ApiResponse.ErrorInfo}.
+ * được dùng làm "code" và "message" trong {@code ApiEnvelope.ErrorInfo}.
  *
  * Quy ước đặt tên: <ENTITY>_<LY_DO>, vd: EMAIL_REQUIRED, COURSE_NOT_FOUND.
  * Lưu ý: KHÔNG khai báo mã thành công ở đây — response thành công dùng
- * {@code ApiResponse.success(...)} với message truyền trực tiếp tại Controller.
+ * {@code ApiEnvelope.success(...)} với message truyền trực tiếp tại Controller.
  */
 @Getter
 public enum ErrorCode {
@@ -50,11 +50,12 @@ public enum ErrorCode {
     DOCUMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài liệu"),
     DOCUMENT_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "Tài liệu không được phép chỉnh sửa ở trạng thái này"),
     DOCUMENT_NOT_DELETABLE(HttpStatus.BAD_REQUEST, "Tài liệu không được phép xóa ở trạng thái này"),
-    DOCUMENT_NOT_PROCESSED(HttpStatus.BAD_REQUEST, "Tài liệu chưa được xử lý xong"),
+    DOCUMENT_NOT_ANALYZED(HttpStatus.BAD_REQUEST, "Tài liệu chưa được AI analyze xong"),
     DOCUMENT_CANNOT_SUBMIT(HttpStatus.BAD_REQUEST, "Tài liệu không thể gửi duyệt ở trạng thái này"),
     DOCUMENT_CANNOT_APPROVE(HttpStatus.BAD_REQUEST, "Tài liệu không thể approve ở trạng thái này"),
     DOCUMENT_CANNOT_REJECT(HttpStatus.BAD_REQUEST, "Tài liệu không thể reject ở trạng thái này"),
     DOCUMENT_CANNOT_ARCHIVE(HttpStatus.BAD_REQUEST, "Tài liệu không thể archive ở trạng thái này"),
+    DOCUMENT_CANNOT_REPROCESS_RAG(HttpStatus.BAD_REQUEST, "Tài liệu không thể yêu cầu xử lý lại RAG ở trạng thái này"),
     DOCUMENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Không có quyền truy cập tài liệu"),
     DOCUMENT_UPLOAD_FAILED(HttpStatus.BAD_REQUEST, "Upload tài liệu thất bại"),
 

@@ -1,6 +1,6 @@
 package com.lmsrag.backend.service;
 
-import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentResult;
+import com.lmsrag.backend.dto.ai.AiIndexDocumentResult;
 import com.lmsrag.backend.entity.Document;
 import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.enums.AiProcessingStatus;
@@ -16,84 +16,76 @@ import java.time.Instant;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AiValidationResultHandler {
+public class AiIndexResultHandler {
 
     private final DocumentRepository documentRepository;
     private final DocumentProcessingJobRepository jobRepository;
 
     @Transactional
-    public void beginAnalysis(Long documentId, Long jobId) {
+    public void beginIndex(Long documentId, Long jobId) {
         Document document = documentRepository.findById(documentId).orElse(null);
         DocumentProcessingJob job = jobRepository.findById(jobId).orElse(null);
 
         if (document == null || job == null) {
-            log.warn("[AI] Không tìm thấy document/job khi bắt đầu analyze | documentId={} | jobId={}",
+            log.warn("[AI] Không tìm thấy document/job khi bắt đầu index | documentId={} | jobId={}",
                     documentId, jobId);
             return;
         }
 
-        document.setProcessingStatus(AiProcessingStatus.ANALYZING);
-        // Job cũng ở ANALYZING trong giai đoạn analyze nhẹ; không dùng PROCESSING để tránh lẫn với index RAG
-        job.setStatus(AiProcessingStatus.ANALYZING);
+        document.setProcessingStatus(AiProcessingStatus.PROCESSING);
+        job.setStatus(AiProcessingStatus.PROCESSING);
 
         documentRepository.save(document);
         jobRepository.save(job);
 
-        log.info("[AI] Bắt đầu analyze | documentId={} | jobId={}", documentId, jobId);
+        log.info("[AI] Bắt đầu index RAG | documentId={} | jobId={}", documentId, jobId);
     }
 
     @Transactional
-    public void handleSuccess(Long documentId, Long jobId, AiAnalyzeDocumentResult result) {
-        log.info("[AI] Xử lý kết quả analyze thành công | documentId={} | canRag={}",
-                documentId, result.getCanRag());
+    public void handleSuccess(Long documentId, Long jobId, AiIndexDocumentResult result) {
+        log.info("[AI] Xử lý kết quả index thành công | documentId={} | chunks={}",
+                documentId, result.getChunkCount());
 
         Document document = documentRepository.findById(documentId).orElse(null);
         DocumentProcessingJob job = jobRepository.findById(jobId).orElse(null);
 
         if (document == null || job == null) {
-            log.warn("[AI] Không tìm thấy document/job khi xử lý analyze | documentId={} | jobId={}",
+            log.warn("[AI] Không tìm thấy document/job khi xử lý index | documentId={} | jobId={}",
                     documentId, jobId);
             return;
         }
 
         Instant now = Instant.now();
 
-        log.info("[AI] Trước khi lưu analyze | documentId={} | oldStatus={} | newStatus=ANALYZED",
-                documentId, document.getProcessingStatus());
-
-        // Analyze nhẹ xong -> document chỉ ANALYZED; PROCESSED dành cho sau khi index RAG
-        document.setProcessingStatus(AiProcessingStatus.ANALYZED);
-        document.setRagEligible(Boolean.TRUE.equals(result.getCanRag()));
+        document.setProcessingStatus(AiProcessingStatus.PROCESSED);
+        document.setProcessedAt(now);
         document.setPageCount(result.getPageCount());
-        document.setEstimatedTokenCount(result.getEstimatedTokenCount());
-        document.setEstimatedChunkCount(result.getEstimatedChunkCount());
-        document.setUnsupportedReason(result.getUnsupportedReason());
-        document.setAnalyzedAt(now);
+        document.setEstimatedChunkCount(result.getChunkCount());
         document.setErrorCode(null);
         document.setErrorMessage(null);
 
         job.setStatus(AiProcessingStatus.PROCESSED);
-        job.setChunkCount(result.getEstimatedChunkCount());
+        job.setChunkCount(result.getChunkCount());
         job.setCompletedAt(now);
         job.setErrorCode(null);
         job.setErrorMessage(null);
 
-        Document savedDocument = documentRepository.save(document);
+        documentRepository.save(document);
         jobRepository.save(job);
 
-        log.info("[AI] Document đã được đánh giá | documentId={} | ragEligible={} | savedStatus={}",
-                documentId, savedDocument.getRagEligible(), savedDocument.getProcessingStatus());
+        log.info("[AI] Document đã được index RAG | documentId={} | chunks={}",
+                documentId, result.getChunkCount());
     }
 
     @Transactional
     public void handleFailure(Long documentId, Long jobId, Throwable error) {
-        log.error("[AI] Xử lý analyze thất bại | documentId={}", documentId, error);
+        log.error("[AI] Xử lý index thất bại | documentId={}", documentId, error);
 
         Document document = documentRepository.findById(documentId).orElse(null);
         DocumentProcessingJob job = jobRepository.findById(jobId).orElse(null);
 
         if (document == null || job == null) {
-            log.warn("[AI] Không tìm thấy document/job khi xử lý lỗi analyze | documentId={} | jobId={}",
+            log.warn("[AI] Không tìm thấy document/job khi xử lý lỗi index | documentId={} | jobId={}",
                     documentId, jobId);
             return;
         }
@@ -101,18 +93,16 @@ public class AiValidationResultHandler {
         Instant now = Instant.now();
         String errorMessage = error.getMessage();
         if (errorMessage == null || errorMessage.isBlank()) {
-            errorMessage = "AI Service analyze-document thất bại";
+            errorMessage = "AI Service index-document thất bại";
         }
 
         document.setProcessingStatus(AiProcessingStatus.FAILED);
-        document.setRagEligible(false);
-        document.setAnalyzedAt(now);
-        document.setErrorCode("AI_ANALYZE_FAILED");
+        document.setErrorCode("AI_INDEX_FAILED");
         document.setErrorMessage(errorMessage);
 
         job.setStatus(AiProcessingStatus.FAILED);
         job.setCompletedAt(now);
-        job.setErrorCode("AI_ANALYZE_FAILED");
+        job.setErrorCode("AI_INDEX_FAILED");
         job.setErrorMessage(errorMessage);
 
         documentRepository.save(document);

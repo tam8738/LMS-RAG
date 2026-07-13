@@ -1,7 +1,7 @@
 package com.lmsrag.backend.dto.document;
 
 import com.lmsrag.backend.enums.DocumentFileType;
-import com.lmsrag.backend.enums.ProcessingStatus;
+import com.lmsrag.backend.enums.AiProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
 import lombok.Builder;
 import lombok.Data;
@@ -29,7 +29,7 @@ public class DocumentResponse {
     private String mimeType;
     private Long fileSize;
 
-    private ProcessingStatus processingStatus;
+    private AiProcessingStatus processingStatus;
     private PublicationStatus publicationStatus;
     private String errorCode;
     private String errorMessage;

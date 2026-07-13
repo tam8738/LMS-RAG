@@ -1,7 +1,7 @@
 package com.lmsrag.backend.repository;
 
 import com.lmsrag.backend.entity.DocumentProcessingJob;
-import com.lmsrag.backend.enums.ProcessingStatus;
+import com.lmsrag.backend.enums.AiProcessingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -20,7 +20,7 @@ public interface DocumentProcessingJobRepository extends JpaRepository<DocumentP
      * Kiểm tra document có job đang ở trạng thái cụ thể hay không.
      * Dùng để ngăn chặn 2 job PROCESSING cùng lúc trên một document.
      */
-    boolean existsByDocumentIdAndStatus(Long documentId, ProcessingStatus status);
+    boolean existsByDocumentIdAndStatus(Long documentId, AiProcessingStatus status);
 
     /**
      * Lấy job xử lý mới nhất của một document.

@@ -1,7 +1,7 @@
 package com.lmsrag.backend.entity;
 
 import com.lmsrag.backend.enums.DocumentFileType;
-import com.lmsrag.backend.enums.ProcessingStatus;
+import com.lmsrag.backend.enums.AiProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -77,7 +77,7 @@ public class Document {
     @Enumerated(EnumType.STRING)
     @Column(name = "processing_status", nullable = false, length = 30)
     @Builder.Default
-    private ProcessingStatus processingStatus = ProcessingStatus.UPLOADED;
+    private AiProcessingStatus processingStatus = AiProcessingStatus.UPLOADED;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "publication_status", nullable = false, length = 30)

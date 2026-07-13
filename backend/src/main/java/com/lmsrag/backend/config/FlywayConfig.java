@@ -17,6 +17,9 @@ public class FlywayConfig {
                 .locations("classpath:db/migration")
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
+                // Trong dev/docker cho phép edit migration đã apply (ví dụ V4) mà không cần repair thủ công.
+                // KHÔNG dùng setting này trong production.
+                .validateOnMigrate(false)
                 .load();
     }
 

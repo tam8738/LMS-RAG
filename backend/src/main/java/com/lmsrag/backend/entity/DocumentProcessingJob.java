@@ -1,7 +1,7 @@
 package com.lmsrag.backend.entity;
 
 import com.lmsrag.backend.enums.ProcessingJobType;
-import com.lmsrag.backend.enums.ProcessingStatus;
+import com.lmsrag.backend.enums.AiProcessingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -29,7 +29,7 @@ public class DocumentProcessingJob {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private ProcessingStatus status = ProcessingStatus.PROCESSING;
+    private AiProcessingStatus status = AiProcessingStatus.PROCESSING;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "job_type", nullable = false, length = 20)

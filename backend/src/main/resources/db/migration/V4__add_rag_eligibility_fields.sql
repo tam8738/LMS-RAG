@@ -14,7 +14,7 @@ ALTER TABLE documents
 ALTER TABLE documents
     ADD CONSTRAINT ck_documents_processing_status
         CHECK (processing_status IN (
-            'UPLOADED', 'ANALYZING', 'PROCESSING', 'PROCESSED', 'FAILED'
+            'UPLOADED', 'ANALYZING', 'ANALYZED', 'PROCESSING', 'PROCESSED', 'FAILED'
         ));
 
 ALTER TABLE documents
