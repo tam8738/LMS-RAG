@@ -6,6 +6,7 @@ from contextlib import AbstractContextManager
 from typing import Any
 
 import psycopg
+from psycopg import errors as pg_errors
 
 from app.core.config import settings
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
@@ -97,6 +98,20 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
                             _INSERT_DOCUMENT_CHUNK_SQL,
                             rows,
                         )
+        except pg_errors.ForeignKeyViolation as exc:
+            # Backend có thể đã xóa document trong lúc AI đang index.
+            # Transaction đã rollback, nên chunks cũ không bị mất.
+            raise ServiceError(
+                ErrorCode.DOCUMENT_DELETED_DURING_INDEX,
+                "Document đã bị xóa trước khi AI index hoàn tất",
+                status_code=409,
+                details=[
+                    ErrorDetail(
+                        field="document_id",
+                        message=str(document_id),
+                    )
+                ],
+            ) from exc
         except psycopg.Error as exc:
             # Lỗi được bắt bên ngoài transaction block, sau khi rollback xảy ra.
             raise ServiceError(

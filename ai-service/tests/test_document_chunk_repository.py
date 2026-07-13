@@ -51,6 +51,8 @@ class FakeCursor:
         )
         for position, row in enumerate(materialized_rows, start=1):
             self.connection.rows.append(row)
+            if self.connection.fail_foreign_key_after == position:
+                raise psycopg.errors.ForeignKeyViolation("document was deleted")
             if self.connection.fail_insert_after == position:
                 raise psycopg.DatabaseError("insert failed")
 
@@ -81,12 +83,14 @@ class FakeConnection:
         *,
         fail_delete: bool = False,
         fail_insert_after: int | None = None,
+        fail_foreign_key_after: int | None = None,
         search_rows: list[tuple] | None = None,
         fail_search: bool = False,
     ) -> None:
         self.rows = list(initial_rows or [])
         self.fail_delete = fail_delete
         self.fail_insert_after = fail_insert_after
+        self.fail_foreign_key_after = fail_foreign_key_after
         self.search_rows = list(search_rows or [])
         self.fail_search = fail_search
         self.last_result: list[tuple] = []
@@ -223,6 +227,31 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
 
         self.assertEqual(context.exception.code, ErrorCode.DATABASE_ERROR)
         self.assertEqual(context.exception.status_code, 503)
+        self.assertIn("rollback", connection.events)
+        self.assertNotIn("commit", connection.events)
+        self.assertEqual(connection.rows, old_rows)
+
+    def test_foreign_key_failure_returns_deleted_document_error(self) -> None:
+        old_rows = [("old chunk",)]
+        connection = FakeConnection(
+            initial_rows=old_rows,
+            fail_foreign_key_after=1,
+        )
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        with self.assertRaises(ServiceError) as context:
+            repository.replace_document_chunks(12, embedded_document())
+
+        self.assertEqual(
+            context.exception.code,
+            ErrorCode.DOCUMENT_DELETED_DURING_INDEX,
+        )
+        self.assertEqual(context.exception.status_code, 409)
+        self.assertEqual(context.exception.details[0].field, "document_id")
+        self.assertEqual(context.exception.details[0].message, "12")
         self.assertIn("rollback", connection.events)
         self.assertNotIn("commit", connection.events)
         self.assertEqual(connection.rows, old_rows)
