@@ -57,6 +57,8 @@ public enum ErrorCode {
     DOCUMENT_CANNOT_ARCHIVE(HttpStatus.BAD_REQUEST, "Tài liệu không thể archive ở trạng thái này"),
     DOCUMENT_CANNOT_REPROCESS_RAG(HttpStatus.BAD_REQUEST, "Tài liệu không thể yêu cầu xử lý lại RAG ở trạng thái này"),
     DOCUMENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Không có quyền truy cập tài liệu"),
+    DOCUMENT_NOT_PUBLISHED(HttpStatus.BAD_REQUEST, "Tài liệu chưa được công bố"),
+    DOCUMENT_NOT_PROCESSED(HttpStatus.BAD_REQUEST, "Tài liệu chưa được AI xử lý RAG xong"),
     DOCUMENT_UPLOAD_FAILED(HttpStatus.BAD_REQUEST, "Upload tài liệu thất bại"),
 
     // =========================================================

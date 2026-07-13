@@ -1,6 +1,7 @@
 package com.lmsrag.backend.exception;
 
 
+import com.lmsrag.backend.client.ai.AiServiceException;
 import com.lmsrag.backend.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -96,6 +97,18 @@ public class GlobalExceptionHandler {
                 .field(fieldError.getField())
                 .message(resolvedMessage)
                 .build();
+    }
+
+    /**
+     * Xử lý lỗi từ AI Service để client biết được nguyên nhân từ AI.
+     */
+    @ExceptionHandler(AiServiceException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAiServiceException(AiServiceException ex) {
+        log.error("AI Service exception: code={}, message={}", ex.getErrorCode(), ex.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.AI_SERVICE_ERROR.getStatus())
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 
     /**

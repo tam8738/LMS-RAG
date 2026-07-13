@@ -3,6 +3,8 @@ package com.lmsrag.backend.client.ai;
 import com.lmsrag.backend.config.AiServiceProperties;
 import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentRequest;
 import com.lmsrag.backend.dto.ai.AiAnalyzeDocumentResult;
+import com.lmsrag.backend.dto.ai.AiAnswerQuestionRequest;
+import com.lmsrag.backend.dto.ai.AiAnswerQuestionResult;
 import com.lmsrag.backend.dto.ai.AiIndexDocumentRequest;
 import com.lmsrag.backend.dto.ai.AiIndexDocumentResult;
 import com.lmsrag.backend.dto.ai.AiSuccessResponse;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -98,6 +101,55 @@ public class AiServiceClient {
             throw new AiServiceException(
                     "AI_INVALID_RESPONSE",
                     "AI Service trả response index-document không hợp lệ"
+            );
+        }
+        return response.getData();
+    }
+
+    /**
+     * Gọi AI Service /v1/answer-question một cách đồng bộ.
+     * Dùng cho RAG proxy vì Frontend đang chờ response.
+     */
+    public AiAnswerQuestionResult answerQuestionSync(AiAnswerQuestionRequest request) {
+        log.info("[AI] Gửi yêu cầu answer-question sync | documentIds={} | question={}",
+                request.documentIds(), request.question());
+
+        try {
+            return webClient.post()
+                    .uri("/v1/answer-question")
+                    .header(INTERNAL_KEY_HEADER, properties.getInternalApiKey())
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<AiSuccessResponse<AiAnswerQuestionResult>>() {
+                    })
+                    .map(this::requireAnswerData)
+                    .doOnNext(result -> log.info("[AI] Answer-question sync thành công | notFound={} | citations={}",
+                            result.notFound(), result.citations() != null ? result.citations().size() : 0))
+                    .block();
+        } catch (WebClientResponseException e) {
+            String responseBody = e.getResponseBodyAsString();
+            log.error("[AI] Answer-question sync thất bại | status={} | body={} | documentIds={}",
+                    e.getStatusCode(), responseBody, request.documentIds());
+            throw new AiServiceException(
+                    "AI_SERVICE_ERROR",
+                    String.format("AI Service trả lỗi %s: %s", e.getStatusCode(), responseBody),
+                    e
+            );
+        } catch (Exception e) {
+            log.error("[AI] Answer-question sync thất bại | documentIds={}", request.documentIds(), e);
+            throw new AiServiceException(
+                    "AI_SERVICE_ERROR",
+                    "Lỗi khi gọi AI Service: " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    private AiAnswerQuestionResult requireAnswerData(AiSuccessResponse<AiAnswerQuestionResult> response) {
+        if (response == null || !Boolean.TRUE.equals(response.getSuccess()) || response.getData() == null) {
+            throw new AiServiceException(
+                    "AI_INVALID_RESPONSE",
+                    "AI Service trả response answer-question không hợp lệ"
             );
         }
         return response.getData();
