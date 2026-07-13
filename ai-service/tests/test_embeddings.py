@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import httpx
-from openai import APITimeoutError
+from openai import APIConnectionError, APITimeoutError
 
 from app.core.errors import ErrorCode, ServiceError
 from app.embeddings.base import EmbeddingProvider
@@ -170,6 +170,35 @@ class OpenAIEmbeddingProviderTest(unittest.TestCase):
         self.assertEqual(self.client.embeddings.create.call_count, 2)
         sleep.assert_called_once_with(0.25)
 
+    def test_retries_multiple_times_with_exponential_backoff(self) -> None:
+        timeout = APITimeoutError(request=httpx.Request("POST", "https://api.test"))
+        self.client.embeddings.create.side_effect = [
+            timeout,
+            timeout,
+            embedding_response([[1.0, 2.0, 3.0]]),
+        ]
+        sleep = MagicMock()
+        provider = self._provider(
+            max_retries=2,
+            retry_base_delay_seconds=0.25,
+            request_timeout_seconds=7.5,
+            sleep=sleep,
+        )
+
+        result = provider.embed(["a"])
+
+        self.assertEqual(result, [[1.0, 2.0, 3.0]])
+        self.assertEqual(self.client.embeddings.create.call_count, 3)
+        self.assertEqual(
+            [call.kwargs["timeout"] for call in self.client.embeddings.create.call_args_list],
+            [7.5, 7.5, 7.5],
+        )
+        self.assertEqual(
+            [call.args[0] for call in sleep.call_args_list],
+            [0.25, 0.5],
+        )
+
+
     def test_returns_provider_unavailable_after_retry_limit(self) -> None:
         timeout = APITimeoutError(request=httpx.Request("POST", "https://api.test"))
         self.client.embeddings.create.side_effect = [timeout, timeout]
@@ -186,6 +215,23 @@ class OpenAIEmbeddingProviderTest(unittest.TestCase):
         self.assertEqual(context.exception.status_code, 503)
         self.assertEqual(self.client.embeddings.create.call_count, 2)
         sleep.assert_called_once_with(0.25)
+
+    def test_connection_error_uses_provider_unavailable_after_retry_limit(self) -> None:
+        connection_error = APIConnectionError(
+            request=httpx.Request("POST", "https://api.test")
+        )
+        self.client.embeddings.create.side_effect = [connection_error, connection_error]
+        sleep = MagicMock()
+        provider = self._provider(sleep=sleep)
+
+        with self.assertRaises(ServiceError) as context:
+            provider.embed(["a"])
+
+        self.assertEqual(context.exception.code, ErrorCode.PROVIDER_UNAVAILABLE)
+        self.assertEqual(context.exception.status_code, 503)
+        self.assertEqual(self.client.embeddings.create.call_count, 2)
+        sleep.assert_called_once_with(0.25)
+
 
     def test_does_not_retry_non_transient_error(self) -> None:
         self.client.embeddings.create.side_effect = ValueError("bad request")
@@ -260,6 +306,25 @@ class OpenAIEmbeddingProviderTest(unittest.TestCase):
             with self.subTest(options=options):
                 with self.assertRaises(ValueError):
                     self._provider(**options)
+
+    @patch("app.embeddings.openai_provider.OpenAI")
+    def test_creates_openai_client_with_sdk_retries_disabled(self, openai_mock) -> None:
+        client = MagicMock()
+        openai_mock.return_value = client
+
+        provider = OpenAIEmbeddingProvider(
+            api_key="test-key",
+            model_name="text-embedding-3-small",
+            dimensions=3,
+            batch_size=2,
+            max_retries=0,
+            retry_base_delay_seconds=0,
+            request_timeout_seconds=5,
+        )
+
+        self.assertIs(provider.client, client)
+        openai_mock.assert_called_once_with(api_key="test-key", max_retries=0)
+
 
     @patch(
         "app.embeddings.openai_provider.settings",
