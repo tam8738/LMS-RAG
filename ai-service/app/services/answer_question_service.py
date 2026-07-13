@@ -34,7 +34,8 @@ class AnswerQuestionService:
 
     def answer(self, request: AnswerQuestionRequest) -> AnswerQuestionResult:
         """Answer only from retrieved chunks inside Backend-authorized documents."""
-        query_embedding = self._embed_question(request.question)
+        retrieval_query = self._build_retrieval_query(request)
+        query_embedding = self._embed_question(retrieval_query)
         chunks = self.chunk_repository.search_similar_chunks(
             request.document_ids,
             query_embedding,
@@ -57,6 +58,19 @@ class AnswerQuestionService:
             # MVP currently composes extractive answers without a generation model.
             tokens_used=0,
         )
+
+    def _build_retrieval_query(self, request: AnswerQuestionRequest) -> str:
+        """Combine recent chat history with the current question for stateless retrieval."""
+        if not request.history:
+            return request.question
+
+        lines = ["Previous conversation:"]
+        for message in request.history:
+            label = "User" if message.role == "user" else "Assistant"
+            lines.append(f"{label}: {message.content}")
+        lines.append(f"Current question: {request.question}")
+        return "\n".join(lines)
+
 
     def _filter_by_similarity_threshold(
         self,

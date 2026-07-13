@@ -7,6 +7,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.config import settings
 
 
+class ConversationMessage(BaseModel):
+    """One previous chat turn supplied by Backend/Frontend for stateless multi-turn RAG."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_blank(cls, value: str) -> str:
+        """Normalize outer whitespace and reject visually empty history messages."""
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("history.content không được để trống")
+        return stripped
+
+
 class AnswerQuestionRequest(BaseModel):
     """Payload Backend sends after it has checked document permissions."""
 
@@ -16,6 +34,7 @@ class AnswerQuestionRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     top_k: int = Field(default_factory=lambda: settings.default_top_k, ge=1, le=8)
     language: Literal["vi", "en"] = "vi"
+    history: list[ConversationMessage] = Field(default_factory=list, max_length=6)
 
     @field_validator("document_ids")
     @classmethod

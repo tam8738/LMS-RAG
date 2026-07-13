@@ -84,6 +84,37 @@ class AnswerQuestionServiceTest(unittest.TestCase):
             5,
         )
 
+    def test_uses_history_to_build_retrieval_query(self) -> None:
+        self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
+        request = AnswerQuestionRequest(
+            document_ids=[12],
+            question="Còn ví dụ nào khác?",
+            top_k=5,
+            history=[
+                {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
+                {"role": "assistant", "content": "Là cách giảm dư thừa dữ liệu."},
+            ],
+        )
+
+        result = self.service.answer(request)
+
+        self.assertFalse(result.not_found)
+        self.assertEqual(
+            self.embedding_provider.calls,
+            [[
+                "Previous conversation:\n"
+                "User: Chuẩn hóa dữ liệu là gì?\n"
+                "Assistant: Là cách giảm dư thừa dữ liệu.\n"
+                "Current question: Còn ví dụ nào khác?"
+            ]],
+        )
+        self.repository.search_similar_chunks.assert_called_once_with(
+            [12],
+            [0.1, 0.2, 0.3],
+            5,
+        )
+
+
     def test_returns_not_found_without_generation_when_no_chunks(self) -> None:
         self.repository.search_similar_chunks.return_value = []
         request = AnswerQuestionRequest(
@@ -278,6 +309,43 @@ class AnswerQuestionApiTest(unittest.TestCase):
         self.assertEqual(request.document_ids, [12])
         self.assertEqual(request.question, "Chuẩn hóa dữ liệu là gì?")
 
+    def test_answer_question_endpoint_accepts_stateless_history(self) -> None:
+        self.service.answer.return_value = AnswerQuestionService(
+            FakeEmbeddingProvider(),
+            MagicMock(search_similar_chunks=MagicMock(return_value=[retrieved_chunk()])),
+        ).answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Còn ví dụ nào khác?",
+                top_k=5,
+                history=[
+                    {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
+                    {"role": "assistant", "content": "Là cách giảm dư thừa dữ liệu."},
+                ],
+            )
+        )
+
+        response = self.client.post(
+            "/v1/answer-question",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_ids": [12],
+                "question": "Còn ví dụ nào khác?",
+                "top_k": 5,
+                "history": [
+                    {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
+                    {"role": "assistant", "content": "Là cách giảm dư thừa dữ liệu."},
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        request = self.service.answer.call_args.args[0]
+        self.assertEqual(request.history[0].role, "user")
+        self.assertEqual(request.history[0].content, "Chuẩn hóa dữ liệu là gì?")
+        self.assertEqual(request.history[1].role, "assistant")
+
+
     def test_answer_question_endpoint_returns_not_found_message(self) -> None:
         self.service.answer.return_value = AnswerQuestionService(
             FakeEmbeddingProvider(),
@@ -321,6 +389,26 @@ class AnswerQuestionApiTest(unittest.TestCase):
             "UNAUTHORIZED_INTERNAL_CALL",
         )
         self.service.answer.assert_not_called()
+
+    def test_rejects_invalid_history_payload(self) -> None:
+        response = self.client.post(
+            "/v1/answer-question",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_ids": [12],
+                "question": "Câu hỏi hợp lệ",
+                "history": [
+                    {"role": "user", "content": "   "},
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error"]["code"], "INVALID_INPUT")
+        fields = {detail["field"] for detail in response.json()["error"]["details"]}
+        self.assertIn("body.history.0.content", fields)
+        self.service.answer.assert_not_called()
+
 
     def test_rejects_invalid_payload(self) -> None:
         response = self.client.post(

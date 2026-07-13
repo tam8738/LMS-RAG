@@ -147,11 +147,12 @@ EMBEDDING_DIMENSIONS=1536
 
 ## 3. Retrieval pipeline
 
-Trạng thái AI-02/AI-03: đã có repository `search_similar_chunks` và endpoint `/v1/answer-question`. MVP hiện compose extractive answer từ retrieved chunks; LLM generation có thể bổ sung sau.
+Trạng thái AI-04: đã có repository `search_similar_chunks` và endpoint `/v1/answer-question`. MVP hiện hỗ trợ stateless multi-turn bằng `history` trong request, compose extractive answer từ retrieved chunks; LLM generation có thể bổ sung sau.
 
 ```txt
-question
+question + optional history
 -> validate
+-> build retrieval query
 -> query embedding
 -> vector search trong document_ids
 -> top_k chunks
@@ -166,6 +167,7 @@ document_ids: 1-10 IDs
 question
 top_k: mặc định 5
 language
+history: optional, tối đa 6 message user/assistant
 ```
 
 Quy tắc:
@@ -175,13 +177,15 @@ Quy tắc:
 - Subject/topic/chapter/tags chỉ là metadata lấy từ Document khi cần hiển thị.
 - Không query toàn Library.
 - Backend đã kiểm permission trước khi gọi.
+- AI Service không lưu conversation; history được gửi stateless theo từng request.
+- Khi có history, AI ghép history gần nhất với câu hỏi hiện tại để tạo retrieval query.
 - Sort theo cosine distance.
 - Trả score `1 - cosine_distance`.
 - Không có chunks hoặc score dưới threshold thì not-found.
 
 ## 4. RAG answer
 
-Trạng thái AI-03: đã có endpoint `/v1/answer-question` ở mức MVP. Luồng hiện tại là extractive, tức là câu trả lời được compose trực tiếp từ các chunks tìm được, chưa gọi LLM generation/chat provider riêng.
+Trạng thái AI-04: endpoint `/v1/answer-question` hỗ trợ stateless multi-turn ở mức retrieval query. Luồng trả lời vẫn là extractive, tức là câu trả lời được compose trực tiếp từ các chunks tìm được, chưa gọi LLM generation/chat provider riêng.
 
 ```txt
 retrieved chunks

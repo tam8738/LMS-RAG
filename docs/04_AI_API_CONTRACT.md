@@ -243,7 +243,7 @@ Hành vi:
 
 ## 8. Answer question
 
-Implementation status AI-03: endpoint `/v1/answer-question` đã có trong AI Service. MVP hiện trả extractive answer từ retrieved chunks và citations từ `document_chunks`; chưa dùng LLM chat/generation provider riêng.
+Implementation status AI-04: endpoint `/v1/answer-question` đã hỗ trợ stateless multi-turn RAG. Backend/Frontend có thể gửi `history` trong request; AI dùng history để làm giàu retrieval query nhưng không lưu conversation và vẫn chỉ trả lời từ retrieved chunks/citations thật.
 
 ### `POST /v1/answer-question`
 
@@ -254,7 +254,11 @@ Request:
   "document_ids": [12],
   "question": "Chuẩn hóa dữ liệu là gì?",
   "top_k": 5,
-  "language": "vi"
+  "language": "vi",
+  "history": [
+    {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
+    {"role": "assistant", "content": "Chuẩn hóa giúp giảm dư thừa dữ liệu."}
+  ]
 }
 ```
 
@@ -264,8 +268,9 @@ Request:
 | `question` | Yes | Không rỗng, giới hạn độ dài |
 | `top_k` | No | Mặc định 5, từ 3 đến 8 |
 | `language` | No | `vi` hoặc `en`, mặc định `vi` |
+| `history` | No | Tối đa 6 message `{role, content}` với `role=user|assistant`; dùng cho multi-turn retrieval, không lưu DB |
 
-Backend phải kiểm permission của tất cả `document_ids` trước khi gọi.
+Backend phải kiểm permission của tất cả `document_ids` trước khi gọi. `history` là stateless context do Backend/Frontend gửi theo từng request; AI không tạo `conversation_id` và không lưu lịch sử hội thoại trong MVP.
 
 Success `200`:
 
@@ -285,7 +290,7 @@ Success `200`:
         "score": 0.92
       }
     ],
-    "tokens_used": 620
+    "tokens_used": 0
   },
   "message": "Trả lời thành công"
 }
