@@ -46,6 +46,7 @@ class Settings:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "150"))
     default_top_k: int = int(os.getenv("DEFAULT_TOP_K", "5"))
+    rag_similarity_threshold: float = float(os.getenv("RAG_SIMILARITY_THRESHOLD", "0.65"))
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
 
     # Cách gọi OpenAI embedding: batch, retry có giới hạn và timeout.

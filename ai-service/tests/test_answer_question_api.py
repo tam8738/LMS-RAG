@@ -102,6 +102,112 @@ class AnswerQuestionServiceTest(unittest.TestCase):
             "Không tìm thấy thông tin này trong tài liệu đã chọn.",
         )
 
+    def test_filters_chunks_below_similarity_threshold(self) -> None:
+        self.repository.search_similar_chunks.return_value = [
+            retrieved_chunk(score=0.64, distance=0.36),
+        ]
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            similarity_threshold=0.65,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Câu hỏi ngoài ngữ cảnh?",
+                top_k=3,
+            )
+        )
+
+        self.assertTrue(result.not_found)
+        self.assertEqual(result.citations, [])
+        self.assertEqual(result.tokens_used, 0)
+        self.assertEqual(
+            result.answer,
+            "Không tìm thấy thông tin này trong tài liệu đã chọn.",
+        )
+
+    def test_keeps_chunks_at_threshold_and_drops_weaker_hits(self) -> None:
+        strong_chunk = retrieved_chunk(
+            chunk_id=120,
+            content="Nội dung đủ liên quan.",
+            score=0.65,
+            distance=0.35,
+        )
+        weak_chunk = retrieved_chunk(
+            chunk_id=121,
+            content="Nội dung yếu hơn.",
+            score=0.64,
+            distance=0.36,
+        )
+        self.repository.search_similar_chunks.return_value = [strong_chunk, weak_chunk]
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            similarity_threshold=0.65,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Nội dung nào liên quan?",
+                top_k=5,
+            )
+        )
+
+        self.assertFalse(result.not_found)
+        self.assertIn("Nội dung đủ liên quan", result.answer)
+        self.assertNotIn("Nội dung yếu hơn", result.answer)
+        self.assertEqual([citation.chunk_id for citation in result.citations], [120])
+
+    def test_returns_english_not_found_without_generation(self) -> None:
+        self.repository.search_similar_chunks.return_value = []
+
+        result = self.service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="What is not in the document?",
+                top_k=3,
+                language="en",
+            )
+        )
+
+        self.assertTrue(result.not_found)
+        self.assertEqual(result.tokens_used, 0)
+        self.assertEqual(result.citations, [])
+        self.assertEqual(
+            result.answer,
+            "No relevant information was found in the selected document.",
+        )
+
+    def test_citation_excerpt_is_normalized_and_truncated(self) -> None:
+        long_content = "   " + "word " * 80 + "   "
+        self.repository.search_similar_chunks.return_value = [
+            retrieved_chunk(content=long_content, score=0.95, distance=0.05),
+        ]
+
+        result = self.service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Câu hỏi?",
+                top_k=3,
+            )
+        )
+
+        excerpt = result.citations[0].excerpt
+        self.assertLessEqual(len(excerpt), 280)
+        self.assertTrue(excerpt.endswith("..."))
+        self.assertNotIn("  ", excerpt)
+
+    def test_rejects_invalid_similarity_threshold(self) -> None:
+        with self.assertRaises(ValueError):
+            AnswerQuestionService(
+                embedding_provider=self.embedding_provider,
+                chunk_repository=self.repository,
+                similarity_threshold=1.1,
+            )
+
     def test_wraps_invalid_embedding_count(self) -> None:
         service = AnswerQuestionService(
             embedding_provider=FakeEmbeddingProvider(vectors=[]),

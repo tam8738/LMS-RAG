@@ -1,5 +1,6 @@
 """Application service for document-scoped RAG question answering."""
 
+from app.core.config import settings
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.embeddings.base import EmbeddingProvider
 from app.repositories.document_chunk_repository import DocumentChunkRepository
@@ -18,10 +19,18 @@ class AnswerQuestionService:
         self,
         embedding_provider: EmbeddingProvider,
         chunk_repository: DocumentChunkRepository,
+        similarity_threshold: float | None = None,
     ) -> None:
         """Inject dependencies so tests can use deterministic mocks."""
         self.embedding_provider = embedding_provider
         self.chunk_repository = chunk_repository
+        self.similarity_threshold = (
+            settings.rag_similarity_threshold
+            if similarity_threshold is None
+            else similarity_threshold
+        )
+        if not 0.0 <= self.similarity_threshold <= 1.0:
+            raise ValueError("similarity_threshold phải nằm trong khoảng 0.0 đến 1.0")
 
     def answer(self, request: AnswerQuestionRequest) -> AnswerQuestionResult:
         """Answer only from retrieved chunks inside Backend-authorized documents."""
@@ -31,6 +40,7 @@ class AnswerQuestionService:
             query_embedding,
             request.top_k,
         )
+        chunks = self._filter_by_similarity_threshold(chunks)
 
         if not chunks:
             return AnswerQuestionResult(
@@ -47,6 +57,18 @@ class AnswerQuestionService:
             # MVP currently composes extractive answers without a generation model.
             tokens_used=0,
         )
+
+    def _filter_by_similarity_threshold(
+        self,
+        chunks: list[RetrievedDocumentChunk],
+    ) -> list[RetrievedDocumentChunk]:
+        """Drop weak retrieval hits so answers only use sufficiently relevant context."""
+        return [
+            chunk
+            for chunk in chunks
+            if chunk.score >= self.similarity_threshold
+        ]
+
 
     def _embed_question(self, question: str) -> list[float]:
         """Embed a single question and validate the provider contract."""
