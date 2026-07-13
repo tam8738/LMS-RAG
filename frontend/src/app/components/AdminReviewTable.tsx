@@ -1,6 +1,7 @@
 import React from "react";
 import { Document } from "../types";
 import { FileText, ChevronRight } from "lucide-react";
+import { isDocumentAiReady, isDocumentAiProcessing, isDocumentAiFailed } from "../utils/documentHelpers";
 
 export function AdminReviewTable({ 
   documents, 
@@ -49,13 +50,13 @@ export function AdminReviewTable({
                 </td>
                 <td className="px-5 py-4 align-top pt-5">
                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-                    doc.processingStatus === "PROCESSING" ? "text-amber-700 bg-amber-50" :
-                    doc.processingStatus === "PROCESSED" ? "text-emerald-700 bg-emerald-50" :
-                    doc.processingStatus === "FAILED" ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
+                    isDocumentAiProcessing(doc.processingStatus) ? "text-amber-700 bg-amber-50" :
+                    isDocumentAiReady(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" :
+                    isDocumentAiFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
                   }`}>
-                    {doc.processingStatus === "PROCESSING" ? "Đang xử lý AI" : 
-                     doc.processingStatus === "PROCESSED" ? "Đã xử lý" :
-                     doc.processingStatus === "FAILED" ? "Lỗi xử lý" : "Đã tải lên"}
+                    {isDocumentAiProcessing(doc.processingStatus) ? (doc.processingStatus === "ANALYZING" ? "Đang phân tích AI" : "Đang xử lý AI") : 
+                     isDocumentAiReady(doc.processingStatus) ? "Đã xử lý" :
+                     isDocumentAiFailed(doc.processingStatus) ? "Lỗi xử lý" : "Đã tải lên"}
                   </span>
                 </td>
                 <td className="px-5 py-4 align-top pt-5 text-[12px] text-[#6B6963] font-mono-label">

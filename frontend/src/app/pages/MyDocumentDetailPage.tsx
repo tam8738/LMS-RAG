@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Document, User } from "../types";
-import { MOCK_DOCUMENTS } from "../mockData";
 import { DocumentMetadataPanel, DocumentStatusTimeline, ProcessingErrorBanner, RejectionReasonBanner } from "../components/DetailWidgets";
 import { RagChatPanel } from "../components/RagChatPanel";
 import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Download, Edit2, Replace, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle } from "lucide-react";
+import { teacherDocumentService } from "../services/teacherDocumentService";
+import { isDocumentAiReady, isDocumentAiFailed } from "../utils/documentHelpers";
 
 export function MyDocumentDetailPage({ 
   documentId, 
@@ -17,24 +18,53 @@ export function MyDocumentDetailPage({
   onBack: () => void 
 }) {
   const [doc, setDoc] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const found = MOCK_DOCUMENTS.find(d => d.id === documentId && d.authorId === user.id);
-      setDoc(found || null);
-    }, 400);
-    return () => clearTimeout(timer);
+    const loadDetail = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const found = await teacherDocumentService.getMyDocument(documentId);
+        setDoc(found);
+      } catch (err: any) {
+        console.error("Failed to load document detail", err);
+        setError(err.message || "Không thể tải thông tin chi tiết tài liệu.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDetail();
   }, [documentId, user.id]);
 
-  if (!doc) return <PageLoading />;
+  if (loading) return <PageLoading />;
+
+  if (error || !doc) {
+    return (
+      <div className="w-full flex items-center justify-center p-12 bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl text-center">
+        <div className="max-w-md">
+          <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-4" />
+          <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-2">Không thể tải tài liệu</h3>
+          <p className="text-[14px] text-[#6B6963] mb-6">{error || "Tài liệu không tồn tại hoặc bạn không có quyền truy cập."}</p>
+          <button 
+            onClick={onBack}
+            className="h-10 px-5 text-[13px] font-medium text-white bg-[#0E0D0B] hover:bg-[#1C1A17] rounded-lg transition-colors border-none cursor-pointer font-action"
+          >
+            Trở về danh sách
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const pStatus = doc.publicationStatus;
   const aiStatus = doc.processingStatus;
 
   // Rules
   const canEdit = pStatus === "DRAFT" || pStatus === "REJECTED";
-  const canSubmit = (pStatus === "DRAFT" || pStatus === "REJECTED") && aiStatus === "PROCESSED";
-  const ragEligible = aiStatus === "PROCESSED";
+  const canSubmit = (pStatus === "DRAFT" || pStatus === "REJECTED") && isDocumentAiReady(aiStatus);
+  const ragEligible = isDocumentAiReady(aiStatus) && (doc.ragEligible !== false);
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
@@ -80,7 +110,7 @@ export function MyDocumentDetailPage({
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-0 overflow-y-auto pr-1 scrollbar-hide">
           
           {/* Banners */}
-          {aiStatus === "FAILED" && doc.failReason && (
+          {isDocumentAiFailed(aiStatus) && doc.failReason && (
             <ProcessingErrorBanner reason={doc.failReason} onRetry={() => console.log('retry')} />
           )}
           {pStatus === "REJECTED" && doc.rejectReason && (
@@ -99,7 +129,7 @@ export function MyDocumentDetailPage({
             </p>
           </div>
 
-          <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} />
+          <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
           
           <div className="mt-6 pb-10">
              <DocumentMetadataPanel doc={doc} isOwner={true} />

@@ -13,6 +13,8 @@ export function DualStatusBadge({
   const getProcessingStyle = () => {
     switch (processing) {
       case "UPLOADED": return "text-[#6B6963] bg-[#F4F3F0]";
+      case "ANALYZING": return "text-amber-700 bg-amber-50 border-amber-200";
+      case "ANALYZED": return "text-indigo-700 bg-indigo-50 border-indigo-200";
       case "PROCESSING": return "text-amber-700 bg-amber-50 border-amber-200";
       case "PROCESSED": return "text-emerald-700 bg-emerald-50 border-emerald-200";
       case "FAILED": return "text-red-700 bg-red-50 border-red-200";
@@ -32,6 +34,8 @@ export function DualStatusBadge({
   const getProcessingLabel = () => {
     switch (processing) {
       case "UPLOADED": return "Đã tải lên";
+      case "ANALYZING": return "Đang phân tích AI";
+      case "ANALYZED": return "Đã phân tích AI";
       case "PROCESSING": return "Đang xử lý AI";
       case "PROCESSED": return "Đã xử lý";
       case "FAILED": return "Lỗi xử lý";
@@ -52,7 +56,7 @@ export function DualStatusBadge({
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 font-mono-label text-left">
       {/* Processing Status */}
       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${getProcessingStyle()}`}>
-        {processing === "PROCESSING" && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+        {(processing === "PROCESSING" || processing === "ANALYZING") && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
         {getProcessingLabel()}
       </span>
       

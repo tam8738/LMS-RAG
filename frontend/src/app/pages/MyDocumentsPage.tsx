@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Document, User } from "../types";
-import { MOCK_DOCUMENTS } from "../mockData";
 import { StatusFilterBar, MyDocsFilterState } from "../components/StatusFilterBar";
 import { MyDocumentActionMenu } from "../components/MyDocumentActionMenu";
 import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
 import { FileText, Plus, SearchX, AlertTriangle } from "lucide-react";
+import { teacherDocumentService } from "../services/teacherDocumentService";
+import { isDocumentAiReady, isDocumentAiProcessing, isDocumentAiFailed } from "../utils/documentHelpers";
 
 export function MyDocumentsPage({ 
   user,
@@ -17,21 +18,35 @@ export function MyDocumentsPage({
 }) {
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState<Document[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [error, setError] = useState("");
   const [filters, setFilters] = useState<MyDocsFilterState>({
     q: "",
     processing_status: "ALL",
     publication_status: "ALL"
   });
 
-  useEffect(() => {
+  const loadDocuments = async (pageNum: number) => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      // Simulate fetching only teacher's own documents
-      setDocs(MOCK_DOCUMENTS.filter(d => d.authorId === user.id));
+    setError("");
+    try {
+      const result = await teacherDocumentService.getMyDocuments(pageNum);
+      setDocs(result.documents);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
+    } catch (err: any) {
+      console.error("Failed to load documents", err);
+      setError(err.message || "Không thể kết nối đến máy chủ để lấy danh sách tài liệu.");
+    } finally {
       setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [user.id]);
+    }
+  };
+
+  useEffect(() => {
+    loadDocuments(page);
+  }, [page, user.id]);
 
   const filteredDocs = docs.filter(d => {
     if (filters.processing_status !== "ALL" && d.processingStatus !== filters.processing_status) return false;
@@ -45,6 +60,12 @@ export function MyDocumentsPage({
 
   return (
     <div className="w-full text-left">
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
       <div className="flex justify-end mb-6">
         <button
           onClick={onNavigateUpload}
@@ -100,13 +121,13 @@ export function MyDocumentsPage({
                     
                     <td className="px-5 py-4 align-top pt-5">
                       <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-                        doc.processingStatus === "PROCESSING" ? "text-amber-700 bg-amber-50" :
-                        doc.processingStatus === "PROCESSED" ? "text-emerald-700 bg-emerald-50" :
-                        doc.processingStatus === "FAILED" ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
+                        isDocumentAiProcessing(doc.processingStatus) ? "text-amber-700 bg-amber-50" :
+                        isDocumentAiReady(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" :
+                        isDocumentAiFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
                       }`}>
-                        {doc.processingStatus === "PROCESSING" ? "Đang xử lý AI" : 
-                         doc.processingStatus === "PROCESSED" ? "Đã xử lý" :
-                         doc.processingStatus === "FAILED" ? "Lỗi xử lý" : "Đã tải lên"}
+                        {isDocumentAiProcessing(doc.processingStatus) ? (doc.processingStatus === "ANALYZING" ? "Đang phân tích AI" : "Đang xử lý AI") : 
+                         isDocumentAiReady(doc.processingStatus) ? "Đã xử lý" :
+                         isDocumentAiFailed(doc.processingStatus) ? "Lỗi xử lý" : "Đã tải lên"}
                       </span>
                     </td>
                     
@@ -146,11 +167,25 @@ export function MyDocumentsPage({
             </table>
           </div>
           <div className="px-5 py-3 border-t border-[rgba(14,13,11,0.06)] flex items-center justify-between text-[13px] text-[#AAAA9F]">
-            <span>Hiển thị {filteredDocs.length} tài liệu</span>
+            <span>
+              Hiển thị {filteredDocs.length} trên {docs.length} tài liệu (Trang {page + 1}/{totalPages || 1})
+            </span>
             <div className="flex items-center gap-1">
-              <button className="px-2 py-1 rounded hover:bg-[#F4F3F0] disabled:opacity-50 border-none bg-transparent cursor-pointer" disabled>Trước</button>
-              <button className="px-2 py-1 rounded bg-[#F4F3F0] text-[#0E0D0B] font-medium border-none cursor-pointer">1</button>
-              <button className="px-2 py-1 rounded hover:bg-[#F4F3F0] disabled:opacity-50 border-none bg-transparent cursor-pointer" disabled>Sau</button>
+              <button 
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                className="px-2 py-1 rounded hover:bg-[#F4F3F0] disabled:opacity-50 border-none bg-transparent cursor-pointer" 
+                disabled={page === 0}
+              >
+                Trước
+              </button>
+              <span className="px-2 py-1 text-[#0E0D0B] font-medium">{page + 1}</span>
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                className="px-2 py-1 rounded hover:bg-[#F4F3F0] disabled:opacity-50 border-none bg-transparent cursor-pointer" 
+                disabled={page >= totalPages - 1}
+              >
+                Sau
+              </button>
             </div>
           </div>
         </div>
