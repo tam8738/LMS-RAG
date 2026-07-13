@@ -176,6 +176,10 @@ Quy ước trạng thái:
 | AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; đã xác nhận `document_chunks` có row thật cho `document_id=2` sau process |
 | AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`, embed question, retrieval, extractive answer, citations; Docker test thật trả `not_found=false`, citation trỏ về `chunk_id=1`, `document_id=2`; MVP vẫn là extractive answer, chưa có LLM generation riêng |
 | AI-04 - Index document endpoint | Khánh | P0 | AI-01 | DONE | Đã thêm `/v1/index-document` dùng chung `ProcessDocumentService` với legacy `/v1/process-document`; phục vụ flow Admin approve -> index RAG -> lưu `document_chunks` |
+| AI-05 - RAG index safety hardening | Khánh | P0 | AI-04 | DONE | Đã map lỗi FK khi document bị xóa trong lúc index thành `DOCUMENT_DELETED_DURING_INDEX`; giữ atomic replace chunks; `pytest tests/test_document_chunk_repository.py` pass 15 tests + 6 subtests |
+| AI-06 - RAG retrieval quality threshold | Khánh | P0 | AI-03 | DONE | Thêm `RAG_SIMILARITY_THRESHOLD=0.65`; lọc chunks dưới threshold trước khi compose answer/citation; regression `answer_question + document_chunk + process_document` pass 42 tests + 12 subtests |
+| AI-07 - Embedding provider reliability tests | Khánh | P1 | AI-01 | DONE | Bổ sung tests retry nhiều lần, exponential backoff, timeout propagation, connection error mapping và SDK `max_retries=0`; regression nhóm AI chính pass 64 tests + 16 subtests |
+| AI-08 - Stateless multi-turn RAG | Khánh | P0 | AI-03, AI-06 | DONE | `/v1/answer-question` nhận optional `history` tối đa 6 messages; AI build retrieval query từ history + current question, không lưu conversation; regression nhóm AI chính pass 67 tests + 16 subtests |
 
 ### 6.4. Infra, integration và QA tasks
 
@@ -1295,6 +1299,87 @@ Acceptance criteria:
 - `/v1/index-document` trả cùng data contract với `/v1/process-document`.
 - Missing/wrong internal key trả `UNAUTHORIZED_INTERNAL_CALL`.
 - Unit/API tests pass.
+
+### AI-05 - RAG index safety hardening
+
+- Owner: Khánh
+- Priority: P0
+- Depends on: AI-04
+- Status: DONE
+
+Việc đã làm:
+
+- Giữ atomic replace transaction cho `DELETE old chunks + INSERT new chunks`.
+- Bắt riêng PostgreSQL foreign key violation khi Backend đã xóa document trong lúc AI đang index.
+- Trả `DOCUMENT_DELETED_DURING_INDEX` HTTP 409 thay vì `DATABASE_ERROR` chung.
+- Bổ sung fake DB test đảm bảo rollback và chunks cũ vẫn còn.
+
+Acceptance criteria:
+
+- Insert lỗi không làm mất chunks cũ.
+- Document bị xóa giữa lúc index trả lỗi rõ cho Backend.
+- `python -m pytest tests/test_document_chunk_repository.py -q` pass.
+
+### AI-06 - RAG retrieval quality threshold
+
+- Owner: Khánh
+- Priority: P0
+- Depends on: AI-03
+- Status: DONE
+
+Việc đã làm:
+
+- Thêm cấu hình `RAG_SIMILARITY_THRESHOLD`, default `0.65`.
+- AI Service lọc chunks theo `score >= threshold` sau retrieval.
+- Nếu không còn chunk đủ điểm, trả `not_found=true`, `citations=[]`, `tokens_used=0`.
+- Bổ sung tests cho below-threshold, at-threshold, not-found tiếng Việt/Anh và citation excerpt.
+
+Acceptance criteria:
+
+- Không trả lời từ chunks score thấp hơn threshold.
+- Citation chỉ lấy từ chunks đủ threshold.
+- `.env.example` và `docker-compose.yml` có biến cấu hình threshold.
+
+### AI-07 - Embedding provider reliability tests
+
+- Owner: Khánh
+- Priority: P1
+- Depends on: AI-01
+- Status: DONE
+
+Việc đã làm:
+
+- Bổ sung test retry nhiều lần với exponential backoff.
+- Kiểm tra timeout được truyền vào mọi request OpenAI embedding.
+- Kiểm tra `APIConnectionError` hết retry trả `PROVIDER_UNAVAILABLE`.
+- Kiểm tra provider tự tạo OpenAI client với SDK `max_retries=0` để project tự kiểm soát retry.
+
+Acceptance criteria:
+
+- Retry/backoff/timeout có test mock, không gọi OpenAI thật.
+- Lỗi tạm thời map về `PROVIDER_UNAVAILABLE`, lỗi không tạm thời không retry và map về `EMBEDDING_ERROR`.
+
+### AI-08 - Stateless multi-turn RAG
+
+- Owner: Khánh
+- Priority: P0
+- Depends on: AI-03, AI-06
+- Status: DONE
+
+Việc đã làm:
+
+- Thêm schema `ConversationMessage` và optional `history` vào `AnswerQuestionRequest`.
+- Giới hạn history tối đa 6 messages, role `user` hoặc `assistant`.
+- AI build retrieval query từ history + current question khi có history.
+- Không lưu conversation trong AI Service; mỗi request tự mang context.
+- Cập nhật `04_AI_API_CONTRACT.md` và `06_AI_PIPELINE.md`.
+
+Acceptance criteria:
+
+- Request cũ không có `history` vẫn hoạt động.
+- Request có `history` dùng history trong query embedding.
+- Invalid history trả `INVALID_INPUT`.
+- Regression nhóm AI chính pass.
 
 ## 10. Infra/Docker/shared volume
 
