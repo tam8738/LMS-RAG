@@ -2,6 +2,17 @@
  * Central API Client wrapper for fetch calls
  */
 
+export class ApiError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -28,14 +39,14 @@ export async function apiFetch<T>(
   try {
     response = await fetch(endpoint, mergedOptions);
   } catch (netError) {
-    throw new Error("Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.");
+    throw new ApiError("Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.");
   }
 
   // Handle centralized 401 unauthorized errors (Only if the request included an Authorization Bearer token)
   if (response.status === 401 && hasAuthToken) {
     localStorage.removeItem("token");
     window.dispatchEvent(new Event("auth-unauthorized"));
-    throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+    throw new ApiError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "UNAUTHENTICATED", 401);
   }
 
   // Handle 204 No Content
@@ -48,7 +59,7 @@ export async function apiFetch<T>(
   try {
     responseText = await response.text();
   } catch (readError) {
-    throw new Error("Không thể đọc phản hồi từ máy chủ.");
+    throw new ApiError("Không thể đọc phản hồi từ máy chủ.");
   }
 
   let result: any;
@@ -57,13 +68,15 @@ export async function apiFetch<T>(
   } catch (parseError) {
     // Non-JSON error response
     if (!response.ok) {
-      throw new Error(`Lỗi hệ thống (${response.status}): ${responseText || response.statusText}`);
+      throw new ApiError(`Lỗi hệ thống (${response.status}): ${responseText || response.statusText}`, undefined, response.status);
     }
-    throw new Error("Định dạng phản hồi của máy chủ không hợp lệ.");
+    throw new ApiError("Định dạng phản hồi của máy chủ không hợp lệ.");
   }
 
   if (!response.ok || !result.success) {
-    throw new Error(result.error?.message || result.message || `Đã xảy ra lỗi hệ thống (${response.status}).`);
+    const errorMsg = result.error?.message || result.message || `Đã xảy ra lỗi hệ thống (${response.status}).`;
+    const errorCode = result.error?.code;
+    throw new ApiError(errorMsg, errorCode, response.status);
   }
 
   return result;

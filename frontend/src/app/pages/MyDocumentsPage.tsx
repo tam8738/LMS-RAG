@@ -3,9 +3,10 @@ import { Document, User } from "../types";
 import { StatusFilterBar, MyDocsFilterState } from "../components/StatusFilterBar";
 import { MyDocumentActionMenu } from "../components/MyDocumentActionMenu";
 import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
-import { FileText, Plus, SearchX, AlertTriangle } from "lucide-react";
+import { FileText, Plus, SearchX, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
-import { isDocumentAiReady, isDocumentAiProcessing, isDocumentAiFailed } from "../utils/documentHelpers";
+import { isDocumentAiReady, isDocumentAiProcessing, isDocumentAiFailed, mapSubmitReviewError } from "../utils/documentHelpers";
+import { ConfirmDialog } from "../components/Dialogs";
 
 export function MyDocumentsPage({ 
   user,
@@ -22,6 +23,8 @@ export function MyDocumentsPage({
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [error, setError] = useState("");
+  const [submitTargetId, setSubmitTargetId] = useState<number | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [filters, setFilters] = useState<MyDocsFilterState>({
     q: "",
     processing_status: "ALL",
@@ -48,6 +51,26 @@ export function MyDocumentsPage({
     loadDocuments(page);
   }, [page, user.id]);
 
+  const handleSubmitReview = (id: number) => {
+    setSubmitTargetId(id);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!submitTargetId) return;
+    const id = submitTargetId;
+    setSubmitTargetId(null);
+    setError("");
+    try {
+      await teacherDocumentService.submitDocumentForReview(id);
+      setSubmitSuccess(true);
+      setTimeout(() => setSubmitSuccess(false), 4000);
+      loadDocuments(page);
+    } catch (err: any) {
+      console.error("Failed to submit review", err);
+      setError(mapSubmitReviewError(err));
+    }
+  };
+
   const filteredDocs = docs.filter(d => {
     if (filters.processing_status !== "ALL" && d.processingStatus !== filters.processing_status) return false;
     if (filters.publication_status !== "ALL" && d.publicationStatus !== filters.publication_status) return false;
@@ -64,6 +87,12 @@ export function MyDocumentsPage({
         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>{error}</span>
+        </div>
+      )}
+      {submitSuccess && (
+        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-250 text-emerald-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
+          <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0" />
+          <span>Tài liệu đã được gửi để kiểm duyệt.</span>
         </div>
       )}
       <div className="flex justify-end mb-6">
@@ -156,7 +185,7 @@ export function MyDocumentsPage({
                         onEdit={() => console.log('edit', doc.id)}
                         onReplace={() => console.log('replace', doc.id)}
                         onDelete={() => console.log('delete', doc.id)}
-                        onSubmitReview={() => console.log('submit review', doc.id)}
+                        onSubmitReview={handleSubmitReview}
                         onDownload={() => console.log('download', doc.id)}
                         onRetryProcessing={() => console.log('retry', doc.id)}
                       />
@@ -217,6 +246,17 @@ export function MyDocumentsPage({
           />
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={submitTargetId !== null}
+        title="Gửi tài liệu để kiểm duyệt?"
+        message="Sau khi gửi, bạn sẽ không thể chỉnh sửa metadata hoặc thay thế file cho đến khi Admin hoàn tất kiểm duyệt."
+        confirmText="Gửi duyệt"
+        cancelText="Hủy"
+        isDestructive={false}
+        onConfirm={handleConfirmSubmit}
+        onClose={() => setSubmitTargetId(null)}
+      />
     </div>
   );
 }

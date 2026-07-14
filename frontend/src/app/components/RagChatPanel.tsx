@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { Send, Sparkles, AlertCircle, FileText, ChevronRight } from "lucide-react";
+import { Send, Sparkles, AlertCircle, FileText, ChevronRight, Loader2, Clock } from "lucide-react";
 import { Document } from "../types";
 import { fetchRagResponse } from "../mocks/mockRagService";
+import { isDocumentAiProcessing, isDocumentAiFailed } from "../utils/documentHelpers";
+import { CitationCard } from "./CitationCard";
 
 export interface Citation {
   documentId: number;
@@ -19,28 +21,41 @@ export interface ChatMessage {
   isNotFound?: boolean;
 }
 
-export function CitationList({ citations }: { citations: Citation[] }) {
+export function CitationList({ citations, documentTitle }: { citations: Citation[], documentTitle?: string }) {
   if (!citations || citations.length === 0) return null;
 
   return (
-    <div className="mt-3 space-y-2">
-      <p className="text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest text-left">Trích dẫn từ tài liệu:</p>
-      {citations.map((c, i) => (
-        <div key={i} className="flex items-start gap-2 p-2.5 bg-white border border-[rgba(14,13,11,0.06)] rounded-lg text-left group hover:border-[rgba(14,13,11,0.15)] transition-colors cursor-default">
-          <FileText className="w-3.5 h-3.5 text-[#4F63D2] flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[13.5px] text-[#0E0D0B] line-clamp-2 leading-relaxed">"{c.excerpt}"</p>
-            <p className="text-[11.5px] text-[#6B6963] font-mono-label mt-1">
-              Trang {c.page || 1}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
+    <details className="mt-3 group">
+      <summary className="text-[12.5px] font-semibold text-[#6B6963] hover:text-[#0E0D0B] transition-colors cursor-pointer select-none font-sans-body">
+        Xem {citations.length} trích dẫn từ nguồn
+      </summary>
+      <div className="space-y-3 mt-2 pl-2">
+        {citations.map((c, i) => (
+          <CitationCard
+            key={i}
+            quote={c.excerpt}
+            source={c.title || documentTitle}
+            page={c.page}
+          />
+        ))}
+      </div>
+    </details>
   );
 }
 
-export function RagChatPanel({ document, isEligible }: { document: Document | null, isEligible: boolean }) {
+export function RagChatPanel({ 
+  document, 
+  isEligible,
+  isTimeout,
+  onRetry,
+  onBack
+}: { 
+  document: Document | null;
+  isEligible: boolean;
+  isTimeout?: boolean;
+  onRetry?: () => void;
+  onBack?: () => void;
+}) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -92,26 +107,106 @@ export function RagChatPanel({ document, isEligible }: { document: Document | nu
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-6">
         {messages.length === 0 ? (
-          <div className="m-auto text-center max-w-[280px]">
-            <Sparkles className="w-6 h-6 text-[#C2BFB8] mx-auto mb-3" />
-            <h4 className="text-[15.5px] font-medium text-[#0E0D0B] mb-1">Hỏi AI về tài liệu này</h4>
-            <p className="text-[13.5px] text-[#6B6963] mb-6">AI đã đọc và phân tích ngữ nghĩa nội dung, sẵn sàng trả lời kèm trích dẫn gốc.</p>
+          !isEligible ? (
+            isTimeout ? (
+              <div className="m-auto text-center max-w-[320px] p-6 bg-white border border-[rgba(14,13,11,0.06)] rounded-2xl shadow-sm flex flex-col items-center">
+                <AlertCircle className="w-8 h-8 text-amber-600 mb-3 animate-pulse" />
+                <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Xử lý kéo dài</h4>
+                <p className="text-[13px] text-[#6B6963] leading-relaxed mb-4">
+                  Quá trình xử lý đang mất nhiều thời gian hơn dự kiến. Bạn có thể quay lại kiểm tra sau.
+                </p>
+                <div className="flex gap-2 w-full">
+                  {onRetry && (
+                    <button onClick={onRetry} className="flex-1 h-9 bg-[#0E0D0B] text-white text-[12.5px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all border-none cursor-pointer font-action">
+                      Kiểm tra lại
+                    </button>
+                  )}
+                  {onBack && (
+                    <button onClick={onBack} className="flex-1 h-9 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[12.5px] font-medium rounded-lg hover:border-[rgba(14,13,11,0.2)] transition-colors cursor-pointer font-action">
+                      Về danh sách
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="m-auto text-center max-w-[320px] p-6 bg-white border border-[rgba(14,13,11,0.06)] rounded-2xl shadow-sm flex flex-col items-center">
+                {document.processingStatus === "PROCESSING" ? (
+                  <>
+                    <Loader2 className="w-8 h-8 text-[#4F63D2] mb-3 animate-spin" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Đang lập chỉ mục RAG...</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      AI đang tiến hành phân tách văn bản và lập chỉ mục RAG (Index RAG). Vui lòng đợi trong giây lát.
+                    </p>
+                  </>
+                ) : isDocumentAiProcessing(document.processingStatus) ? (
+                  <>
+                    <Loader2 className="w-8 h-8 text-[#4F63D2] mb-3 animate-spin" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Đang phân tích tài liệu...</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      AI đang trích xuất dữ liệu và phân tích cấu trúc ngữ nghĩa. Tính năng Hỏi đáp sẽ sẵn sàng sau khi quá trình phân tích hoàn tất.
+                    </p>
+                  </>
+                ) : isDocumentAiFailed(document.processingStatus) ? (
+                  <>
+                    <AlertCircle className="w-8 h-8 text-red-650 mb-3" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Phân tích thất bại</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      {document.failReason ? (
+                        `Chi tiết lỗi: ${document.failReason}`
+                      ) : (
+                        "Đã xảy ra lỗi trong quá trình AI phân tích tài liệu này. Vui lòng kiểm tra lại file hoặc tải lại."
+                      )}
+                    </p>
+                  </>
+                ) : document.processingStatus === "ANALYZED" && document.publicationStatus === "PENDING_REVIEW" ? (
+                  <>
+                    <Clock className="w-8 h-8 text-amber-650 mb-3 animate-pulse" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Đang chờ phê duyệt</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      Tài liệu đang chờ Admin phê duyệt. Tính năng Hỏi đáp AI sẽ tự động kích hoạt sau khi tài liệu được phê duyệt và hoàn tất lập chỉ mục RAG.
+                    </p>
+                  </>
+                ) : document.processingStatus === "ANALYZED" && (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") ? (
+                  <>
+                    <Clock className="w-8 h-8 text-amber-650 mb-3" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Chờ gửi duyệt & lập chỉ mục</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      Tài liệu đã phân tích AI thành công. Vui lòng click <strong>"Gửi duyệt"</strong>. Hệ thống sẽ lập chỉ mục RAG để kích hoạt Hỏi đáp ngay sau khi được Admin phê duyệt.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-8 h-8 text-amber-600 mb-3" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Không hỗ trợ hỏi đáp</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      Tài liệu này không đủ điều kiện để áp dụng tính năng Hỏi đáp AI.
+                    </p>
+                  </>
+                )}
+              </div>
+            )
+          ) : (
+            <div className="m-auto text-center max-w-[280px]">
+              <Sparkles className="w-6 h-6 text-[#C2BFB8] mx-auto mb-3" />
+              <h4 className="text-[15.5px] font-medium text-[#0E0D0B] mb-1">Hỏi AI về tài liệu này</h4>
+              <p className="text-[13.5px] text-[#6B6963] mb-6">AI đã đọc và phân tích ngữ nghĩa nội dung, sẵn sàng trả lời kèm trích dẫn gốc.</p>
 
-            <div className="space-y-2 text-left">
-              <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest text-center mb-3">Câu hỏi gợi ý</p>
-              {["Tóm tắt các ý chính của tài liệu?", "Phương pháp được đề cập ở chương 2?", "Phân tích ưu nhược điểm?"].map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => setInput(q)}
-                  disabled={!isEligible}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-white border border-[rgba(14,13,11,0.06)] hover:border-[#4F63D2]/30 rounded-lg text-[13.5px] text-[#6B6963] hover:text-[#0E0D0B] transition-colors disabled:opacity-50 cursor-pointer text-left"
-                >
-                  <span className="truncate">{q}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[#C2BFB8]" />
-                </button>
-              ))}
+              <div className="space-y-2 text-left">
+                <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest text-center mb-3">Câu hỏi gợi ý</p>
+                {["Tóm tắt các ý chính của tài liệu?", "Phương pháp được đề cập ở chương 2?", "Phân tích ưu nhược điểm?"].map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setInput(q)}
+                    disabled={!isEligible}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-white border border-[rgba(14,13,11,0.06)] hover:border-[#4F63D2]/30 rounded-lg text-[13.5px] text-[#6B6963] hover:text-[#0E0D0B] transition-colors disabled:opacity-50 cursor-pointer text-left"
+                  >
+                    <span className="truncate">{q}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#C2BFB8]" />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )
         ) : (
           messages.map(msg => (
             <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
@@ -126,7 +221,7 @@ export function RagChatPanel({ document, isEligible }: { document: Document | nu
               </div>
               {msg.role === "assistant" && msg.citations && (
                 <div className="w-[85%] mt-1">
-                  <CitationList citations={msg.citations} />
+                  <CitationList citations={msg.citations} documentTitle={document.title} />
                 </div>
               )}
             </div>
@@ -147,9 +242,41 @@ export function RagChatPanel({ document, isEligible }: { document: Document | nu
       {/* Input */}
       <div className="p-4 bg-white border-t border-[rgba(14,13,11,0.06)] flex-shrink-0">
         {!isEligible ? (
-          <div className="text-center p-3 bg-red-50 text-red-700 rounded-xl text-[13.5px]">
-            Tài liệu này chưa được AI xử lý hoàn tất hoặc bị từ chối, không thể truy vấn.
-          </div>
+          isTimeout ? (
+            <div className="text-center p-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-[13.5px] font-sans-body">
+              Quá trình xử lý đang mất nhiều thời gian hơn dự kiến. Vui lòng kiểm tra lại sau.
+            </div>
+          ) : (
+            <div className="text-center p-3 rounded-xl text-[13.5px] font-sans-body border">
+              {document.processingStatus === "PROCESSING" ? (
+                <span className="flex items-center justify-center gap-2 text-amber-800 bg-amber-50 border-amber-200">
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
+                  Hệ thống đang lập chỉ mục RAG cho tài liệu này, vui lòng đợi...
+                </span>
+              ) : isDocumentAiProcessing(document.processingStatus) ? (
+                <span className="flex items-center justify-center gap-2 text-red-750 bg-red-50 border-red-100">
+                  <Loader2 className="w-4 h-4 animate-spin text-red-650" />
+                  Hệ thống AI đang phân tích cấu trúc tài liệu này, vui lòng đợi...
+                </span>
+              ) : isDocumentAiFailed(document.processingStatus) ? (
+                <span className="text-red-700 bg-red-50 border-red-100">
+                  Phân tích tài liệu thất bại hoặc bị từ chối, không thể truy vấn.
+                </span>
+              ) : document.processingStatus === "ANALYZED" && document.publicationStatus === "PENDING_REVIEW" ? (
+                <span className="text-amber-800 bg-amber-50 border-amber-200">
+                  Tài liệu đang chờ Admin phê duyệt để lập chỉ mục RAG.
+                </span>
+              ) : document.processingStatus === "ANALYZED" && (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") ? (
+                <span className="text-amber-800 bg-amber-50 border-amber-200">
+                  Vui lòng "Gửi duyệt" để hệ thống lập chỉ mục RAG sau khi phê duyệt.
+                </span>
+              ) : (
+                <span className="text-red-700 bg-red-50 border-red-100">
+                  Tài liệu không đủ điều kiện RAG hoặc đã bị từ chối.
+                </span>
+              )}
+            </div>
+          )
         ) : (
           <div className="relative">
             <input

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Document } from "../types";
 import { MoreHorizontal, Eye, Edit2, Replace, Trash2, Send, Download, RefreshCw, XCircle } from "lucide-react";
-import { isDocumentAiReady, isDocumentAiFailed } from "../utils/documentHelpers";
+import { isDocumentAiFailed, canSubmitDocumentForReview } from "../utils/documentHelpers";
 
 interface ActionMenuProps {
   document: Document;
@@ -38,7 +38,7 @@ export function MyDocumentActionMenu({
   const canEdit = pStatus === "DRAFT" || pStatus === "REJECTED";
   const canReplace = canEdit;
   const canDelete = pStatus === "DRAFT" || pStatus === "REJECTED"; // simplified rule
-  const canSubmit = (pStatus === "DRAFT" || pStatus === "REJECTED") && isDocumentAiReady(aiStatus);
+  const canSubmit = canSubmitDocumentForReview(doc);
   const canRetry = isDocumentAiFailed(aiStatus);
   const canDownload = pStatus === "PUBLISHED" || pStatus === "DRAFT" || pStatus === "REJECTED" || pStatus === "PENDING_REVIEW"; // owner can usually download their own file if it exists
 

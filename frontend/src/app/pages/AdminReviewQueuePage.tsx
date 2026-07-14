@@ -1,24 +1,41 @@
 import React, { useState, useEffect } from "react";
 import { Document } from "../types";
-import { MOCK_DOCUMENTS } from "../mockData";
 import { AdminReviewTable } from "../components/AdminReviewTable";
 import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
-import { ListChecks, Search } from "lucide-react";
+import { ListChecks, Search, AlertTriangle } from "lucide-react";
+import { adminReviewService } from "../services/adminReviewService";
 
 export function AdminReviewQueuePage({ onNavigateDetail }: { onNavigateDetail: (id: number) => void }) {
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState<Document[]>([]);
   const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      // Admin sees only PENDING_REVIEW
-      const pendingDocs = MOCK_DOCUMENTS.filter(d => d.publicationStatus === "PENDING_REVIEW");
-      setDocs(pendingDocs);
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    let active = true;
+    const fetchQueue = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const queue = await adminReviewService.getReviewQueue();
+        if (active) {
+          setDocs(queue);
+        }
+      } catch (err: any) {
+        console.error("Failed to load review queue", err);
+        if (active) {
+          setError(err.message || "Không thể kết nối đến máy chủ.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchQueue();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const filteredDocs = docs.filter(d => {
@@ -31,6 +48,12 @@ export function AdminReviewQueuePage({ onNavigateDetail }: { onNavigateDetail: (
 
   return (
     <div className="w-full text-left">
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
       <div className="flex justify-end mb-6">
         {/* Simple search if supported */}
         <div className="relative w-full sm:w-[280px]">

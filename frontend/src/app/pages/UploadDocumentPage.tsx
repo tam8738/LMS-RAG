@@ -1,12 +1,25 @@
-import React, { useState } from "react";
-import { Upload, FileText, X, ArrowRight, CheckCircle2, Clock } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Upload, FileText, X, ArrowRight, CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react";
 import { UploadProgress, UploadStepper } from "../components/UploadProgress";
+import { uploadService } from "../services/uploadService";
+import { Document } from "../types";
 
-export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
+export function UploadDocumentPage({ 
+  onDone,
+  onSuccess
+}: { 
+  onDone: () => void;
+  onSuccess?: (id: number) => void;
+}) {
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [isSubmitActive, setIsSubmitActive] = useState(false);
+  
+  // Progress states
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedDoc, setUploadedDoc] = useState<Document | null>(null);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -17,6 +30,17 @@ export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const abortUploadRef = useRef<(() => void) | null>(null);
+
+  // Cleanup active upload on unmount
+  useEffect(() => {
+    return () => {
+      if (abortUploadRef.current) {
+        abortUploadRef.current();
+      }
+    };
+  }, []);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -29,7 +53,9 @@ export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
 
   const validateAndSetFile = (f: File) => {
     const validTypes = ["application/pdf", "text/plain"];
-    if (!validTypes.includes(f.type)) {
+    const fileExt = f.name.split(".").pop()?.toLowerCase();
+    
+    if (!validTypes.includes(f.type) && fileExt !== "pdf" && fileExt !== "txt") {
       setErrors({ file: "Chỉ hỗ trợ file PDF hoặc TXT." });
       return;
     }
@@ -39,6 +65,10 @@ export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
     }
     setErrors({});
     setFile(f);
+    
+    // Auto-fill title from filename without extension
+    const nameWithoutExt = f.name.substring(0, f.name.lastIndexOf(".")) || f.name;
+    setTitle(nameWithoutExt);
   };
 
   const handleNextToMetadata = () => {
@@ -57,24 +87,86 @@ export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
     setTagInput("");
   };
 
-  const handleUploadSubmit = () => {
+  const handleUploadSubmit = async () => {
+    if (isSubmitActive) return; // Prevent double submission
     if (!title.trim()) {
       setErrors({ title: "Tên tài liệu là bắt buộc." });
       return;
     }
     setErrors({});
     setStep(3);
-    
-    // Simulate upload progress
-    let p = 0;
-    const interval = setInterval(() => {
-      p += Math.random() * 20;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(interval);
+    setUploadProgress(0);
+    setUploadError(null);
+    setIsSubmitActive(true);
+
+    try {
+      // 10. METADATA PAYLOAD VERIFICATION & TRIMMING
+      const metadata: any = {
+        title: title.trim(),
+      };
+
+      if (description.trim()) metadata.description = description.trim();
+      if (subject.trim()) metadata.subject = subject.trim();
+      if (topic.trim()) metadata.topic = topic.trim();
+      if (chapter.trim()) metadata.chapter = chapter.trim();
+
+      // Normalize tags: trim, filter empty, deduplicate
+      const cleanTags = Array.from(
+        new Set(tags.map((t) => t.trim()).filter(Boolean))
+      );
+      if (cleanTags.length > 0) {
+        metadata.tags = cleanTags;
       }
-      setUploadProgress(p);
-    }, 200);
+
+      const { promise, abort } = uploadService.uploadDocument(
+        file!,
+        metadata,
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
+
+      abortUploadRef.current = abort;
+
+      const doc = await promise;
+      
+      // Cleanup ref and submission state
+      abortUploadRef.current = null;
+      setIsSubmitActive(false);
+      setUploadedDoc(doc);
+    } catch (err: any) {
+      abortUploadRef.current = null;
+      setIsSubmitActive(false);
+      setUploadError(err.message || "Tải lên thất bại. Vui lòng thử lại.");
+    }
+  };
+
+  const handleCancelUpload = () => {
+    if (abortUploadRef.current) {
+      abortUploadRef.current();
+      abortUploadRef.current = null;
+    }
+    setIsSubmitActive(false);
+    setStep(2); // Go back to metadata editing
+  };
+
+  const handleReset = () => {
+    if (abortUploadRef.current) {
+      abortUploadRef.current();
+      abortUploadRef.current = null;
+    }
+    setIsSubmitActive(false);
+    setStep(1);
+    setFile(null);
+    setTitle("");
+    setDescription("");
+    setSubject("");
+    setTopic("");
+    setChapter("");
+    setTags([]);
+    setUploadProgress(0);
+    setUploadError(null);
+    setUploadedDoc(null);
   };
 
   return (
@@ -210,7 +302,11 @@ export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
 
           <div className="flex justify-between pt-6 border-t border-[rgba(14,13,11,0.06)]">
             <button onClick={() => setStep(1)} className="h-10 px-4 text-[#6B6963] hover:text-[#0E0D0B] text-[13.5px] font-medium transition-colors border-none bg-transparent cursor-pointer font-sans-body">Quay lại</button>
-            <button onClick={handleUploadSubmit} className="flex items-center gap-2 h-10 px-6 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body">
+            <button 
+              onClick={handleUploadSubmit} 
+              disabled={isSubmitActive}
+              className="flex items-center gap-2 h-10 px-6 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Upload className="w-4 h-4" />
               Tải lên
             </button>
@@ -220,40 +316,81 @@ export function UploadDocumentPage({ onDone }: { onDone: () => void }) {
 
       {step === 3 && (
         <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] p-8 text-center shadow-sm">
-          {uploadProgress < 100 ? (
+          
+          {/* Case 1: Uploading in progress */}
+          {uploadProgress < 100 && !uploadError && !uploadedDoc && (
             <div className="max-w-[300px] mx-auto py-6">
               <Upload className="w-8 h-8 text-[#C2BFB8] mx-auto mb-4 animate-bounce" />
               <h3 className="text-[15.5px] font-medium text-[#0E0D0B] mb-2 font-sans-body font-semibold">Đang tải lên hệ thống...</h3>
               <UploadProgress progress={uploadProgress} />
-              <p className="text-[13px] text-[#AAAA9F] mt-3 font-mono-label">{Math.floor(uploadProgress)}% hoàn tất</p>
+              <p className="text-[13px] text-[#AAAA9F] mt-3 font-mono-label mb-6">{Math.floor(uploadProgress)}% hoàn tất</p>
+              
+              <button 
+                onClick={handleCancelUpload}
+                className="h-9 px-4 bg-white border border-red-200 hover:bg-red-50 text-red-650 text-[13px] font-medium rounded-lg transition-colors cursor-pointer"
+              >
+                Hủy tải lên
+              </button>
             </div>
-          ) : (
+          )}
+
+          {/* Case 2: Upload failure */}
+          {uploadError && (
             <div className="py-6 flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+              <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mb-4">
+                <AlertCircle className="w-6 h-6 text-red-650" />
               </div>
-              <h3 className="text-[18.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Tải lên thành công!</h3>
-              <p className="text-[14px] text-[#6B6963] max-w-[300px] mb-6 font-sans-body">
-                Tài liệu <strong>{title}</strong> đã được lưu thành bản nháp.
+              <h3 className="text-[18.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Tải lên thất bại</h3>
+              <p className="text-[14px] text-[#6B6963] max-w-[400px] mb-8 font-sans-body">
+                {uploadError}
               </p>
-
-              <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl mb-8 text-left w-full max-w-[360px]">
-                <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                <p className="text-[13.5px] text-amber-800 leading-relaxed font-sans-body">
-                  Hệ thống AI đang xử lý file của bạn để trích xuất ngữ nghĩa. Bạn có thể kiểm tra trạng thái trong mục <strong>Tài liệu của tôi</strong>.
-                </p>
-              </div>
-
               <div className="flex gap-3">
-                <button onClick={() => { setStep(1); setFile(null); setTitle(""); setTags([]); }} className="h-9 px-4 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13.5px] font-medium rounded-lg hover:border-[rgba(14,13,11,0.2)] transition-colors cursor-pointer font-sans-body">
-                  Tải thêm file
+                <button onClick={() => setStep(2)} className="h-9 px-5 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body">
+                  Quay lại chỉnh sửa
                 </button>
-                <button onClick={onDone} className="h-9 px-5 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body">
-                  Về Tài liệu của tôi
+                <button onClick={handleReset} className="h-9 px-4 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13.5px] font-medium rounded-lg hover:border-[rgba(14,13,11,0.2)] transition-colors cursor-pointer font-sans-body">
+                  Chọn file khác
                 </button>
               </div>
             </div>
           )}
+
+          {/* Case 3: Upload progress at 100% but document not yet set (Server processing) */}
+          {uploadProgress >= 100 && !uploadError && !uploadedDoc && (
+            <div className="max-w-[300px] mx-auto py-6">
+              <Loader2 className="w-8 h-8 text-[#4F63D2] mx-auto mb-4 animate-spin" />
+              <h3 className="text-[15.5px] font-medium text-[#0E0D0B] mb-2 font-sans-body font-semibold">Tải lên thành công!</h3>
+              <p className="text-[13px] text-[#AAAA9F]">Đang xử lý phản hồi từ máy chủ...</p>
+            </div>
+          )}
+
+          {/* Case 4: Upload completed with details */}
+          {uploadedDoc && (
+            <div className="py-6 flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-[18.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Tải lên thành công!</h3>
+              <p className="text-[14px] text-[#6B6963] max-w-[400px] mb-8 font-sans-body">
+                Tài liệu "{uploadedDoc.title}" đã được tải lên hệ thống thành công. Hệ thống đang tiến hành phân tích nội dung.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => onSuccess && onSuccess(uploadedDoc.id)} 
+                  className="h-9 px-5 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body"
+                >
+                  Xem chi tiết tài liệu
+                </button>
+                <button 
+                  onClick={onDone} 
+                  className="h-9 px-4 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13.5px] font-medium rounded-lg hover:border-[rgba(14,13,11,0.2)] transition-colors cursor-pointer font-sans-body"
+                >
+                  Quản lý tài liệu
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
     </div>

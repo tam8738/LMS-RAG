@@ -1,3 +1,8 @@
+/**
+ * Transitional compatibility only.
+ * Remove PROCESSING and PROCESSED after backend enum
+ * and persisted data migration are complete.
+ */
 export type ProcessingStatus = "UPLOADED" | "ANALYZING" | "ANALYZED" | "PROCESSING" | "PROCESSED" | "FAILED";
 export type PublicationStatus = "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED" | "ARCHIVED";
 

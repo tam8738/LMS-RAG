@@ -9,7 +9,7 @@ export interface PaginatedDocuments {
   totalElements: number;
 }
 
-const mapBackendDocToFrontend = (doc: any): Document => ({
+export const mapBackendDocToFrontend = (doc: any): Document => ({
   id: doc.id,
   title: doc.title,
   description: doc.description || "Chưa có mô tả.",
@@ -25,6 +25,7 @@ const mapBackendDocToFrontend = (doc: any): Document => ({
   fileSize: formatFileSize(doc.fileSize),
   mimeType: doc.mimeType || "application/pdf",
   storageKey: doc.storageKey,
+  ragEligible: doc.ragEligible ?? false,
   pageCount: doc.pageCount || 0,
   chunkCount: doc.estimatedChunkCount || doc.chunkCount || 0,
   processingStatus: doc.processingStatus || "UPLOADED",
@@ -56,6 +57,16 @@ export const teacherDocumentService = {
    */
   async getMyDocument(documentId: number): Promise<Document> {
     const response = await apiFetch<any>(`/api/v1/my/documents/${documentId}`);
+    return mapBackendDocToFrontend(response.data);
+  },
+
+  /**
+   * Submit a document for review
+   */
+  async submitDocumentForReview(documentId: number): Promise<Document> {
+    const response = await apiFetch<any>(`/api/v1/my/documents/${documentId}/submit-review`, {
+      method: "POST"
+    });
     return mapBackendDocToFrontend(response.data);
   }
 };

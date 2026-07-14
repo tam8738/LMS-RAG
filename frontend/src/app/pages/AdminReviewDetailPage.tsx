@@ -4,8 +4,9 @@ import { MOCK_DOCUMENTS } from "../mockData";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { ConfirmDialog, RejectDialog } from "../components/Dialogs";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Check, X, Archive, Download, FileText } from "lucide-react";
-import { isDocumentAiReady } from "../utils/documentHelpers";
+import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle } from "lucide-react";
+import { isDocumentAiReady, mapSubmitReviewError } from "../utils/documentHelpers";
+import { adminReviewService } from "../services/adminReviewService";
 
 export function AdminReviewDetailPage({
   documentId,
@@ -15,25 +16,39 @@ export function AdminReviewDetailPage({
   onBack: () => void
 }) {
   const [doc, setDoc] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [showApprove, setShowApprove] = useState(false);
   const [showReject, setShowReject] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    // Simulate fetch. Admin can see PENDING_REVIEW or PUBLISHED (for archiving) from detail
-    const timer = setTimeout(() => {
-      const found = MOCK_DOCUMENTS.find(d => d.id === documentId);
-      setDoc(found || null);
-    }, 400);
-    return () => clearTimeout(timer);
+    let active = true;
+    const fetchDetail = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await adminReviewService.getReviewDetail(documentId);
+        if (active) {
+          setDoc(data);
+        }
+      } catch (err: any) {
+        console.error("Failed to load review detail", err);
+        if (active) {
+          setError(err.message || "Không thể kết nối đến máy chủ.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchDetail();
+    return () => {
+      active = false;
+    };
   }, [documentId]);
-
-  if (!doc) return <PageLoading />;
-
-  const canApprove = doc.publicationStatus === "PENDING_REVIEW" && isDocumentAiReady(doc.processingStatus);
-  const canReject = doc.publicationStatus === "PENDING_REVIEW";
-  const canArchive = doc.publicationStatus === "PUBLISHED";
 
   const handleActionComplete = (msg: string) => {
     setToast({ msg, type: 'success' });
@@ -43,12 +58,73 @@ export function AdminReviewDetailPage({
     }, 1500);
   };
 
+  const handleApprove = async () => {
+    setShowApprove(false);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const updated = await adminReviewService.approveReview(documentId);
+      setDoc(updated);
+      handleActionComplete("Đã phê duyệt tài liệu thành công");
+    } catch (err: any) {
+      console.error("Failed to approve document", err);
+      setError(mapSubmitReviewError(err));
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async (reason: string) => {
+    setShowReject(false);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const updated = await adminReviewService.rejectReview(documentId, reason);
+      setDoc(updated);
+      handleActionComplete("Đã từ chối tài liệu thành công");
+    } catch (err: any) {
+      console.error("Failed to reject document", err);
+      setError(mapSubmitReviewError(err));
+      setIsSubmitting(false);
+    }
+  };
+
+
+
+  if (loading) return <PageLoading />;
+
+  if (error && !doc) {
+    return (
+      <div className="py-12 text-center max-w-[400px] mx-auto">
+        <AlertTriangle className="w-12 h-12 text-red-650 mx-auto mb-4" />
+        <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Không thể tải thông tin</h3>
+        <p className="text-[14px] text-[#6B6963] mb-6">{error}</p>
+        <button onClick={onBack} className="h-9 px-4 bg-[#0E0D0B] text-white text-[13px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all cursor-pointer">
+          Trở về hàng chờ
+        </button>
+      </div>
+    );
+  }
+
+  if (!doc) return <PageLoading />;
+
+  const canApprove = doc.publicationStatus === "PENDING_REVIEW" && isDocumentAiReady(doc.processingStatus);
+  const canReject = doc.publicationStatus === "PENDING_REVIEW";
+
   return (
     <div className="w-full flex flex-col min-h-[calc(100vh-100px)] pb-24 text-left">
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#0E0D0B] text-white px-4 py-2 rounded-xl text-[14.5px] flex items-center gap-2 shadow-lg animate-[slide-down_200ms_ease-out]">
           <Check className="w-4 h-4 text-emerald-400" />
           {toast.msg}
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -110,19 +186,13 @@ export function AdminReviewDetailPage({
       {/* Sticky Bottom Action Bar */}
       <div className="sticky bottom-0 sm:bottom-6 mt-8 p-4 bg-white/95 backdrop-blur-xl border border-[rgba(14,13,11,0.08)] shadow-[0_-4px_24px_rgba(14,13,11,0.04)] sm:shadow-[0_8px_32px_rgba(14,13,11,0.08)] z-40 pb-safe sm:rounded-2xl max-w-[800px] mx-auto w-full -mx-6 px-6 sm:mx-auto">
         <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full">
-          {canArchive && (
-            <button
-              onClick={() => setShowArchive(true)}
-              className="w-full sm:w-auto h-10 px-5 flex items-center justify-center gap-2 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[14px] font-medium rounded-xl hover:bg-[#F8F7F4] transition-colors shadow-sm cursor-pointer font-action"
-            >
-              <Archive className="w-4 h-4" /> Lưu trữ tài liệu
-            </button>
-          )}
+
 
           {canReject && (
             <button
               onClick={() => setShowReject(true)}
-              className="w-full sm:w-auto h-10 px-5 flex items-center justify-center gap-2 bg-white border border-red-200 text-red-650 text-[14px] font-medium rounded-xl hover:bg-red-50 transition-colors shadow-sm cursor-pointer font-action"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-10 px-5 flex items-center justify-center gap-2 bg-white border border-red-200 text-red-650 text-[14px] font-medium rounded-xl hover:bg-red-50 transition-colors shadow-sm cursor-pointer font-action disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="w-4 h-4" /> Từ chối
             </button>
@@ -131,7 +201,8 @@ export function AdminReviewDetailPage({
           {canApprove && (
             <button
               onClick={() => setShowApprove(true)}
-              className="w-full sm:w-auto h-10 px-6 flex items-center justify-center gap-2 bg-[#0E0D0B] text-white text-[14px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-action"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-10 px-6 flex items-center justify-center gap-2 bg-[#0E0D0B] text-white text-[14px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="w-4 h-4" /> Phê duyệt xuất bản
             </button>
@@ -151,34 +222,15 @@ export function AdminReviewDetailPage({
         title="Phê duyệt tài liệu"
         message="Tài liệu này sẽ được xuất bản công khai vào Thư viện và Giảng viên, Sinh viên có thể truy cập."
         confirmText="Xác nhận Phê duyệt"
-        onConfirm={() => {
-          setShowApprove(false);
-          // In real app: mutate mockData
-          handleActionComplete("Đã phê duyệt tài liệu thành công");
-        }}
+        onConfirm={handleApprove}
         onClose={() => setShowApprove(false)}
       />
 
-      <ConfirmDialog
-        isOpen={showArchive}
-        title="Lưu trữ tài liệu"
-        message="Tài liệu sẽ bị ẩn khỏi Thư viện công cộng nhưng vẫn giữ lại trong hệ thống quản trị."
-        confirmText="Lưu trữ"
-        isDestructive={true}
-        onConfirm={() => {
-          setShowArchive(false);
-          handleActionComplete("Đã đưa tài liệu vào kho lưu trữ");
-        }}
-        onClose={() => setShowArchive(false)}
-      />
+
 
       <RejectDialog
         isOpen={showReject}
-        onReject={(reason) => {
-          setShowReject(false);
-          console.log("Reject reason:", reason);
-          handleActionComplete("Đã từ chối tài liệu");
-        }}
+        onReject={handleReject}
         onClose={() => setShowReject(false)}
       />
 

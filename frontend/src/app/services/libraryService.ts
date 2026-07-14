@@ -71,4 +71,12 @@ export const libraryService = {
       return [];
     }
   },
+
+  /**
+   * Fetch detail of a single library document
+   */
+  async getDocument(documentId: number): Promise<LibraryDocument> {
+    const response = await apiFetch<any>(`/api/v1/library/${documentId}`);
+    return mapBackendDocToFrontend(response.data);
+  }
 };

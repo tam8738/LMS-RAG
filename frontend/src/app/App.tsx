@@ -104,11 +104,17 @@ export default function App() {
         PageComponent = <LibraryPage onNavigateDetail={(id) => handleNavigate("document-detail", id)} />;
         break;
       case "document-detail":
-        PageComponent = <LibraryDocumentDetailPage documentId={currentDocId!} onBack={() => handleNavigate("library")} />; break;
+        PageComponent = <LibraryDocumentDetailPage documentId={currentDocId!} user={currentUser} onBack={() => handleNavigate("library")} />; break;
       case "my-documents":
         PageComponent = <MyDocumentsPage user={currentUser} onNavigateUpload={() => handleNavigate("upload")} onNavigateDetail={(id) => handleNavigate("my-document-detail", id)} />; break;
       case "upload":
-        PageComponent = <UploadDocumentPage onDone={() => handleNavigate("my-documents")} />; break;
+        PageComponent = (
+          <UploadDocumentPage 
+            onDone={() => handleNavigate("my-documents")} 
+            onSuccess={(id) => handleNavigate("my-document-detail", id)}
+          />
+        );
+        break;
       case "my-document-detail":
         PageComponent = <MyDocumentDetailPage documentId={currentDocId!} user={currentUser} onBack={() => handleNavigate("my-documents")} />; break;
       case "admin-review-queue":
