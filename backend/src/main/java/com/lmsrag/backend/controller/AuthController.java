@@ -14,8 +14,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 
 /**
  * Controller xử lý các API xác thực.
@@ -62,5 +64,25 @@ public class AuthController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AuthUserResponse response = authService.getCurrentUser(userDetails.getUsername());
         return ApiResponse.success(response, "Lấy thông tin tài khoản thành công");
+    }
+
+    /**
+     * Đăng xuất và vô hiệu hóa JWT token hiện tại.
+     * Token sẽ được thêm vào blacklist và không thể dùng lại cho đến khi hết hạn.
+     *
+     * @param authHeader Authorization header chứa Bearer token
+     * @return thông điệp đăng xuất thành công
+     */
+    @Operation(
+            summary = "Đăng xuất",
+            description = "Vô hiệu hóa JWT token hiện tại bằng cách thêm vào blacklist",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        authService.logout(token);
+        return ApiResponse.success(null, "Đăng xuất thành công");
     }
 }

@@ -68,6 +68,21 @@ public class AuthService {
     }
 
     /**
+     * Đăng xuất bằng cách thêm JWT token hiện tại vào blacklist.
+     * Token sẽ bị từ chối ở các request sau ngay cả khi chưa hết hạn.
+     *
+     * @param token JWT access token cần đăng xuất
+     */
+    public void logout(String token) {
+        if (!jwtService.isTokenValid(token)) {
+            throw new AppException(ErrorCode.INVALID_TOKEN);
+        }
+
+        long remainingTime = jwtService.getRemainingTime(token);
+        blacklistService.blacklistToken(token, remainingTime);
+    }
+
+    /**
      * Ánh xạ entity {@link User} sang {@link AuthUserResponse}.
      * <p>
      * Tách riêng helper để tái sử dụng cho cả login và /me, tránh duplicate code.
@@ -82,6 +97,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 }
