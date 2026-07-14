@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,7 @@ public class LibraryController {
             @RequestParam(required = false) String chapter,
             @RequestParam(required = false) String tags,
             @RequestParam(required = false) Long uploadedBy,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 20, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<DocumentResponse> response = documentService.getLibraryDocuments(subject, topic, chapter, q, tags, uploadedBy, pageable);
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách Library thành công"));
     }

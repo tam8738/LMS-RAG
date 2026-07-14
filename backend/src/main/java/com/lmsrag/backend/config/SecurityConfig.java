@@ -68,11 +68,12 @@ public class SecurityConfig {
                                 "/error"
                         ).permitAll()
                         // Endpoint lấy thông tin user hiện tại yêu cầu đã đăng nhập
-                        .requestMatchers("/api/v1/auth/me").authenticated()
+                        .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/documents").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/documents/*/reprocess-rag").hasRole("TEACHER")
                         .requestMatchers("/api/v1/my/**").hasRole("TEACHER")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/library/**").hasAnyRole("TEACHER", "ADMIN")
+                        .requestMatchers("/api/v1/library/**").permitAll()
                         .requestMatchers("/api/v1/rag/**").hasAnyRole("TEACHER", "ADMIN")
                         .anyRequest().authenticated()
                 )

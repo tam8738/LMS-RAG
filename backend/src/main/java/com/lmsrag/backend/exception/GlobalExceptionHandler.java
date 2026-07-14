@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 
@@ -75,6 +76,29 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(errorCode.getStatus())
                 .body(ApiResponse.error(errorCode.name(), errorCode.getMessage(), details));
+    }
+
+    /**
+     * Xử lý lỗi kiểu dữ liệu tham số request không đúng (vd: enum value không hợp lệ,
+     * string không thể parse sang số, ...).
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Object>> handleTypeMismatchException(
+            MethodArgumentTypeMismatchException ex
+    ) {
+        String paramName = ex.getName();
+        Object invalidValue = ex.getValue();
+        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+
+        log.warn("Type mismatch for parameter '{}': value='{}', requiredType={}",
+                paramName, invalidValue, requiredType);
+
+        String message = String.format("Giá trị '%s' không hợp lệ cho tham số '%s' (yêu cầu kiểu %s)",
+                invalidValue, paramName, requiredType);
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getStatus())
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.name(), message));
     }
 
     /**

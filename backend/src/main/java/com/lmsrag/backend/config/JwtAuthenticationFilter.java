@@ -1,6 +1,8 @@
 package com.lmsrag.backend.config;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.entity.User;
 import com.lmsrag.backend.repository.UserRepository;
 import com.lmsrag.backend.service.InMemoryBlacklistService;
@@ -24,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final InMemoryBlacklistService blacklistService;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -51,7 +54,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 System.out.println("Token nằm trong blacklist");
 
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Unauthorized: token invalid or blacklisted");
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                objectMapper.writeValue(response.getWriter(),
+                        ApiResponse.error("UNAUTHENTICATED", "Token không hợp lệ hoặc đã bị đăng xuất"));
                 return;
             }
             // Lấy email và role từ token

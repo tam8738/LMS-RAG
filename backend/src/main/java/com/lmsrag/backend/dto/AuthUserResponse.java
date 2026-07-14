@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 /**
  * DTO dùng chung để trả thông tin cơ bản của người dùng đã xác thực.
  * <p>
@@ -38,4 +40,10 @@ public class AuthUserResponse {
 
     @Schema(description = "Trạng thái tài khoản", example = "ACTIVE")
     private UserStatus status;
+
+    @Schema(description = "ThờI gian tạo tài khoản", example = "2026-07-10T08:30:00Z")
+    private Instant createdAt;
+
+    @Schema(description = "ThờI gian cập nhật gần nhất", example = "2026-07-14T10:15:00Z")
+    private Instant updatedAt;
 }

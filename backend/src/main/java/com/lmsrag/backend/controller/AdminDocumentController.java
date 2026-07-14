@@ -61,11 +61,4 @@ public class AdminDocumentController {
         return ResponseEntity.ok(ApiResponse.success(response, "Archive tài liệu thành công"));
     }
 
-    @Operation(summary = "Yêu cầu xử lý lại RAG cho tài liệu đã công bố")
-    @PostMapping("/documents/{documentId}/reprocess-rag")
-    public ResponseEntity<ApiResponse<DocumentResponse>> reprocessRag(
-            @PathVariable Long documentId) {
-        DocumentResponse response = documentService.reprocessRag(documentId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Yêu cầu xử lý lại RAG thành công"));
-    }
 }

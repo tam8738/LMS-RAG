@@ -5,10 +5,14 @@ import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
+import com.lmsrag.backend.dto.document.MyDocumentFilterRequest;
+import com.lmsrag.backend.enums.AiProcessingStatus;
+import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
@@ -19,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -80,12 +85,78 @@ public class DocumentController {
         }
     }
 
-    @Operation(summary = "Lấy danh sách tài liệu của tôi")
+    /**
+     * Lấy danh sách tài liệu cá nhân của teacher đang đăng nhập.
+     *
+     * <p>Hỗ trợ:
+     * <ul>
+     *   <li><b>Tìm kiếm</b>: {@code q} — tìm trong title, description, subject, topic, chapter</li>
+     *   <li><b>Lọc trạng thái AI</b>: {@code processingStatus} — UPLOADED | ANALYZING | ANALYZED | PROCESSING | PROCESSED | FAILED</li>
+     *   <li><b>Lọc trạng thái công bố</b>: {@code publicationStatus} — DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | ARCHIVED</li>
+     *   <li><b>Lọc metadata</b>: {@code subject}, {@code topic}, {@code chapter}</li>
+     *   <li><b>Lọc tags</b>: {@code tags} — danh sách phân cách dấu phẩy, ví dụ: {@code database,sql}</li>
+     *   <li><b>Phân trang</b>: {@code page}, {@code size}, {@code sort} — Spring Pageable chuẩn</li>
+     * </ul>
+     *
+     * @param q                 Từ khóa tìm kiếm tự do (optional)
+     * @param processingStatus  Lọc theo trạng thái xử lý AI (optional)
+     * @param publicationStatus Lọc theo trạng thái công bố (optional)
+     * @param subject           Lọc theo môn học (optional, khớp chính xác)
+     * @param topic             Lọc theo chủ đề (optional, khớp một phần)
+     * @param chapter           Lọc theo chương (optional, khớp một phần)
+     * @param tags              Lọc theo tags (optional, phân cách bởi dấu phẩy)
+     * @param pageable          Thông tin phân trang (page, size, sort)
+     */
+    @Operation(
+            summary = "Lấy danh sách tài liệu của tôi",
+            description = "Hỗ trợ tìm kiếm theo từ khóa (q), lọc theo processing_status, publication_status, " +
+                    "subject, topic, chapter, tags và phân trang. Chỉ trả về tài liệu của teacher đang đăng nhập."
+    )
     @GetMapping("/my/documents")
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getMyDocuments(
-            @PageableDefault(size = 20) Pageable pageable) {
-        Page<DocumentResponse> response = documentService.getMyDocuments(pageable);
-        return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách thành công"));
+            @Parameter(description = "Từ khóa tìm kiếm trong title/description/subject/topic/chapter")
+            @RequestParam(required = false) String q,
+
+            @Parameter(description = "Lọc theo trạng thái AI xử lý: UPLOADED | ANALYZING | ANALYZED | PROCESSING | PROCESSED | FAILED")
+            @RequestParam(required = false) AiProcessingStatus processingStatus,
+
+            @Parameter(description = "Lọc theo trạng thái công bố: DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | ARCHIVED")
+            @RequestParam(required = false) PublicationStatus publicationStatus,
+
+            @Parameter(description = "Lọc theo môn học (khớp chính xác)")
+            @RequestParam(required = false) String subject,
+
+            @Parameter(description = "Lọc theo chủ đề (khớp một phần, không phân biệt hoa thường)")
+            @RequestParam(required = false) String topic,
+
+            @Parameter(description = "Lọc theo chương (khớp một phần, không phân biệt hoa thường)")
+            @RequestParam(required = false) String chapter,
+
+            @Parameter(description = "Lọc theo tags, phân cách bởi dấu phẩy. Ví dụ: database,sql")
+            @RequestParam(required = false) String tags,
+
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("[CONTROLLER] GET /my/documents | q={} | processingStatus={} | publicationStatus={} | subject={} | topic={} | chapter={} | tags={} | page={} | size={}",
+                q, processingStatus, publicationStatus, subject, topic, chapter, tags,
+                pageable.getPageNumber(), pageable.getPageSize());
+
+        // Đóng gói các tham số filter vào DTO để truyền xuống service
+        MyDocumentFilterRequest filter = new MyDocumentFilterRequest();
+        filter.setQ(q);
+        filter.setProcessingStatus(processingStatus);
+        filter.setPublicationStatus(publicationStatus);
+        filter.setSubject(subject);
+        filter.setTopic(topic);
+        filter.setChapter(chapter);
+        filter.setTags(tags);
+
+        Page<DocumentResponse> response = documentService.getMyDocuments(filter, pageable);
+
+        log.info("[CONTROLLER] GET /my/documents thành công | totalElements={} | totalPages={}",
+                response.getTotalElements(), response.getTotalPages());
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách tài liệu thành công"));
     }
 
     @Operation(summary = "Lấy chi tiết tài liệu của tôi")
@@ -122,5 +193,13 @@ public class DocumentController {
             @PathVariable Long documentId) {
         DocumentResponse response = documentService.submitReview(documentId);
         return ResponseEntity.ok(ApiResponse.success(response, "Gửi duyệt thành công"));
+    }
+
+    @Operation(summary = "Yêu cầu xử lý lại RAG cho tài liệu đã công bố")
+    @PostMapping("/documents/{documentId}/reprocess-rag")
+    public ResponseEntity<ApiResponse<DocumentResponse>> reprocessRag(
+            @PathVariable Long documentId) {
+        DocumentResponse response = documentService.reprocessRag(documentId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Yêu cầu xử lý lại RAG thành công"));
     }
 }

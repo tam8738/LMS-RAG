@@ -3,6 +3,7 @@ package com.lmsrag.backend.service;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
+import com.lmsrag.backend.dto.document.MyDocumentFilterRequest;
 import com.lmsrag.backend.entity.Document;
 import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.entity.User;
@@ -19,7 +20,9 @@ import com.lmsrag.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -205,11 +208,75 @@ public class DocumentService {
     }
 
     // ===== READ =====
+
+    /**
+     * Lấy danh sách tài liệu cá nhân của teacher đang đăng nhập với bộ lọc đa điều kiện.
+     *
+     * <p>Logic chọn query:
+     * <ul>
+     *   <li>Không có bộ lọc nào → dùng fast-path (simple index scan theo uploadedBy, sort theo createdAt DESC)</li>
+     *   <li>Có ít nhất một bộ lọc → dùng native query với đầy đủ điều kiện WHERE</li>
+     * </ul>
+     *
+     * @param filter   Bộ lọc (q, processingStatus, publicationStatus, subject, topic, chapter, tags)
+     * @param pageable Thông tin phân trang và sắp xếp từ request (?page=0&size=20&sort=createdAt,desc)
+     * @return Trang kết quả DocumentResponse đã được map
+     */
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> getMyDocuments(Pageable pageable) {
+    public Page<DocumentResponse> getMyDocuments(MyDocumentFilterRequest filter, Pageable pageable) {
         User currentUser = getCurrentUser();
-        return documentRepository.findByUploadedByIdOrderByCreatedAtDesc(currentUser.getId(), pageable)
-                .map(DocumentMapper::toResponse);
+        Long userId = currentUser.getId();
+
+        log.info("[MY_DOCS] Lấy danh sách tài liệu | userId={} | email={} | filter={}",
+                userId, currentUser.getEmail(), filter);
+
+        // Fast-path: không có filter nào → dùng method derived query đơn giản hơn
+        boolean hasFilter = !isBlank(filter.getQ())
+                || filter.getProcessingStatus() != null
+                || filter.getPublicationStatus() != null
+                || !isBlank(filter.getSubject())
+                || !isBlank(filter.getTopic())
+                || !isBlank(filter.getChapter())
+                || !isBlank(filter.getTags());
+
+        if (!hasFilter) {
+            log.debug("[MY_DOCS] Không có filter, dùng fast-path | userId={}", userId);
+            return documentRepository
+                    .findByUploadedByIdOrderByCreatedAtDesc(userId, pageable)
+                    .map(DocumentMapper::toResponse);
+        }
+
+        // Full-filter path: truyền từng tham số vào native query
+        // Các giá trị null sẽ bỏ qua điều kiện tương ứng trong SQL (IS NULL OR ...)
+        String processingStatusStr = filter.getProcessingStatus() != null
+                ? filter.getProcessingStatus().name()
+                : null;
+
+        String publicationStatusStr = filter.getPublicationStatus() != null
+                ? filter.getPublicationStatus().name()
+                : null;
+
+        log.debug("[MY_DOCS] Dùng full-filter query | userId={} | q={} | processingStatus={} | publicationStatus={} | subject={} | topic={} | chapter={} | tags={}",
+                userId,
+                filter.getQ(),
+                processingStatusStr,
+                publicationStatusStr,
+                filter.getSubject(),
+                filter.getTopic(),
+                filter.getChapter(),
+                filter.getTags());
+
+        return documentRepository.findMyDocuments(
+                userId,
+                normalizeFilter(filter.getQ()),
+                processingStatusStr,
+                publicationStatusStr,
+                normalizeFilter(filter.getSubject()),
+                normalizeFilter(filter.getTopic()),
+                normalizeFilter(filter.getChapter()),
+                normalizeTags(filter.getTags()),
+                toNativePageable(pageable)
+        ).map(DocumentMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -553,7 +620,7 @@ public class DocumentService {
                 normalizeFilter(q),
                 uploadedBy,
                 normalizeTags(tags),
-                pageable
+                toNativePageable(pageable)
         ).map(DocumentMapper::toResponse);
     }
 
@@ -578,6 +645,48 @@ public class DocumentService {
 
     private String normalizeFilter(String value) {
         return isBlank(value) ? null : value.trim();
+    }
+
+    /**
+     * Chuyển đổi Pageable sort từ tên entity property (camelCase) sang tên cột DB (snake_case)
+     * để dùng với native query.
+     */
+    private Pageable toNativePageable(Pageable pageable) {
+        if (!pageable.getSort().isSorted()) {
+            return pageable;
+        }
+
+        Sort nativeSort = Sort.by(pageable.getSort().stream()
+                .map(order -> {
+                    String property = order.getProperty();
+                    String nativeProperty = switch (property) {
+                        case "createdAt" -> "created_at";
+                        case "updatedAt" -> "updated_at";
+                        case "processedAt" -> "processed_at";
+                        case "analyzedAt" -> "analyzed_at";
+                        case "reviewedAt" -> "reviewed_at";
+                        case "publishedAt" -> "published_at";
+                        case "fileSize" -> "file_size";
+                        case "fileVersion" -> "file_version";
+                        case "originalFilename" -> "original_filename";
+                        case "storedFilename" -> "stored_filename";
+                        case "storageKey" -> "storage_key";
+                        case "mimeType" -> "mime_type";
+                        case "errorCode" -> "error_code";
+                        case "errorMessage" -> "error_message";
+                        case "unsupportedReason" -> "unsupported_reason";
+                        case "rejectionReason" -> "rejection_reason";
+                        case "uploadedBy" -> "uploaded_by";
+                        case "reviewedBy" -> "reviewed_by";
+                        default -> property;
+                    };
+                    return order.isAscending()
+                            ? Sort.Order.asc(nativeProperty)
+                            : Sort.Order.desc(nativeProperty);
+                })
+                .toList());
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), nativeSort);
     }
 
     @Transactional(readOnly = true)

@@ -1,7 +1,7 @@
 # Bộ tài liệu chính thức của dự án
 
 **Phiên bản:** 1.4
-**Cập nhật:** 07/07/2026
+**Cập nhật:** 15/07/2026
 **Đối tượng đọc:** Frontend, Backend, AI Service
 
 ## 1. Mục đích
@@ -77,6 +77,24 @@ chunks, khóa chính, khóa phụ, index và seed demo.
 ```
 
 Đọc để có cái nhìn tổng thể về kiến trúc, luồng dữ liệu, API, database, security và phases triển khai.
+
+### 9. API Roles & Permissions
+
+```txt
+API_ROLES.md
+```
+
+Nguồn duy nhất tổng hợp danh sách Backend API (`/api/v1/**`), method, path, role
+được phép truy cập và tham số lọc/phân trang.
+
+### 10. BE-09 Admin Teacher Management Design
+
+```txt
+BE09_TEACHER_MANAGEMENT_DESIGN.md
+```
+
+Thiết kế chi tiết cho bộ API quản lý Teacher của Admin, bao gồm tạo đơn lẻ,
+tạo hàng loạt, cập nhật, activate/deactivate và reset password.
 
 ## 3. Quyết định đã khóa
 
