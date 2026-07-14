@@ -229,7 +229,7 @@ Các bước đã pass:
 10. Gọi trực tiếp AI `POST /v1/answer-question` với `document_ids=[2]` trả answer, `not_found=false` và citation thật.
 11. Snapshot cũ: review/library từng pass khi set `PROCESSED` thủ công. Flow mới phải submit review ở `ANALYZED`, còn `PROCESSED` chỉ dùng sau khi index RAG xong.
 
-Blocker còn lại cho core E2E:
+Blocker tại thời điểm snapshot 11/07:
 
 ```txt
 BE-04 đang cần chốt: Backend upload xong gọi AI `/v1/analyze-document` và cập nhật `ANALYZED/FAILED`.
@@ -239,13 +239,15 @@ BE-08 chưa có: Backend chưa có RAG proxy `/api/v1/rag/answer` để kiểm q
 Frontend chưa có app để chạy demo UI.
 ```
 
+Ghi chú cập nhật 14/07: các blocker Backend BE-04/05/06/08 ở snapshot này đã được hoàn thành. Trạng thái hiện tại xem bảng tracking mục 6.1 và snapshot 6.8.
+
 Kết luận snapshot:
 
 ```txt
 AI Service core đã chạy được với database/file thật.
 Docker/shared volume đã chạy được.
 Backend document/review/library đã chạy được từng phần.
-MVP chưa E2E hoàn chỉnh vì thiếu Backend auto-processing worker và RAG proxy.
+Tại thời điểm 11/07, MVP chưa E2E hoàn chỉnh vì còn thiếu Backend auto-processing worker và RAG proxy.
 ```
 
 ### 6.7. Snapshot kiểm thử thực tế 12/07/2026
@@ -282,7 +284,7 @@ UPLOADED → ANALYZING → ANALYZED → submit review → PENDING_REVIEW
 → hỏi RAG / gen quiz
 ```
 
-Blocker còn lại cho core E2E:
+Blocker tại thời điểm snapshot 12/07:
 
 ```txt
 BE-04 đang adjust: analyze success phải cập nhật ANALYZED thay vì PROCESSED.
@@ -292,6 +294,8 @@ BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer.
 AI Service đã có `/v1/index-document`; endpoint này reuse logic `/v1/process-document` để index RAG sau Admin approve.
 Frontend chưa có app để chạy demo UI.
 ```
+
+Ghi chú cập nhật 14/07: BE-04/05/06/08 đã DONE; Backend RAG proxy `POST /api/v1/rag/answer` đã có và đã test qua Docker. Phần còn lại cho INT-02 là Frontend nối API thật và E2E không can thiệp DB.
 
 ### 6.8. Snapshot kiểm thử thực tế 14/07/2026
 
