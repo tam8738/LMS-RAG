@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BookOpen,
   Sparkles,
@@ -24,6 +24,14 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -41,7 +49,8 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
     try {
       const user = await authService.login(trimmedEmail, password);
       setSuccess("Đăng nhập thành công! Đang chuyển hướng...");
-      setTimeout(() => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = setTimeout(() => {
         setLoading(false);
         onLogin(user);
       }, 600);

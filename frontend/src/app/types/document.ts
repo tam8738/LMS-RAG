@@ -40,3 +40,32 @@ export interface Document {
   publishedAt?: string;
   reviewedByName?: string;
 }
+
+export interface DocumentResponseDTO {
+  id: number;
+  title: string;
+  description?: string;
+  subject: string;
+  topic: string;
+  chapter?: string;
+  tags?: string[];
+  uploadedBy?: number;
+  uploaderName?: string;
+  createdAt: string;
+  updatedAt: string;
+  fileType?: "PDF" | "TXT";
+  fileSize: number;
+  mimeType?: string;
+  storageKey?: string;
+  ragEligible?: boolean;
+  pageCount?: number;
+  estimatedChunkCount?: number;
+  chunkCount?: number;
+  processingStatus?: ProcessingStatus;
+  publicationStatus?: PublicationStatus;
+  rejectionReason?: string;
+  errorMessage?: string;
+  reviewedAt?: string;
+  publishedAt?: string;
+  reviewerName?: string;
+}

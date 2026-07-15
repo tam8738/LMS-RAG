@@ -22,6 +22,16 @@ export function AdminReviewDetailPage({
   const [showApprove, setShowApprove] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
+  const [approveError, setApproveError] = useState("");
+  const [rejectError, setRejectError] = useState("");
+
+  const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -52,40 +62,41 @@ export function AdminReviewDetailPage({
 
   const handleActionComplete = (msg: string) => {
     setToast({ msg, type: 'success' });
-    setTimeout(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
       setToast(null);
       onBack(); // navigate back to queue after action
     }, 1500);
   };
 
   const handleApprove = async () => {
-    setShowApprove(false);
     if (isSubmitting) return;
     setIsSubmitting(true);
-    setError("");
+    setApproveError("");
     try {
       const updated = await adminReviewService.approveReview(documentId);
       setDoc(updated);
       handleActionComplete("Đã phê duyệt tài liệu thành công");
+      setShowApprove(false);
     } catch (err: any) {
       console.error("Failed to approve document", err);
-      setError(mapSubmitReviewError(err));
+      setApproveError(mapSubmitReviewError(err));
       setIsSubmitting(false);
     }
   };
 
   const handleReject = async (reason: string) => {
-    setShowReject(false);
     if (isSubmitting) return;
     setIsSubmitting(true);
-    setError("");
+    setRejectError("");
     try {
       const updated = await adminReviewService.rejectReview(documentId, reason);
       setDoc(updated);
       handleActionComplete("Đã từ chối tài liệu thành công");
+      setShowReject(false);
     } catch (err: any) {
       console.error("Failed to reject document", err);
-      setError(mapSubmitReviewError(err));
+      setRejectError(mapSubmitReviewError(err));
       setIsSubmitting(false);
     }
   };
@@ -222,16 +233,28 @@ export function AdminReviewDetailPage({
         title="Phê duyệt tài liệu"
         message="Tài liệu này sẽ được xuất bản công khai vào Thư viện và Giảng viên, Sinh viên có thể truy cập."
         confirmText="Xác nhận Phê duyệt"
+        isSubmitting={isSubmitting}
+        error={approveError}
         onConfirm={handleApprove}
-        onClose={() => setShowApprove(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setShowApprove(false);
+            setApproveError("");
+          }
+        }}
       />
-
-
 
       <RejectDialog
         isOpen={showReject}
+        isSubmitting={isSubmitting}
+        error={rejectError}
         onReject={handleReject}
-        onClose={() => setShowReject(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setShowReject(false);
+            setRejectError("");
+          }
+        }}
       />
 
     </div>

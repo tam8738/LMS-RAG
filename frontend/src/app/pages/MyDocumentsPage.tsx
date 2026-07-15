@@ -51,23 +51,38 @@ export function MyDocumentsPage({
     loadDocuments(page);
   }, [page, user.id]);
 
+  const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, []);
+
   const handleSubmitReview = (id: number) => {
     setSubmitTargetId(id);
+    setSubmitError("");
   };
 
   const handleConfirmSubmit = async () => {
     if (!submitTargetId) return;
     const id = submitTargetId;
-    setSubmitTargetId(null);
-    setError("");
+    setIsSubmitting(true);
+    setSubmitError("");
     try {
       await teacherDocumentService.submitDocumentForReview(id);
       setSubmitSuccess(true);
-      setTimeout(() => setSubmitSuccess(false), 4000);
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+      submitTimerRef.current = setTimeout(() => setSubmitSuccess(false), 4000);
+      setSubmitTargetId(null);
       loadDocuments(page);
     } catch (err: any) {
       console.error("Failed to submit review", err);
-      setError(mapSubmitReviewError(err));
+      setSubmitError(mapSubmitReviewError(err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -254,8 +269,15 @@ export function MyDocumentsPage({
         confirmText="Gửi duyệt"
         cancelText="Hủy"
         isDestructive={false}
+        isSubmitting={isSubmitting}
+        error={submitError}
         onConfirm={handleConfirmSubmit}
-        onClose={() => setSubmitTargetId(null)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setSubmitTargetId(null);
+            setSubmitError("");
+          }
+        }}
       />
     </div>
   );

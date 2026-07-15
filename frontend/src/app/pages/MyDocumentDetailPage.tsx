@@ -27,6 +27,14 @@ export function MyDocumentDetailPage({
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     let active = true;
     const loadDetail = async () => {
@@ -119,7 +127,6 @@ export function MyDocumentDetailPage({
   };
 
   const handleSubmitConfirm = async () => {
-    setIsConfirmOpen(false);
     if (isSubmitting || !doc) return;
     setIsSubmitting(true);
     setSubmitError("");
@@ -128,7 +135,9 @@ export function MyDocumentDetailPage({
       const updated = await teacherDocumentService.submitDocumentForReview(doc.id);
       setDoc(updated);
       setSubmitSuccess(true);
-      setTimeout(() => setSubmitSuccess(false), 4000);
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+      submitTimerRef.current = setTimeout(() => setSubmitSuccess(false), 4000);
+      setIsConfirmOpen(false); // Close on success
     } catch (err: any) {
       console.error("Failed to submit review", err);
       setSubmitError(mapSubmitReviewError(err));
@@ -306,8 +315,15 @@ export function MyDocumentDetailPage({
         confirmText="Gửi duyệt"
         cancelText="Hủy"
         isDestructive={false}
+        isSubmitting={isSubmitting}
+        error={submitError}
         onConfirm={handleSubmitConfirm}
-        onClose={() => setIsConfirmOpen(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setIsConfirmOpen(false);
+            setSubmitError("");
+          }
+        }}
       />
     </div>
   );

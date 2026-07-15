@@ -24,6 +24,15 @@ export function LibraryDocumentDetailPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
+  const [archiveError, setArchiveError] = useState("");
+
+  const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -53,20 +62,21 @@ export function LibraryDocumentDetailPage({
   }, [documentId]);
 
   const handleArchive = async () => {
-    setShowArchive(false);
     if (isSubmitting) return;
     setIsSubmitting(true);
-    setError("");
+    setArchiveError("");
     try {
       await adminReviewService.archiveDocument(documentId);
       setToast({ msg: "Đã đưa tài liệu vào kho lưu trữ", type: 'success' });
-      setTimeout(() => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
         setToast(null);
+        setShowArchive(false);
         onBack();
       }, 1500);
     } catch (err: any) {
       console.error("Failed to archive document", err);
-      setError(err.message || "Lưu trữ tài liệu thất bại.");
+      setArchiveError(err.message || "Lưu trữ tài liệu thất bại.");
       setIsSubmitting(false);
     }
   };
@@ -162,8 +172,15 @@ export function LibraryDocumentDetailPage({
         message="Tài liệu sẽ bị ẩn khỏi Thư viện công cộng nhưng vẫn giữ lại trong hệ thống quản trị."
         confirmText="Lưu trữ"
         isDestructive={true}
+        isSubmitting={isSubmitting}
+        error={archiveError}
         onConfirm={handleArchive}
-        onClose={() => setShowArchive(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setShowArchive(false);
+            setArchiveError("");
+          }
+        }}
       />
     </div>
   );

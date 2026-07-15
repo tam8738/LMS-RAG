@@ -166,7 +166,20 @@ export function RagChatPanel({
                       Tài liệu đang chờ Admin phê duyệt. Tính năng Hỏi đáp AI sẽ tự động kích hoạt sau khi tài liệu được phê duyệt và hoàn tất lập chỉ mục RAG.
                     </p>
                   </>
-                ) : document.processingStatus === "ANALYZED" && (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") ? (
+                ) : document.processingStatus === "ANALYZED" && document.publicationStatus === "REJECTED" ? (
+                  <>
+                    <AlertCircle className="w-8 h-8 text-red-600 mb-3" />
+                    <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Tài liệu bị từ chối phê duyệt</h4>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed w-full">
+                      Tài liệu này đã bị từ chối phê duyệt. Vui lòng cập nhật thông tin hoặc file tài liệu, sau đó bấm <strong>"Gửi duyệt"</strong> lại để bắt đầu lại quy trình kiểm duyệt.
+                    </p>
+                    {document.rejectReason && (
+                      <div className="mt-3 p-3 bg-red-50/50 border border-red-100 rounded-xl text-[12px] text-red-700 text-left w-full leading-relaxed">
+                        <strong>Lý do từ chối:</strong> {document.rejectReason}
+                      </div>
+                    )}
+                  </>
+                ) : document.processingStatus === "ANALYZED" && document.publicationStatus === "DRAFT" ? (
                   <>
                     <Clock className="w-8 h-8 text-amber-650 mb-3" />
                     <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Chờ gửi duyệt & lập chỉ mục</h4>

@@ -1,34 +1,13 @@
 import { User } from "../types";
+import { apiFetch } from "./apiClient";
 
 export const authService = {
   /**
    * Fetch the current authenticated user's profile from the server
    */
   async getCurrentUserFromServer(): Promise<User> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("No token found");
-    }
-
-    const response = await fetch("/api/v1/auth/me", {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      this.logout();
-      window.dispatchEvent(new Event("auth-unauthorized"));
-      throw new Error("Unauthorized or Forbidden");
-    }
-
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.error?.message || result.message || "Failed to fetch user profile.");
-    }
-
-    const user = result.data;
+    const response = await apiFetch<any>("/api/v1/auth/me");
+    const user = response.data;
     if (user && user.status === "INACTIVE") {
       this.logout();
       throw new Error("Tài khoản của bạn đã bị vô hiệu hóa.");
@@ -44,21 +23,12 @@ export const authService = {
    */
   async login(email: string, password: string): Promise<User> {
     const trimmedEmail = email.trim();
-    const response = await fetch("/api/v1/auth/login", {
+    const response = await apiFetch<any>("/api/v1/auth/login", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({ email: trimmedEmail, password }),
     });
 
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error?.message || result.message || "Đăng nhập thất bại.");
-    }
-
-    const token = result.data.accessToken;
+    const token = response.data.accessToken;
     if (!token) {
       throw new Error("Không nhận được token từ máy chủ.");
     }

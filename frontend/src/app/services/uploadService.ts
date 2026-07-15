@@ -1,6 +1,6 @@
 import { DocumentCreateRequest } from "../types/upload";
 import { Document } from "../types/document";
-import { mapBackendDocToFrontend } from "./teacherDocumentService";
+import { mapBackendDocToFrontend } from "../mappers/documentMapper";
 
 export const uploadService = {
   /**
