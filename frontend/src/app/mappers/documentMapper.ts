@@ -27,5 +27,8 @@ export const mapBackendDocToFrontend = (doc: DocumentResponseDTO): Document => (
   failReason: doc.errorMessage,
   reviewedAt: formatDate(doc.reviewedAt),
   publishedAt: formatDate(doc.publishedAt),
-  reviewedByName: doc.reviewerName
+  reviewedByName: doc.reviewerName,
+  originalFilename: doc.originalFilename,
+  fileVersion: doc.fileVersion
 });
+

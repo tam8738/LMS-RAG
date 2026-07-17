@@ -61,8 +61,14 @@ export function MyDocumentsPage({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Reprocess RAG states
+  const [reprocessTargetId, setReprocessTargetId] = useState<number | null>(null);
+  const [isReprocessing, setIsReprocessing] = useState(false);
+  const [reprocessError, setReprocessError] = useState("");
+
   // General notification states
   const [successToast, setSuccessToast] = useState("");
+
 
   const [filters, setFilters] = useState<MyDocsFilterState>({
     q: "",
@@ -70,8 +76,8 @@ export function MyDocumentsPage({
     publication_status: "ALL"
   });
 
-  const loadDocuments = async (pageNum: number) => {
-    setLoading(true);
+  const loadDocuments = async (pageNum: number, silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
     try {
       const result = await teacherDocumentService.getMyDocuments(pageNum);
@@ -80,15 +86,39 @@ export function MyDocumentsPage({
       setTotalElements(result.totalElements);
     } catch (err: any) {
       console.error("Failed to load documents", err);
-      setError(err.message || "Không thể kết nối đến máy chủ để lấy danh sách tài liệu.");
+      if (!silent) {
+        setError(err.message || "Không thể kết nối đến máy chủ để lấy danh sách tài liệu.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadDocuments(page);
   }, [page, user.id]);
+
+  // Polling hook to monitor active AI analysis/indexing jobs in real-time
+  useEffect(() => {
+    const hasActiveProcessing = docs.some(
+      (doc) =>
+        doc.processingStatus === "UPLOADED" ||
+        doc.processingStatus === "ANALYZING" ||
+        doc.processingStatus === "PROCESSING"
+    );
+
+    if (!hasActiveProcessing) return;
+
+    const intervalId = setInterval(() => {
+      loadDocuments(page, true); // silent load to prevent loading skeletons flickering
+    }, 2500);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [docs, page]);
+
 
   const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -273,17 +303,29 @@ export function MyDocumentsPage({
   };
 
   // Reprocess RAG handler
-  const handleRetryProcessingClick = async (id: number) => {
+  const handleRetryProcessingClick = (id: number) => {
+    setReprocessTargetId(id);
+    setReprocessError("");
+  };
+
+  const handleConfirmReprocess = async () => {
+    if (!reprocessTargetId) return;
+    setIsReprocessing(true);
+    setReprocessError("");
     try {
-      await teacherDocumentService.reprocessRag(id);
+      await teacherDocumentService.reprocessRag(reprocessTargetId);
       setSuccessToast("Đã gửi yêu cầu lập chỉ mục lại tài liệu.");
       setTimeout(() => setSuccessToast(""), 4000);
+      setReprocessTargetId(null);
       loadDocuments(page);
     } catch (err: any) {
       console.error("Failed to reprocess RAG", err);
-      setError(err.message || "Không thể yêu cầu lập chỉ mục lại tài liệu.");
+      setReprocessError(err.message || "Không thể yêu cầu lập chỉ mục lại tài liệu.");
+    } finally {
+      setIsReprocessing(false);
     }
   };
+
 
   const filteredDocs = docs.filter(d => {
     if (filters.processing_status !== "ALL" && d.processingStatus !== filters.processing_status) return false;
@@ -405,7 +447,9 @@ export function MyDocumentsPage({
                         onSubmitReview={handleSubmitReview}
                         onDownload={() => {}}
                         onRetryProcessing={handleRetryProcessingClick}
+                        disabled={loading || isSavingMetadata || isReplacingFile || isDeleting || isSubmitting}
                       />
+
                     </td>
                   </tr>
                 ))}
@@ -699,6 +743,25 @@ export function MyDocumentsPage({
           if (!isSubmitting) {
             setSubmitTargetId(null);
             setSubmitError("");
+          }
+        }}
+      />
+
+      {/* Reprocess RAG Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={reprocessTargetId !== null}
+        title="Lập chỉ mục lại tài liệu?"
+        message="Hệ thống sẽ thực hiện trích xuất và lập chỉ mục RAG lại cho tài liệu này. Bạn có chắc chắn muốn thực hiện?"
+        confirmText="Đồng ý"
+        cancelText="Hủy"
+        isDestructive={false}
+        isSubmitting={isReprocessing}
+        error={reprocessError}
+        onConfirm={handleConfirmReprocess}
+        onClose={() => {
+          if (!isReprocessing) {
+            setReprocessTargetId(null);
+            setReprocessError("");
           }
         }}
       />

@@ -79,6 +79,83 @@ export const teacherDocumentService = {
   },
 
   /**
+   * Update metadata and/or replace document file with real upload progress tracking and abort callback
+   */
+  updateDocumentWithProgress(
+    documentId: number,
+    metadata: {
+      title?: string;
+      description?: string;
+      subject?: string;
+      topic?: string;
+      chapter?: string;
+      tags?: string[];
+    },
+    file?: File,
+    onProgress?: (percent: number) => void,
+    onCancelRegistration?: (cancelFn: () => void) => void
+  ): Promise<Document> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      if (onCancelRegistration) {
+        onCancelRegistration(() => {
+          xhr.abort();
+        });
+      }
+
+      if (xhr.upload && onProgress) {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        });
+      }
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            resolve(mapBackendDocToFrontend(parsed.data));
+          } catch (e) {
+            reject(new Error("Không thể giải mã dữ liệu trả về từ máy chủ."));
+          }
+        } else {
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            reject(new Error(parsed.message || `Yêu cầu thất bại với mã lỗi HTTP ${xhr.status}`));
+          } catch (e) {
+            reject(new Error(`Yêu cầu thất bại với mã lỗi HTTP ${xhr.status}`));
+          }
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        reject(new Error("Lỗi kết nối mạng hoặc không thể kết nối đến máy chủ."));
+      });
+
+      xhr.open("PATCH", `/api/v1/my/documents/${documentId}`);
+      
+      const token = localStorage.getItem("token");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+
+      const formData = new FormData();
+      const metadataBlob = new Blob([JSON.stringify(metadata)], {
+        type: "application/json",
+      });
+      formData.append("metadata", metadataBlob);
+      if (file) {
+        formData.append("file", file);
+      }
+
+      xhr.send(formData);
+    });
+  },
+
+  /**
    * Delete a document
    */
   async deleteDocument(documentId: number): Promise<void> {
@@ -100,4 +177,5 @@ export const teacherDocumentService = {
     return mapBackendDocToFrontend(response.data);
   }
 };
+
 

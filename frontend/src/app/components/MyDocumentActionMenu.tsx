@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 import { Document } from "../types";
 import { MoreHorizontal, Eye, Edit2, Replace, Trash2, Send, Download, RefreshCw } from "lucide-react";
 import { 
-  canEditMetadata, 
-  canReplaceFile, 
-  canDeleteDocument, 
-  canRetryProcessing, 
-  canSubmitDocumentForReview 
+  canEditDocumentMetadata,
+  canReplaceDocumentFile,
+  canSubmitDocumentForReview,
+  canDeleteDocument,
+  canRetryProcessing
 } from "../utils/documentHelpers";
+
 
 interface ActionMenuProps {
   document: Document;
@@ -19,13 +20,16 @@ interface ActionMenuProps {
   onSubmitReview: (id: number) => void;
   onDownload: (id: number) => void;
   onRetryProcessing: (id: number) => void;
+  disabled?: boolean;
 }
 
 export function MyDocumentActionMenu({
   document: doc,
-  onView, onEdit, onReplace, onDelete, onSubmitReview, onDownload, onRetryProcessing
+  onView, onEdit, onReplace, onDelete, onSubmitReview, onDownload, onRetryProcessing,
+  disabled = false
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
+
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuCoords, setMenuCoords] = useState({ top: 0, left: 0, isBelow: true });
@@ -34,13 +38,13 @@ export function MyDocumentActionMenu({
   const aiStatus = doc.processingStatus;
 
   // Use centralized helpers
-  const showEdit = canEditMetadata(doc);
-  const showReplace = canReplaceFile(doc);
+  const showEdit = canEditDocumentMetadata(doc);
+  const showReplace = canReplaceDocumentFile(doc);
   const showDelete = canDeleteDocument(doc);
   const showSubmit = canSubmitDocumentForReview(doc);
   const showRetry = canRetryProcessing(doc);
-  // Owner can usually see download button if the document is in a valid state
-  const showDownload = pStatus === "PUBLISHED" || pStatus === "DRAFT" || pStatus === "REJECTED" || pStatus === "PENDING_REVIEW";
+  const showDownload = showEdit || showSubmit || showDelete || pStatus === "PENDING_REVIEW" || pStatus === "PUBLISHED";
+
 
   useEffect(() => {
     if (!open) return;
@@ -80,8 +84,12 @@ export function MyDocumentActionMenu({
 
   useEffect(() => {
     if (!open) return;
+    
+    const firstItem = menuRef.current?.querySelector('button[role="menuitem"]:not([disabled])') as HTMLElement;
+    firstItem?.focus();
 
     function handleClickOutside(e: MouseEvent) {
+
       if (
         menuRef.current && !menuRef.current.contains(e.target as Node) &&
         triggerRef.current && !triggerRef.current.contains(e.target as Node)
@@ -94,8 +102,27 @@ export function MyDocumentActionMenu({
       if (e.key === "Escape") {
         setOpen(false);
         triggerRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const focusable = menuRef.current?.querySelectorAll('button[role="menuitem"]:not([disabled])');
+        if (!focusable || focusable.length === 0) return;
+
+        const index = Array.from(focusable).indexOf(document.activeElement as Element);
+        let nextIndex = index;
+
+        if (e.key === "ArrowDown") {
+          nextIndex = index === -1 ? 0 : (index + 1) % focusable.length;
+        } else if (e.key === "ArrowUp") {
+          nextIndex = index === -1 ? focusable.length - 1 : (index - 1 + focusable.length) % focusable.length;
+        }
+
+        (focusable[nextIndex] as HTMLElement).focus();
       }
     }
+
 
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
@@ -111,17 +138,23 @@ export function MyDocumentActionMenu({
       <button
         ref={triggerRef}
         type="button"
+        disabled={disabled}
         onClick={(e) => {
           e.stopPropagation();
           setOpen(!open);
         }}
-        className="w-8 h-8 rounded-lg text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] flex items-center justify-center transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+          disabled 
+            ? "text-[#C2BFB8]/50 cursor-not-allowed bg-transparent border-none" 
+            : "text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] cursor-pointer border-none bg-transparent"
+        }`}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label="Menu thao tác"
       >
         <MoreHorizontal className="w-4 h-4" />
       </button>
+
 
       {open && createPortal(
         <div

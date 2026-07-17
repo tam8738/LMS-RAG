@@ -29,6 +29,9 @@ export interface Document {
   ragEligible?: boolean;
   pageCount?: number;
   chunkCount?: number;
+  originalFilename?: string;
+  fileVersion?: number;
+
   
   processingStatus: ProcessingStatus;
   publicationStatus: PublicationStatus;
@@ -68,4 +71,7 @@ export interface DocumentResponseDTO {
   reviewedAt?: string;
   publishedAt?: string;
   reviewerName?: string;
+  originalFilename?: string;
+  fileVersion?: number;
 }
+

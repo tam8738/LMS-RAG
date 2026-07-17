@@ -54,43 +54,24 @@ export function canUseDocumentRag(document: DocumentStatusScope): boolean {
   );
 }
 
-/**
- * Check if the teacher can edit the metadata of the document.
- * Allowed in: DRAFT/REJECTED + ANALYZED
- */
-export function canEditMetadata(document: DocumentStatusScope): boolean {
-  return (
-    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") &&
-    document.processingStatus === "ANALYZED"
-  );
+
+export function canEditDocumentMetadata(document: DocumentStatusScope): boolean {
+  return document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED";
 }
 
-/**
- * Check if the teacher can replace the document file.
- * Allowed in: DRAFT/REJECTED + ANALYZED/FAILED
- */
-export function canReplaceFile(document: DocumentStatusScope): boolean {
-  return (
-    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") &&
-    (document.processingStatus === "ANALYZED" || document.processingStatus === "FAILED")
-  );
+export function canReplaceDocumentFile(document: DocumentStatusScope): boolean {
+  return document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED";
 }
 
-/**
- * Check if the teacher can delete the document.
- * Allowed in: DRAFT/REJECTED (any processing status)
- */
 export function canDeleteDocument(document: DocumentStatusScope): boolean {
   return document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED";
 }
 
-/**
- * Check if the teacher can retry AI processing (reprocess RAG).
- * Allowed in: PUBLISHED + FAILED
- */
 export function canRetryProcessing(document: DocumentStatusScope): boolean {
+
   return document.publicationStatus === "PUBLISHED" && document.processingStatus === "FAILED";
 }
+
 
 /**
  * Maps backend business error codes to user-friendly Vietnamese messages.
