@@ -6,7 +6,7 @@ import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
-import { isDocumentAiReady, isDocumentAiFailed, isDocumentAiProcessing, canUseRag, canSubmitDocumentForReview, mapSubmitReviewError } from "../utils/documentHelpers";
+import { isAnalysisInProgress, isAnalysisComplete, isRagIndexing, isRagReady, isProcessingFailed, canSubmitDocumentForReview, canUseDocumentRag, mapSubmitReviewError } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 
 export function MyDocumentDetailPage({ 
@@ -64,7 +64,7 @@ export function MyDocumentDetailPage({
 
   // Poll for document status updates while the document is processing
   useEffect(() => {
-    if (!doc || !isDocumentAiProcessing(doc.processingStatus) || pollingTimeoutReached) {
+    if (!doc || (!isAnalysisInProgress(doc.processingStatus) && !isRagIndexing(doc.processingStatus)) || pollingTimeoutReached) {
       return;
     }
 
@@ -172,7 +172,7 @@ export function MyDocumentDetailPage({
   // Rules
   const canEdit = pStatus === "DRAFT" || pStatus === "REJECTED";
   const canSubmit = canSubmitDocumentForReview(doc);
-  const ragEligible = canUseRag(aiStatus, doc.ragEligible);
+  const ragEligible = canUseDocumentRag(doc);
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
@@ -269,7 +269,7 @@ export function MyDocumentDetailPage({
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-0 overflow-y-auto pr-1 scrollbar-hide">
           
           {/* Banners */}
-          {isDocumentAiFailed(aiStatus) && doc.failReason && (
+          {isProcessingFailed(aiStatus) && doc.failReason && (
             <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
           )}
           {pStatus === "REJECTED" && doc.rejectReason && (
@@ -303,6 +303,7 @@ export function MyDocumentDetailPage({
             isTimeout={pollingTimeoutReached}
             onRetry={handleRetryCheck}
             onBack={onBack}
+            isOwner={true}
           />
         </div>
         

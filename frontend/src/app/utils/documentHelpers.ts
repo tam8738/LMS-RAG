@@ -1,57 +1,95 @@
 import { ProcessingStatus, PublicationStatus } from "../types";
 
-/**
- * Transitional compatibility only.
- * Remove PROCESSING and PROCESSED after backend enum
- * and persisted data migration are complete.
- */
-
-/**
- * Checks if the document AI analysis/indexing is completed and ready.
- * 
- * TODO: Remove legacy 'PROCESSED' status check after backend/data migration is complete.
- */
-export function isDocumentAiReady(status: ProcessingStatus): boolean {
-  return status === "ANALYZED" || status === "PROCESSED";
+export interface DocumentStatusScope {
+  processingStatus: ProcessingStatus;
+  publicationStatus: PublicationStatus;
+  ragEligible?: boolean;
 }
 
-/**
- * Checks if the document is in the processing pipeline (uploaded, analyzing, or indexing).
- * 
- * TODO: Remove legacy 'UPLOADED' and 'PROCESSING' status checks after backend/data migration is complete.
- */
-export function isDocumentAiProcessing(status: ProcessingStatus): boolean {
-  return status === "UPLOADED" || status === "ANALYZING" || status === "PROCESSING";
+export function isAnalysisInProgress(status: ProcessingStatus): boolean {
+  return status === "UPLOADED" || status === "ANALYZING";
 }
 
-/**
- * Checks if the document processing has failed.
- */
-export function isDocumentAiFailed(status: ProcessingStatus): boolean {
+export function isAnalysisComplete(status: ProcessingStatus): boolean {
+  return status === "ANALYZED";
+}
+
+export function isRagIndexing(status: ProcessingStatus): boolean {
+  return status === "PROCESSING";
+}
+
+export function isRagReady(status: ProcessingStatus): boolean {
+  return status === "PROCESSED";
+}
+
+export function isProcessingFailed(status: ProcessingStatus): boolean {
   return status === "FAILED";
 }
 
 /**
- * Checks if the document is strictly eligible and ready for RAG querying.
+ * Checks if a document is eligible to be submitted for review.
+ * Requirements:
+ * - processingStatus === ANALYZED
+ * - publicationStatus === DRAFT or REJECTED
  */
-export function canUseRag(status: ProcessingStatus, ragEligible: boolean | undefined): boolean {
-  return status === "PROCESSED" && ragEligible === true;
+export function canSubmitDocumentForReview(document: DocumentStatusScope): boolean {
+  return (
+    document.processingStatus === "ANALYZED" &&
+    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED")
+  );
 }
 
 /**
- * Checks if a document is eligible to be submitted for review.
- * Rules:
- * 1. AI processing status is completed and ready (ANALYZED or PROCESSED).
- * 2. Publication status is DRAFT or REJECTED.
+ * Checks if a document is strictly eligible and ready for RAG querying.
+ * Requirements:
+ * - processingStatus === PROCESSED
+ * - publicationStatus === PUBLISHED
+ * - ragEligible === true
  */
-export function canSubmitDocumentForReview(document: {
-  processingStatus: ProcessingStatus;
-  publicationStatus: PublicationStatus;
-}): boolean {
+export function canUseDocumentRag(document: DocumentStatusScope): boolean {
   return (
-    isDocumentAiReady(document.processingStatus) &&
-    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED")
+    document.processingStatus === "PROCESSED" &&
+    document.publicationStatus === "PUBLISHED" &&
+    document.ragEligible === true
   );
+}
+
+/**
+ * Check if the teacher can edit the metadata of the document.
+ * Allowed in: DRAFT/REJECTED + ANALYZED
+ */
+export function canEditMetadata(document: DocumentStatusScope): boolean {
+  return (
+    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") &&
+    document.processingStatus === "ANALYZED"
+  );
+}
+
+/**
+ * Check if the teacher can replace the document file.
+ * Allowed in: DRAFT/REJECTED + ANALYZED/FAILED
+ */
+export function canReplaceFile(document: DocumentStatusScope): boolean {
+  return (
+    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED") &&
+    (document.processingStatus === "ANALYZED" || document.processingStatus === "FAILED")
+  );
+}
+
+/**
+ * Check if the teacher can delete the document.
+ * Allowed in: DRAFT/REJECTED (any processing status)
+ */
+export function canDeleteDocument(document: DocumentStatusScope): boolean {
+  return document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED";
+}
+
+/**
+ * Check if the teacher can retry AI processing (reprocess RAG).
+ * Allowed in: PUBLISHED + FAILED
+ */
+export function canRetryProcessing(document: DocumentStatusScope): boolean {
+  return document.publicationStatus === "PUBLISHED" && document.processingStatus === "FAILED";
 }
 
 /**
@@ -72,4 +110,6 @@ export function mapSubmitReviewError(err: any): string {
       return err?.message || "Không thể gửi duyệt. Vui lòng thử lại.";
   }
 }
+
+
 

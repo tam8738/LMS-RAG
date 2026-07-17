@@ -1,7 +1,7 @@
 import React from "react";
 import { Document } from "../types";
 import { FileText, ChevronRight } from "lucide-react";
-import { isDocumentAiReady, isDocumentAiProcessing, isDocumentAiFailed } from "../utils/documentHelpers";
+import { isAnalysisInProgress, isAnalysisComplete, isProcessingFailed } from "../utils/documentHelpers";
 
 export function AdminReviewTable({ 
   documents, 
@@ -50,13 +50,14 @@ export function AdminReviewTable({
                 </td>
                 <td className="px-5 py-4 align-top pt-5">
                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-                    isDocumentAiProcessing(doc.processingStatus) ? "text-amber-700 bg-amber-50" :
-                    isDocumentAiReady(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" :
-                    isDocumentAiFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
+                    isAnalysisInProgress(doc.processingStatus) ? "text-amber-700 bg-amber-50" :
+                    isAnalysisComplete(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" :
+                    isProcessingFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
                   }`}>
-                    {isDocumentAiProcessing(doc.processingStatus) ? (doc.processingStatus === "ANALYZING" ? "Đang phân tích AI" : "Đang xử lý AI") : 
-                     isDocumentAiReady(doc.processingStatus) ? "Đã xử lý" :
-                     isDocumentAiFailed(doc.processingStatus) ? "Lỗi xử lý" : "Đã tải lên"}
+                    {doc.processingStatus === "UPLOADED" ? "Đã tải lên" :
+                     doc.processingStatus === "ANALYZING" ? "Đang phân tích tài liệu" :
+                     doc.processingStatus === "ANALYZED" ? "Đã phân tích — sẵn sàng gửi duyệt" :
+                     isProcessingFailed(doc.processingStatus) ? "Phân tích tài liệu thất bại" : doc.processingStatus}
                   </span>
                 </td>
                 <td className="px-5 py-4 align-top pt-5 text-[12px] text-[#6B6963] font-mono-label">

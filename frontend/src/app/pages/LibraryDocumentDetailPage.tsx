@@ -6,7 +6,7 @@ import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Download, FileText, Archive, AlertTriangle, Check } from "lucide-react";
 import { libraryService } from "../services/libraryService";
 import { adminReviewService } from "../services/adminReviewService";
-import { canUseRag } from "../utils/documentHelpers";
+import { canUseDocumentRag } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 
 export function LibraryDocumentDetailPage({ 
@@ -98,7 +98,7 @@ export function LibraryDocumentDetailPage({
 
   if (!doc) return <PageLoading />;
 
-  const ragEligible = canUseRag(doc.processingStatus, doc.ragEligible);
+  const ragEligible = canUseDocumentRag(doc);
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">

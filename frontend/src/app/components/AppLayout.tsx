@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Role, Screen, User } from "../types";
 import { getNavForRole } from "../navigation";
 import { BookOpen, ChevronDown, User as UserIcon, LogOut, Menu, X } from "lucide-react";
@@ -25,6 +25,9 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout 
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navItems = getNavForRole(user.role);
+  
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   // Disable background scrolling when mobile menu is open
   useEffect(() => {
@@ -50,6 +53,59 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
+  }, [mobileMenuOpen]);
+
+  // Focus trap and restore for mobile drawer
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      // Small timeout to allow the element to render
+      const timer = setTimeout(() => {
+        if (!drawerRef.current) return;
+        const focusableElements = drawerRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length > 0) {
+          focusableElements[0].focus();
+        }
+      }, 50);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Tab") {
+          if (!drawerRef.current) return;
+          const focusableElements = Array.from(
+            drawerRef.current.querySelectorAll<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            )
+          );
+          if (focusableElements.length === 0) return;
+          
+          const first = focusableElements[0];
+          const last = focusableElements[focusableElements.length - 1];
+
+          if (e.shiftKey) {
+            if (document.activeElement === first) {
+              last.focus();
+              e.preventDefault();
+            }
+          } else {
+            if (document.activeElement === last) {
+              first.focus();
+              e.preventDefault();
+            }
+          }
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("keydown", handleKeyDown);
+        // Restore focus to hamburger button
+        setTimeout(() => {
+          hamburgerRef.current?.focus();
+        }, 0);
+      };
+    }
   }, [mobileMenuOpen]);
 
   return (
@@ -133,6 +189,7 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout 
 
             {/* Hamburger Button (Mobile) */}
             <button
+              ref={hamburgerRef}
               onClick={() => setMobileMenuOpen(true)}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-drawer"
@@ -157,6 +214,7 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout 
 
           {/* Drawer Content */}
           <div 
+            ref={drawerRef}
             id="mobile-drawer"
             role="dialog"
             aria-modal="true"

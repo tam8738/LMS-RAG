@@ -3,9 +3,16 @@ import { Document, User } from "../types";
 import { StatusFilterBar, MyDocsFilterState } from "../components/StatusFilterBar";
 import { MyDocumentActionMenu } from "../components/MyDocumentActionMenu";
 import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
-import { FileText, Plus, SearchX, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { FileText, Plus, SearchX, AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
-import { isDocumentAiReady, isDocumentAiProcessing, isDocumentAiFailed, mapSubmitReviewError } from "../utils/documentHelpers";
+import { 
+  isAnalysisInProgress, 
+  isAnalysisComplete, 
+  isRagIndexing, 
+  isRagReady, 
+  isProcessingFailed, 
+  mapSubmitReviewError 
+} from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 
 export function MyDocumentsPage({ 
@@ -23,8 +30,40 @@ export function MyDocumentsPage({
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [error, setError] = useState("");
+  
+  // Submit states
   const [submitTargetId, setSubmitTargetId] = useState<number | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  // Edit Metadata states
+  const [editTargetDoc, setEditTargetDoc] = useState<Document | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSubject, setEditSubject] = useState("");
+  const [editTopic, setEditTopic] = useState("");
+  const [editChapter, setEditChapter] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  // Replace File states
+  const [replaceTargetDoc, setReplaceTargetDoc] = useState<Document | null>(null);
+  const [replaceFileSelected, setReplaceFileSelected] = useState<File | null>(null);
+  const [isReplacingFile, setIsReplacingFile] = useState(false);
+  const [replaceError, setReplaceError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+
+  // Delete states
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  // General notification states
+  const [successToast, setSuccessToast] = useState("");
+
   const [filters, setFilters] = useState<MyDocsFilterState>({
     q: "",
     processing_status: "ALL",
@@ -52,8 +91,6 @@ export function MyDocumentsPage({
   }, [page, user.id]);
 
   const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     return () => {
@@ -86,6 +123,168 @@ export function MyDocumentsPage({
     }
   };
 
+  // Edit Action handlers
+  const handleEditClick = (id: number) => {
+    const doc = docs.find(d => d.id === id);
+    if (!doc) return;
+    setEditTargetDoc(doc);
+    setEditTitle(doc.title);
+    setEditDescription(doc.description || "");
+    setEditSubject(doc.subject);
+    setEditTopic(doc.topic || "");
+    setEditChapter(doc.chapter || "");
+    setEditTags(doc.tags ? doc.tags.join(", ") : "");
+    setEditError("");
+  };
+
+  const handleSaveMetadata = async () => {
+    if (!editTargetDoc) return;
+    if (!editTitle.trim()) {
+      setEditError("Tiêu đề không được để trống.");
+      return;
+    }
+    if (!editSubject.trim()) {
+      setEditError("Môn học không được để trống.");
+      return;
+    }
+    setIsSavingMetadata(true);
+    setEditError("");
+    try {
+      const parsedTags = editTags
+        .split(",")
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      await teacherDocumentService.updateDocument(editTargetDoc.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        subject: editSubject.trim(),
+        topic: editTopic.trim(),
+        chapter: editChapter.trim(),
+        tags: parsedTags,
+      });
+
+      setSuccessToast("Đã cập nhật thông tin tài liệu thành công.");
+      setTimeout(() => setSuccessToast(""), 4000);
+      setEditTargetDoc(null);
+      loadDocuments(page);
+    } catch (err: any) {
+      console.error("Failed to update metadata", err);
+      setEditError(err.message || "Đã xảy ra lỗi khi lưu thông tin tài liệu.");
+    } finally {
+      setIsSavingMetadata(false);
+    }
+  };
+
+  // Replace Action handlers
+  const handleReplaceClick = (id: number) => {
+    const doc = docs.find(d => d.id === id);
+    if (!doc) return;
+    setReplaceTargetDoc(doc);
+    setReplaceFileSelected(null);
+    setReplaceError("");
+  };
+
+  const handleReplaceFile = async () => {
+    if (!replaceTargetDoc || !replaceFileSelected) return;
+
+    const extension = replaceFileSelected.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'pdf' && extension !== 'txt') {
+      setReplaceError("Định dạng file không hợp lệ. Chỉ hỗ trợ .pdf hoặc .txt.");
+      return;
+    }
+    if (replaceFileSelected.size > 20 * 1024 * 1024) {
+      setReplaceError("Dung lượng file vượt quá giới hạn 20MB.");
+      return;
+    }
+
+    setIsReplacingFile(true);
+    setReplaceError("");
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 150);
+
+    try {
+      await teacherDocumentService.updateDocument(
+        replaceTargetDoc.id,
+        {
+          title: replaceTargetDoc.title,
+          description: replaceTargetDoc.description || undefined,
+          subject: replaceTargetDoc.subject,
+          topic: replaceTargetDoc.topic || undefined,
+          chapter: replaceTargetDoc.chapter || undefined,
+          tags: replaceTargetDoc.tags || undefined,
+        },
+        replaceFileSelected
+      );
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      setSuccessToast("Đã tải lên phiên bản file mới thành công.");
+      setTimeout(() => setSuccessToast(""), 4000);
+      setReplaceTargetDoc(null);
+      loadDocuments(page);
+    } catch (err: any) {
+      clearInterval(progressInterval);
+      console.error("Failed to replace file", err);
+      setReplaceError(err.message || "Đã xảy ra lỗi khi thay thế file mới.");
+    } finally {
+      setIsReplacingFile(false);
+    }
+  };
+
+
+  // Delete Action handlers
+  const handleDeleteClick = (id: number) => {
+    setDeleteTargetId(id);
+    setDeleteError("");
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return;
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await teacherDocumentService.deleteDocument(deleteTargetId);
+      setSuccessToast("Đã xóa tài liệu thành công.");
+      setTimeout(() => setSuccessToast(""), 4000);
+
+      const nextDocsLength = filteredDocs.length - 1;
+      if (nextDocsLength === 0 && page > 0) {
+        setPage(p => p - 1);
+      } else {
+        loadDocuments(page);
+      }
+      setDeleteTargetId(null);
+    } catch (err: any) {
+      console.error("Failed to delete document", err);
+      setDeleteError(err.message || "Đã xảy ra lỗi khi xóa tài liệu.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Reprocess RAG handler
+  const handleRetryProcessingClick = async (id: number) => {
+    try {
+      await teacherDocumentService.reprocessRag(id);
+      setSuccessToast("Đã gửi yêu cầu lập chỉ mục lại tài liệu.");
+      setTimeout(() => setSuccessToast(""), 4000);
+      loadDocuments(page);
+    } catch (err: any) {
+      console.error("Failed to reprocess RAG", err);
+      setError(err.message || "Không thể yêu cầu lập chỉ mục lại tài liệu.");
+    }
+  };
+
   const filteredDocs = docs.filter(d => {
     if (filters.processing_status !== "ALL" && d.processingStatus !== filters.processing_status) return false;
     if (filters.publication_status !== "ALL" && d.publicationStatus !== filters.publication_status) return false;
@@ -104,10 +303,10 @@ export function MyDocumentsPage({
           <span>{error}</span>
         </div>
       )}
-      {submitSuccess && (
+      {(submitSuccess || successToast) && (
         <div className="mb-4 p-4 bg-emerald-50 border border-emerald-250 text-emerald-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
           <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0" />
-          <span>Tài liệu đã được gửi để kiểm duyệt.</span>
+          <span>{submitSuccess ? "Tài liệu đã được gửi để kiểm duyệt." : successToast}</span>
         </div>
       )}
       <div className="flex justify-end mb-6">
@@ -125,9 +324,9 @@ export function MyDocumentsPage({
       {loading ? (
         <LoadingSkeleton viewMode="list" />
       ) : filteredDocs.length > 0 ? (
-        <div className="bg-white border border-[rgba(14,13,11,0.08)] rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-[rgba(14,13,11,0.08)] rounded-2xl shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+            <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr className="border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/50">
                   <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium">Tài liệu</th>
@@ -165,13 +364,16 @@ export function MyDocumentsPage({
                     
                     <td className="px-5 py-4 align-top pt-5">
                       <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-                        isDocumentAiProcessing(doc.processingStatus) ? "text-amber-700 bg-amber-50" :
-                        isDocumentAiReady(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" :
-                        isDocumentAiFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
+                        (isAnalysisInProgress(doc.processingStatus) || isRagIndexing(doc.processingStatus)) ? "text-amber-700 bg-amber-50" :
+                        (isAnalysisComplete(doc.processingStatus) || isRagReady(doc.processingStatus)) ? "text-emerald-700 bg-emerald-50" :
+                        isProcessingFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
                       }`}>
-                        {isDocumentAiProcessing(doc.processingStatus) ? (doc.processingStatus === "ANALYZING" ? "Đang phân tích AI" : "Đang xử lý AI") : 
-                         isDocumentAiReady(doc.processingStatus) ? "Đã xử lý" :
-                         isDocumentAiFailed(doc.processingStatus) ? "Lỗi xử lý" : "Đã tải lên"}
+                        {doc.processingStatus === "UPLOADED" ? "Đã tải lên" :
+                         doc.processingStatus === "ANALYZING" ? "Đang phân tích tài liệu" :
+                         doc.processingStatus === "ANALYZED" ? "Đã phân tích — sẵn sàng gửi duyệt" :
+                         doc.processingStatus === "PROCESSING" ? "Đang lập chỉ mục RAG" :
+                         doc.processingStatus === "PROCESSED" ? "RAG đã sẵn sàng" :
+                         isProcessingFailed(doc.processingStatus) ? (doc.publicationStatus === "PUBLISHED" ? "Lập chỉ mục RAG thất bại" : "Phân tích tài liệu thất bại") : "Đã tải lên"}
                       </span>
                     </td>
                     
@@ -197,12 +399,12 @@ export function MyDocumentsPage({
                       <MyDocumentActionMenu 
                         document={doc}
                         onView={onNavigateDetail}
-                        onEdit={() => console.log('edit', doc.id)}
-                        onReplace={() => console.log('replace', doc.id)}
-                        onDelete={() => console.log('delete', doc.id)}
+                        onEdit={handleEditClick}
+                        onReplace={handleReplaceClick}
+                        onDelete={handleDeleteClick}
                         onSubmitReview={handleSubmitReview}
-                        onDownload={() => console.log('download', doc.id)}
-                        onRetryProcessing={() => console.log('retry', doc.id)}
+                        onDownload={() => {}}
+                        onRetryProcessing={handleRetryProcessingClick}
                       />
                     </td>
                   </tr>
@@ -262,6 +464,227 @@ export function MyDocumentsPage({
         </div>
       )}
 
+      {/* Edit Metadata Modal */}
+      {editTargetDoc && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0E0D0B]/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-[500px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col animate-[fade-in_150ms_ease-out]">
+            <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)]">
+              <h3 className="text-[16px] font-semibold text-[#0E0D0B] font-sans-body">Sửa thông tin (Metadata)</h3>
+              <button 
+                onClick={() => setEditTargetDoc(null)} 
+                disabled={isSavingMetadata}
+                className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent focus-visible:outline-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
+              {editError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-800 text-[13px] font-sans-body">
+                  {editError}
+                </div>
+              )}
+              
+              <div>
+                <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Tiêu đề tài liệu *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  disabled={isSavingMetadata}
+                  className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mô tả</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  disabled={isSavingMetadata}
+                  rows={3}
+                  className="w-full p-3 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Môn học *</label>
+                  <input
+                    type="text"
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    disabled={isSavingMetadata}
+                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Chủ đề</label>
+                  <input
+                    type="text"
+                    value={editTopic}
+                    onChange={(e) => setEditTopic(e.target.value)}
+                    disabled={isSavingMetadata}
+                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Chương</label>
+                  <input
+                    type="text"
+                    value={editChapter}
+                    onChange={(e) => setEditChapter(e.target.value)}
+                    disabled={isSavingMetadata}
+                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Thẻ (cách nhau bởi dấu phẩy)</label>
+                  <input
+                    type="text"
+                    value={editTags}
+                    onChange={(e) => setEditTags(e.target.value)}
+                    disabled={isSavingMetadata}
+                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                    placeholder="VD: java, oop"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-[#F8F7F4] border-t border-[rgba(14,13,11,0.06)] rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={() => setEditTargetDoc(null)}
+                disabled={isSavingMetadata}
+                className="h-9 px-4 rounded-xl text-[13px] font-medium text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#ECEAE4] transition-colors disabled:opacity-50 cursor-pointer border-none bg-transparent"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSaveMetadata}
+                disabled={isSavingMetadata}
+                className="h-9 px-5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] rounded-xl text-[13px] font-medium transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer border-none"
+              >
+                {isSavingMetadata && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                {isSavingMetadata ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Replace File Modal */}
+      {replaceTargetDoc && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0E0D0B]/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-[450px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col animate-[fade-in_150ms_ease-out]">
+            <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)]">
+              <h3 className="text-[16px] font-semibold text-[#0E0D0B] font-sans-body">Thay thế file mới</h3>
+              <button 
+                onClick={() => setReplaceTargetDoc(null)} 
+                disabled={isReplacingFile}
+                className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent focus-visible:outline-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-4 text-left">
+              {replaceError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-800 text-[13px] font-sans-body">
+                  {replaceError}
+                </div>
+              )}
+
+              <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                Tải lên phiên bản mới của file tài liệu. Hệ thống sẽ tự động cập nhật và phân tích lại nội dung.
+              </p>
+
+              <div className="border-2 border-dashed border-[rgba(14,13,11,0.15)] rounded-xl p-6 text-center hover:bg-[#F8F7F4]/55 transition-colors relative cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,.txt"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setReplaceFileSelected(e.target.files[0]);
+                      setReplaceError("");
+                    }
+                  }}
+                  disabled={isReplacingFile}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="flex flex-col items-center justify-center gap-1.5">
+                  <span className="text-[13px] text-[#0E0D0B] font-medium">
+                    {replaceFileSelected ? replaceFileSelected.name : "Nhấp để chọn file mới"}
+                  </span>
+                  <span className="text-[11.5px] text-[#AAAA9F]">
+                    {replaceFileSelected 
+                      ? `${(replaceFileSelected.size / (1024 * 1024)).toFixed(2)} MB`
+                      : "Chấp nhận định dạng .pdf hoặc .txt, tối đa 20MB"}
+                  </span>
+                </div>
+              </div>
+
+              {isReplacingFile && (
+                <div className="mt-2 flex flex-col gap-1.5 w-full">
+                  <div className="flex justify-between text-[11.5px] font-medium text-[#6B6963]">
+                    <span>Đang tải lên phiên bản mới...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-[#F4F3F0] h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-[#4F63D2] h-full rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+
+            <div className="px-6 py-4 bg-[#F8F7F4] border-t border-[rgba(14,13,11,0.06)] rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={() => setReplaceTargetDoc(null)}
+                disabled={isReplacingFile}
+                className="h-9 px-4 rounded-xl text-[13px] font-medium text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#ECEAE4] transition-colors disabled:opacity-50 cursor-pointer border-none bg-transparent"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleReplaceFile}
+                disabled={isReplacingFile || !replaceFileSelected}
+                className="h-9 px-5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] rounded-xl text-[13px] font-medium transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer border-none"
+              >
+                {isReplacingFile && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                {isReplacingFile ? "Đang tải lên..." : "Tải lên bản mới"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Document Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="Xóa tài liệu?"
+        message="Hành động này sẽ xóa vĩnh viễn tài liệu và dữ liệu phân tích liên quan khỏi hệ thống. Bạn không thể hoàn tác hành động này."
+        confirmText="Xóa vĩnh viễn"
+        cancelText="Hủy"
+        isDestructive={true}
+        isSubmitting={isDeleting}
+        error={deleteError}
+        onConfirm={handleConfirmDelete}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteTargetId(null);
+            setDeleteError("");
+          }
+        }}
+      />
+
       <ConfirmDialog
         isOpen={submitTargetId !== null}
         title="Gửi tài liệu để kiểm duyệt?"
@@ -282,3 +705,4 @@ export function MyDocumentsPage({
     </div>
   );
 }
+

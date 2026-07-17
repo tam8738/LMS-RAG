@@ -5,7 +5,7 @@ import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { ConfirmDialog, RejectDialog } from "../components/Dialogs";
 import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle } from "lucide-react";
-import { isDocumentAiReady, mapSubmitReviewError } from "../utils/documentHelpers";
+import { isAnalysisComplete, mapSubmitReviewError } from "../utils/documentHelpers";
 import { adminReviewService } from "../services/adminReviewService";
 
 export function AdminReviewDetailPage({
@@ -120,7 +120,7 @@ export function AdminReviewDetailPage({
 
   if (!doc) return <PageLoading />;
 
-  const canApprove = doc.publicationStatus === "PENDING_REVIEW" && isDocumentAiReady(doc.processingStatus);
+  const canApprove = doc.publicationStatus === "PENDING_REVIEW" && isAnalysisComplete(doc.processingStatus);
   const canReject = doc.publicationStatus === "PENDING_REVIEW";
 
   return (
@@ -159,9 +159,9 @@ export function AdminReviewDetailPage({
                 doc.publicationStatus === "PUBLISHED" ? "Đã xuất bản" : doc.publicationStatus}
             </span>
             <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-              isDocumentAiReady(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"
+              isAnalysisComplete(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"
             }`}>
-              {isDocumentAiReady(doc.processingStatus) ? "AI Đã xử lý" : "AI Đang xử lý"}
+              {isAnalysisComplete(doc.processingStatus) ? "AI Đã phân tích" : "AI Đang phân tích"}
             </span>
           </div>
 

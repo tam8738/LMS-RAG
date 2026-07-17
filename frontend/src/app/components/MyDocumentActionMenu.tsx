@@ -1,7 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Document } from "../types";
-import { MoreHorizontal, Eye, Edit2, Replace, Trash2, Send, Download, RefreshCw, XCircle } from "lucide-react";
-import { isDocumentAiFailed, canSubmitDocumentForReview } from "../utils/documentHelpers";
+import { MoreHorizontal, Eye, Edit2, Replace, Trash2, Send, Download, RefreshCw } from "lucide-react";
+import { 
+  canEditMetadata, 
+  canReplaceFile, 
+  canDeleteDocument, 
+  canRetryProcessing, 
+  canSubmitDocumentForReview 
+} from "../utils/documentHelpers";
 
 interface ActionMenuProps {
   document: Document;
@@ -19,85 +26,227 @@ export function MyDocumentActionMenu({
   onView, onEdit, onReplace, onDelete, onSubmitReview, onDownload, onRetryProcessing
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [menuCoords, setMenuCoords] = useState({ top: 0, left: 0, isBelow: true });
 
   const pStatus = doc.publicationStatus;
   const aiStatus = doc.processingStatus;
 
-  // Compute allowed actions based on strict rules
-  const canEdit = pStatus === "DRAFT" || pStatus === "REJECTED";
-  const canReplace = canEdit;
-  const canDelete = pStatus === "DRAFT" || pStatus === "REJECTED"; // simplified rule
-  const canSubmit = canSubmitDocumentForReview(doc);
-  const canRetry = isDocumentAiFailed(aiStatus);
-  const canDownload = pStatus === "PUBLISHED" || pStatus === "DRAFT" || pStatus === "REJECTED" || pStatus === "PENDING_REVIEW"; // owner can usually download their own file if it exists
+  // Use centralized helpers
+  const showEdit = canEditMetadata(doc);
+  const showReplace = canReplaceFile(doc);
+  const showDelete = canDeleteDocument(doc);
+  const showSubmit = canSubmitDocumentForReview(doc);
+  const showRetry = canRetryProcessing(doc);
+  // Owner can usually see download button if the document is in a valid state
+  const showDownload = pStatus === "PUBLISHED" || pStatus === "DRAFT" || pStatus === "REJECTED" || pStatus === "PENDING_REVIEW";
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      if (!triggerRef.current || !menuRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const dropdownHeight = menuRect.height;
+      const dropdownWidth = menuRect.width;
+
+      // Check if it fits below trigger in the viewport
+      const fitsBelow = rect.bottom + dropdownHeight <= window.innerHeight;
+
+      let top = 0;
+      let left = rect.right - dropdownWidth;
+      if (left < 10) left = 10;
+
+      if (fitsBelow) {
+        top = rect.bottom + 6;
+      } else {
+        top = rect.top - dropdownHeight - 6;
+      }
+
+      setMenuCoords({ top, left, isBelow: fitsBelow });
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   return (
-    <div className="relative flex items-center justify-end" ref={menuRef}>
+    <div className="relative flex items-center justify-end">
       <button
-        onClick={() => setOpen(!open)}
-        className="w-8 h-8 rounded-lg text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] flex items-center justify-center transition-all"
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        className="w-8 h-8 rounded-lg text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] flex items-center justify-center transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label="Menu thao tác"
       >
         <MoreHorizontal className="w-4 h-4" />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-10 w-48 bg-white rounded-xl border border-[rgba(14,13,11,0.08)] shadow-[0_8px_32px_rgba(14,13,11,0.12)] py-1.5 z-50">
-          <button onClick={() => { setOpen(false); onView(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: "fixed",
+            top: `${menuCoords.top}px`,
+            left: `${menuCoords.left}px`,
+            zIndex: 9999,
+          }}
+          className="w-48 bg-white rounded-xl border border-[rgba(14,13,11,0.08)] shadow-[0_8px_32px_rgba(14,13,11,0.12)] py-1.5 focus:outline-none"
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onView(doc.id);
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-[#F8F7F4]"
+          >
             <Eye className="w-3.5 h-3.5 text-[#6B6963]" /> Xem chi tiết
           </button>
 
-          {canDownload && (
-            <button onClick={() => { setOpen(false); onDownload(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all">
-              <Download className="w-3.5 h-3.5 text-[#6B6963]" /> Tải file gốc
+          {showDownload && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={true}
+              title="Tính năng chưa được hỗ trợ bởi máy chủ (thiếu API Backend)"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] opacity-50 cursor-not-allowed border-none bg-transparent text-left outline-none"
+            >
+              <Download className="w-3.5 h-3.5 text-[#AAAA9F]" /> 
+              <span className="flex-1">Tải file gốc</span>
+              <span className="text-[10px] text-red-500 font-mono-label">NO API</span>
             </button>
           )}
 
-          {canEdit && (
-            <button onClick={() => { setOpen(false); onEdit(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all">
+          {showEdit && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onEdit(doc.id);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-[#F8F7F4]"
+            >
               <Edit2 className="w-3.5 h-3.5 text-[#6B6963]" /> Sửa thông tin (Metadata)
             </button>
           )}
 
-          {canReplace && (
-            <button onClick={() => { setOpen(false); onReplace(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all">
+          {showReplace && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onReplace(doc.id);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-[#F8F7F4]"
+            >
               <Replace className="w-3.5 h-3.5 text-[#6B6963]" /> Thay thế file mới
             </button>
           )}
 
-          {canRetry && (
-            <button onClick={() => { setOpen(false); onRetryProcessing(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-amber-700 hover:bg-amber-50 transition-all">
+          {showRetry && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onRetryProcessing(doc.id);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-amber-700 hover:bg-amber-50 transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-amber-50"
+            >
               <RefreshCw className="w-3.5 h-3.5" /> Thử xử lý lại AI
             </button>
           )}
 
-          {canSubmit && (
+          {showSubmit && (
             <div className="border-t border-[rgba(14,13,11,0.06)] mt-1.5 pt-1.5">
-              <button onClick={() => { setOpen(false); onSubmitReview(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#4F63D2] font-medium hover:bg-[#F0F2FF] transition-all">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  onSubmitReview(doc.id);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#4F63D2] font-medium hover:bg-[#F0F2FF] transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-[#F0F2FF]"
+              >
                 <Send className="w-3.5 h-3.5" /> Gửi yêu cầu duyệt
               </button>
             </div>
           )}
 
-          {canDelete && (
+          {showDelete && (
             <div className="border-t border-[rgba(14,13,11,0.06)] mt-1.5 pt-1.5">
-              <button onClick={() => { setOpen(false); onDelete(doc.id); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 hover:bg-red-50 transition-all">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  onDelete(doc.id);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 hover:bg-red-50 transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-red-50"
+              >
                 <Trash2 className="w-3.5 h-3.5" /> Xóa tài liệu
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
+
