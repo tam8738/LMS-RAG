@@ -19,6 +19,7 @@ import com.lmsrag.backend.repository.DocumentRepository;
 import com.lmsrag.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -518,13 +519,15 @@ public class DocumentService {
     }
 
     /**
-     * Admin yêu cầu xử lý lại RAG cho tài liệu đã publish.
-     * Cho phép khi document PUBLISHED và đang ở trạng thái FAILED hoặc trước đó chưa index thành công.
+     * Teacher yêu cầu xử lý lại RAG cho tài liệu của chính mình đã publish.
+     * Chỉ cho phép khi document thuộc sở hữu của teacher đang đăng nhập, đã PUBLISHED
+     * và đang ở trạng thái FAILED/ANALYZED/PROCESSED.
      */
     @Transactional
     public DocumentResponse reprocessRag(Long documentId) {
-        getCurrentUser(); // đảm bảo admin đã đăng nhập (phân quyền ở controller/security)
+        User currentUser = getCurrentUser();
         Document document = requireDocument(documentId);
+        requireOwner(document, currentUser);
 
         if (document.getPublicationStatus() != PublicationStatus.PUBLISHED) {
             throw new AppException(ErrorCode.DOCUMENT_CANNOT_REPROCESS_RAG);
@@ -549,7 +552,7 @@ public class DocumentService {
 
         startRagIndexJob(document);
 
-        log.info("[RAG] Admin yêu cầu xử lý lại RAG | documentId={}", documentId);
+        log.info("[RAG] Teacher yêu cầu xử lý lại RAG | documentId={} | userId={}", documentId, currentUser.getId());
         return DocumentMapper.toResponse(document);
     }
 
@@ -694,5 +697,95 @@ public class DocumentService {
         Document document = documentRepository.findByIdAndPublicationStatus(id, PublicationStatus.PUBLISHED)
                 .orElseThrow(() -> new AppException(ErrorCode.DOCUMENT_NOT_FOUND));
         return DocumentMapper.toResponse(document);
+    }
+
+    public record DocumentContent(Resource resource, String filename, String mimeType) {
+    }
+
+    /**
+     * Trả về nội dung file của document theo phân quyền:
+     * <ul>
+     *   <li>Owner: xem được ở mọi trạng thái.</li>
+     *   <li>Admin: xem được PUBLISHED và PENDING_REVIEW.</li>
+     *   <li>Teacher khác / client (public): chỉ xem PUBLISHED.</li>
+     * </ul>
+     *
+     * @param documentId ID của document
+     * @param currentUser User đang đăng nhập, có thể null nếu public access
+     * @return DocumentContent chứa resource, filename và mimeType
+     */
+    @Transactional(readOnly = true)
+    public DocumentContent getDocumentContent(Long documentId, User currentUser) {
+        Document document = requireDocument(documentId);
+
+        if (!canViewDocumentContent(document, currentUser)) {
+            throw new AppException(ErrorCode.DOCUMENT_ACCESS_DENIED);
+        }
+
+        log.info("[CONTENT] Xem nội dung document | documentId={} | userId={} | publicationStatus={}",
+                documentId,
+                currentUser != null ? currentUser.getId() : "anonymous",
+                document.getPublicationStatus());
+
+        Resource resource = storageService.loadFileAsResource(document.getStorageKey());
+        return new DocumentContent(resource, document.getOriginalFilename(), document.getMimeType());
+    }
+
+    /**
+     * Trả về file để download theo phân quyền:
+     * <ul>
+     *   <li>Owner: download được ở mọi trạng thái.</li>
+     *   <li>Admin / Teacher khác: chỉ download tài liệu đã PUBLISHED.</li>
+     *   <li>Public / anonymous: không được download.</li>
+     * </ul>
+     *
+     * @param documentId ID của document
+     * @param currentUser User đang đăng nhập (bắt buộc, endpoint yêu cầu TEACHER/ADMIN)
+     * @return DocumentContent chứa resource, filename và mimeType
+     */
+    @Transactional(readOnly = true)
+    public DocumentContent getDocumentDownload(Long documentId, User currentUser) {
+        Document document = requireDocument(documentId);
+
+        if (!canDownloadDocument(document, currentUser)) {
+            throw new AppException(ErrorCode.DOCUMENT_ACCESS_DENIED);
+        }
+
+        log.info("[DOWNLOAD] Download document | documentId={} | userId={} | role={} | publicationStatus={}",
+                documentId, currentUser.getId(), currentUser.getRole(), document.getPublicationStatus());
+
+        Resource resource = storageService.loadFileAsResource(document.getStorageKey());
+        return new DocumentContent(resource, document.getOriginalFilename(), document.getMimeType());
+    }
+
+    private boolean canViewDocumentContent(Document document, User currentUser) {
+        // Owner: xem mọi trạng thái
+        if (currentUser != null && document.getUploadedBy().getId().equals(currentUser.getId())) {
+            return true;
+        }
+
+        // PUBLISHED: ai cũng xem được
+        if (document.getPublicationStatus() == PublicationStatus.PUBLISHED) {
+            return true;
+        }
+
+        // Admin: xem PUBLISHED (đã check ở trên) và PENDING_REVIEW
+        if (currentUser != null && currentUser.getRole() == UserRole.ADMIN
+                && document.getPublicationStatus() == PublicationStatus.PENDING_REVIEW) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean canDownloadDocument(Document document, User currentUser) {
+        // Owner: download mọi trạng thái
+        if (document.getUploadedBy().getId().equals(currentUser.getId())) {
+            return true;
+        }
+
+        // Admin / Teacher khác: chỉ download PUBLISHED
+        return document.getPublicationStatus() == PublicationStatus.PUBLISHED
+                && (currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.TEACHER);
     }
 }

@@ -30,12 +30,34 @@
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|-------|
 | `POST` | `/api/v1/documents` | `TEACHER` | Upload tài liệu kèm metadata |
-| `POST` | `/api/v1/documents/{documentId}/reprocess-rag` | `TEACHER` | Yêu cầu xử lý lại RAG cho tài liệu đã công bố |
+| `GET` | `/api/v1/documents/{documentId}/content` | `PUBLIC` | Xem nội dung file document theo phân quyền |
+| `GET` | `/api/v1/documents/{documentId}/download` | `TEACHER / ADMIN` | Download file document theo phân quyền |
 | `GET` | `/api/v1/my/documents` | `TEACHER` | Lấy danh sách tài liệu của tôi (có hỗ trợ lọc, tìm kiếm, phân trang) |
 | `GET` | `/api/v1/my/documents/{documentId}` | `TEACHER` | Lấy chi tiết tài liệu của tôi |
 | `PATCH` | `/api/v1/my/documents/{documentId}` | `TEACHER` | Cập nhật metadata và/hoặc file tài liệu |
 | `DELETE` | `/api/v1/my/documents/{documentId}` | `TEACHER` | Xóa tài liệu |
 | `POST` | `/api/v1/my/documents/{documentId}/submit-review` | `TEACHER` | Gửi tài liệu đi duyệt |
+| `POST` | `/api/v1/my/documents/{documentId}/reprocess-rag` | `TEACHER` | Yêu cầu xử lý lại RAG cho tài liệu của tôi đã công bố |
+
+### Quy tắc truy cập `GET /api/v1/documents/{documentId}/content`
+
+| Trạng thái document | Owner | Admin | Teacher khác / Public |
+|---------------------|-------|-------|----------------------|
+| `DRAFT` | ✅ | ❌ | ❌ |
+| `PENDING_REVIEW` | ✅ | ✅ | ❌ |
+| `PUBLISHED` | ✅ | ✅ | ✅ |
+| `REJECTED` / `ARCHIVED` | ✅ | ❌ | ❌ |
+
+### Quy tắc truy cập `GET /api/v1/documents/{documentId}/download`
+
+| Trạng thái document | Owner | Admin | Teacher khác | Public |
+|---------------------|-------|-------|-------------|--------|
+| `DRAFT` | ✅ | ❌ | ❌ | ❌ |
+| `PENDING_REVIEW` | ✅ | ❌ | ❌ | ❌ |
+| `PUBLISHED` | ✅ | ✅ | ✅ | ❌ |
+| `REJECTED` / `ARCHIVED` | ✅ | ❌ | ❌ | ❌ |
+
+> Endpoint download yêu cầu đăng nhập với role `TEACHER` hoặc `ADMIN`. Public không được download.
 
 ### Tham số lọc cho `GET /api/v1/my/documents`
 

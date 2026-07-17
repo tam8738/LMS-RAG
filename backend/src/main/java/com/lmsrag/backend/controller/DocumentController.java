@@ -1,6 +1,7 @@
 package com.lmsrag.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lmsrag.backend.config.CustomUserDetails;
 import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
@@ -25,8 +26,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -195,11 +198,66 @@ public class DocumentController {
         return ResponseEntity.ok(ApiResponse.success(response, "Gửi duyệt thành công"));
     }
 
-    @Operation(summary = "Yêu cầu xử lý lại RAG cho tài liệu đã công bố")
-    @PostMapping("/documents/{documentId}/reprocess-rag")
+    @Operation(summary = "Yêu cầu xử lý lại RAG cho tài liệu của tôi đã công bố")
+    @PostMapping("/my/documents/{documentId}/reprocess-rag")
     public ResponseEntity<ApiResponse<DocumentResponse>> reprocessRag(
             @PathVariable Long documentId) {
         DocumentResponse response = documentService.reprocessRag(documentId);
         return ResponseEntity.ok(ApiResponse.success(response, "Yêu cầu xử lý lại RAG thành công"));
+    }
+
+    @Operation(
+            summary = "Xem nội dung file document",
+            description = """
+                    Phân quyền:
+                    - Owner: xem được ở mọi trạng thái.
+                    - Admin: xem PUBLISHED và PENDING_REVIEW.
+                    - Teacher khác / public: chỉ xem PUBLISHED.
+                    """
+    )
+    @GetMapping("/documents/{documentId}/content")
+    public ResponseEntity<Resource> getDocumentContent(
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        DocumentService.DocumentContent content = documentService.getDocumentContent(
+                documentId,
+                userDetails != null ? userDetails.getUser() : null);
+
+        MediaType mediaType = content.mimeType() != null
+                ? MediaType.parseMediaType(content.mimeType())
+                : MediaType.APPLICATION_OCTET_STREAM;
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header("Content-Disposition", "inline; filename=\"" + content.filename() + "\"")
+                .body(content.resource());
+    }
+
+    @Operation(
+            summary = "Download file document",
+            description = """
+                    Phân quyền:
+                    - Owner: download được ở mọi trạng thái.
+                    - Admin / Teacher khác: chỉ download tài liệu đã PUBLISHED.
+                    - Public / anonymous: không được download.
+                    """
+    )
+    @GetMapping("/documents/{documentId}/download")
+    public ResponseEntity<Resource> downloadDocument(
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        DocumentService.DocumentContent content = documentService.getDocumentDownload(
+                documentId, userDetails.getUser());
+
+        MediaType mediaType = content.mimeType() != null
+                ? MediaType.parseMediaType(content.mimeType())
+                : MediaType.APPLICATION_OCTET_STREAM;
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header("Content-Disposition", "attachment; filename=\"" + content.filename() + "\"")
+                .body(content.resource());
     }
 }

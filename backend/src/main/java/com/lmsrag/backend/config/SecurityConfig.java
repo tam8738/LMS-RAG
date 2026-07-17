@@ -70,10 +70,11 @@ public class SecurityConfig {
                         // Endpoint lấy thông tin user hiện tại yêu cầu đã đăng nhập
                         .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/documents").hasRole("TEACHER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/documents/*/reprocess-rag").hasRole("TEACHER")
                         .requestMatchers("/api/v1/my/**").hasRole("TEACHER")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/library/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/content").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/download").hasAnyRole("TEACHER", "ADMIN")
                         .requestMatchers("/api/v1/rag/**").hasAnyRole("TEACHER", "ADMIN")
                         .anyRequest().authenticated()
                 )
