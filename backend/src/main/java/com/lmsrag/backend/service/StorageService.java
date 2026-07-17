@@ -6,10 +6,13 @@ import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -76,6 +79,26 @@ public class StorageService {
             }
         } catch (IOException e) {
             log.error("Failed to delete file storage_key={}", storageKey, e);
+        }
+    }
+
+    /**
+     * Đọc file từ storage_key dướI dạng Resource để stream về client.
+     *
+     * @throws AppException nếu file không tồn tại hoặc không đọc được
+     */
+    public Resource loadFileAsResource(String storageKey) {
+        Path path = resolvePath(storageKey);
+        if (!Files.exists(path)) {
+            log.error("[STORAGE] File not found | storageKey={} | path={}", storageKey, path);
+            throw new AppException(ErrorCode.FILE_STORE_FAILED);
+        }
+        try {
+            InputStream inputStream = Files.newInputStream(path);
+            return new InputStreamResource(inputStream);
+        } catch (IOException e) {
+            log.error("[STORAGE] Failed to read file | storageKey={} | error={}", storageKey, e.getMessage(), e);
+            throw new AppException(ErrorCode.FILE_STORE_FAILED);
         }
     }
 

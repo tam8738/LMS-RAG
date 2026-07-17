@@ -58,21 +58,22 @@ Khi truyền giá trị enum sai (ví dụ: `publicationStatus=PROCESSED` trong 
 
 ---
 
-## 3. Thay đổI role API reprocess-rag
+## 3. Thay đổI role API reprocess-rag + kiểm tra owner
 
 ### Thay đổI
 - **Endpoint cũ:** `POST /api/v1/admin/documents/{id}/reprocess-rag` (role `ADMIN`)
-- **Endpoint mới:** `POST /api/v1/documents/{id}/reprocess-rag` (role `TEACHER`)
+- **Endpoint mới:** `POST /api/v1/my/documents/{id}/reprocess-rag` (role `TEACHER`)
 
 ### Cách fix
 - `AdminDocumentController.java`: xóa endpoint `reprocessRag`.
-- `DocumentController.java`: thêm endpoint `reprocessRag` với path mới.
+- `DocumentController.java`: thêm endpoint `reprocessRag` với path `/api/v1/my/documents/{id}/reprocess-rag`.
+- `DocumentService.java`: trong `reprocessRag`, thêm `requireOwner(document, currentUser)` để đảm bảo teacher chỉ có thể reprocess tài liệu của chính mình.
 - `SecurityConfig.java`:
   - Bỏ bảo vệ endpoint cũ.
-  - Thêm `.requestMatchers(HttpMethod.POST, "/api/v1/documents/*/reprocess-rag").hasRole("TEACHER")`.
+  - Dựa vào rule `.requestMatchers("/api/v1/my/**").hasRole("TEACHER")` để bảo vệ endpoint mới.
 
 ### Kết quả
-Teacher có thể gọi `POST /api/v1/documents/{id}/reprocess-rag` để yêu cầu xử lý lại RAG cho tài liệu đã công bố.
+Teacher chỉ có thể gọi `POST /api/v1/my/documents/{id}/reprocess-rag` cho tài liệu do chính mình upload. Nếu gọi với tài liệu của teacher khác, nhận lỗi 403 `DOCUMENT_ACCESS_DENIED`.
 
 ---
 
@@ -172,6 +173,81 @@ Authorization: Bearer <access_token>
 
 ---
 
+## 7. Thêm API xem nội dung file document `GET /api/v1/documents/{documentId}/content`
+
+### Vấn đề
+Hệ thống chưa có API để xem/truy cập nội dung file tài liệu đã upload.
+
+### Cách fix
+- `StorageService.java`: thêm `loadFileAsResource(String storageKey)` để đọc file từ disk và trả về `Resource`.
+- `DocumentService.java`: thêm `getDocumentContent(Long documentId, User currentUser)` với logic phân quyền:
+  - **Owner**: xem được ở mọi trạng thái.
+  - **Admin**: xem `PUBLISHED` và `PENDING_REVIEW`.
+  - **Teacher khác / public**: chỉ xem `PUBLISHED`.
+- `DocumentController.java`: thêm endpoint `GET /api/v1/documents/{documentId}/content`.
+- `SecurityConfig.java`: cho phép public access endpoint này (phân quyền chi tiết xử lý ở service).
+
+### Phân quyền
+
+| Trạng thái | Owner | Admin | Teacher khác / Public |
+|------------|-------|-------|----------------------|
+| `DRAFT` | ✅ | ❌ | ❌ |
+| `PENDING_REVIEW` | ✅ | ✅ | ❌ |
+| `PUBLISHED` | ✅ | ✅ | ✅ |
+| `REJECTED` / `ARCHIVED` | ✅ | ❌ | ❌ |
+
+### Response
+
+Trả về file binary với `Content-Type` theo MIME type của file.
+
+### Test
+
+- Public xem `PUBLISHED` (id=18): `200 OK`, Content-Type: `text/plain`.
+- Public xem `DRAFT` (id=17): `403 DOCUMENT_ACCESS_DENIED`.
+- Owner xem `DRAFT` (id=17): `200 OK`.
+- Admin xem `DRAFT` (id=17): `403 DOCUMENT_ACCESS_DENIED`.
+- Admin xem `PENDING_REVIEW` (id=9): `200 OK`.
+- Public xem `PENDING_REVIEW` (id=9): `403 DOCUMENT_ACCESS_DENIED`.
+
+---
+
+## 8. Thêm API download file document `GET /api/v1/documents/{documentId}/download`
+
+### Vấn đề
+Cần API cho phép giảng viên và admin download file tài liệu đã publish; tài liệu chưa publish chỉ owner được download.
+
+### Cách fix
+- `DocumentService.java`: thêm `getDocumentDownload(Long documentId, User currentUser)` với logic phân quyền:
+  - **Owner**: download được ở mọi trạng thái.
+  - **Admin / Teacher khác**: chỉ download `PUBLISHED`.
+  - **Public / anonymous**: không được download (endpoint yêu cầu xác thực TEACHER/ADMIN).
+- `DocumentController.java`: thêm endpoint `GET /api/v1/documents/{documentId}/download`.
+- `SecurityConfig.java`: yêu cầu role `TEACHER` hoặc `ADMIN` cho endpoint download.
+
+### Phân quyền
+
+| Trạng thái | Owner | Admin | Teacher khác | Public |
+|------------|-------|-------|-------------|--------|
+| `DRAFT` | ✅ | ❌ | ❌ | ❌ |
+| `PENDING_REVIEW` | ✅ | ❌ | ❌ | ❌ |
+| `PUBLISHED` | ✅ | ✅ | ✅ | ❌ |
+| `REJECTED` / `ARCHIVED` | ✅ | ❌ | ❌ | ❌ |
+
+### Response
+
+Trả về file binary với `Content-Disposition: attachment; filename="..."`.
+
+### Test
+
+- Public download `PUBLISHED` (id=18): `401 UNAUTHENTICATED`.
+- Teacher A download own `DRAFT` (id=17): `200 OK`.
+- Teacher B download Teacher A `DRAFT` (id=17): `403 DOCUMENT_ACCESS_DENIED`.
+- Teacher B download Teacher A `PUBLISHED` (id=18): `200 OK`.
+- Admin download `PUBLISHED` (id=18): `200 OK`.
+- Admin download `DRAFT` (id=17): `403 DOCUMENT_ACCESS_DENIED`.
+
+---
+
 ## Các file đã thay đổi
 
 | File | Mô tả thay đổI |
@@ -187,6 +263,8 @@ Authorization: Bearer <access_token>
 | `backend/src/main/java/com/lmsrag/backend/exception/GlobalExceptionHandler.java` | Thêm handler cho type mismatch |
 | `backend/src/main/java/com/lmsrag/backend/controller/AuthController.java` | Thêm endpoint logout |
 | `backend/src/main/java/com/lmsrag/backend/config/JwtAuthenticationFilter.java` | Response JSON khi token blacklist/invalid |
+| `backend/src/main/java/com/lmsrag/backend/service/StorageService.java` | Thêm loadFileAsResource |
+| `backend/src/main/java/com/lmsrag/backend/controller/DocumentController.java` | Thêm endpoint xem nội dung file và download |
 | `docs/API_ROLES.md` | File mới: tổng hợp API và role |
 | `docs/BACKEND_CHANGES_2026-07-15.md` | File này |
 
