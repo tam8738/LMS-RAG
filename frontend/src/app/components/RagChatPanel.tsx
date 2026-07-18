@@ -17,12 +17,36 @@ export interface LocalChatMessage {
 
 const MARKDOWN_EMPHASIS_PATTERN = /(\*\*\*|\*\*|___|__)(.+?)\1/g;
 const MARKDOWN_HEADING_PATTERN = /^\s{0,3}#{1,6}\s+/gm;
+const INSUFFICIENT_ANSWER_PHRASES = [
+  "does not contain",
+  "no relevant information",
+  "not enough information",
+  "insufficient information",
+  "khong chua thong tin",
+  "khong co thong tin",
+  "khong tim thay thong tin",
+  "khong du thong tin",
+  "khong chua du lieu"
+];
 
 function cleanAssistantDisplayText(content: string) {
   return content
     .replace(MARKDOWN_HEADING_PATTERN, "")
     .replace(MARKDOWN_EMPHASIS_PATTERN, "$2")
     .trim();
+}
+
+function normalizeSearchText(content: string) {
+  return content
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .toLowerCase();
+}
+
+function isInsufficientAssistantAnswer(content: string) {
+  const normalized = normalizeSearchText(cleanAssistantDisplayText(content));
+  return INSUFFICIENT_ANSWER_PHRASES.some(phrase => normalized.includes(phrase));
 }
 
 export function RagChatPanel({ 
@@ -123,12 +147,13 @@ export function RagChatPanel({
         language: "vi"
       }, controller.signal);
 
-      const isNotFound = response.notFound;
+      const cleanedAnswer = cleanAssistantDisplayText(response.answer);
+      const isNotFound = response.notFound || isInsufficientAssistantAnswer(cleanedAnswer);
       const assistantMsg: LocalChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: cleanAssistantDisplayText(response.answer),
-        citations: response.citations || [],
+        content: cleanedAnswer,
+        citations: isNotFound ? [] : response.citations || [],
         state: isNotFound ? "not_found" : "success"
       };
 
@@ -388,6 +413,10 @@ export function RagChatPanel({
             const displayContent = isUser
               ? msg.content
               : cleanAssistantDisplayText(msg.content);
+            const shouldShowCitations = !isUser
+              && msg.state !== "not_found"
+              && !!msg.citations?.length
+              && !isInsufficientAssistantAnswer(displayContent);
             
             return (
               <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"} animate-fadeIn`}>
@@ -420,7 +449,7 @@ export function RagChatPanel({
                   )}
                 </div>
                 
-                {!isUser && msg.citations && msg.citations.length > 0 && (
+                {shouldShowCitations && (
                   <div className="w-[85%] mt-1">
                     <CitationList citations={msg.citations} documentTitle={document.title} />
                   </div>
