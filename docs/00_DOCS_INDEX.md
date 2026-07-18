@@ -96,6 +96,16 @@ BE09_TEACHER_MANAGEMENT_DESIGN.md
 Thiết kế chi tiết cho bộ API quản lý Teacher của Admin, bao gồm tạo đơn lẻ,
 tạo hàng loạt, cập nhật, activate/deactivate và reset password.
 
+
+### 11. Kế Hoạch Lịch Sử Hỏi Đáp Và Resume Chat AI
+
+```txt
+13_RAG_CHAT_HISTORY_RESUME_PLAN.md
+```
+
+Tài liệu riêng để bắt đầu implement tính năng resume lại cuộc hội thoại với AI và xem lịch sử hỏi đáp.
+Tài liệu này chia rõ task cho Frontend, Backend và AI Service.
+
 ## 3. Quyết định đã khóa
 
 - Document là trung tâm của hệ thống.
