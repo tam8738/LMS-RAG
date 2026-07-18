@@ -151,6 +151,11 @@ Quy ước trạng thái:
 | BE-06 - Admin review API | Tâm | P0 | BE-05 | DONE | Review queue/detail/approve/reject/archive; approve -> `publication_status=PUBLISHED` + `processing_status=PROCESSING`, document xuất hiện trong Library ngay lập tức (song song), fire-and-forget gọi AI Service `/v1/index-document`; index xong -> `processing_status=PROCESSED`; thêm `POST /api/v1/admin/documents/{id}/reprocess-rag`; compile + test pass |
 | BE-07 - Library API | Tâm | P0 | BE-06 | DONE | Đã có list/detail chỉ trả `PUBLISHED`; hỗ trợ filter `q` (search title/description/subject/topic/chapter), `subject`, `topic`, `chapter`, `tags` (comma-separated, JSONB contains), `uploadedBy`; đã test Teacher B mở `/api/v1/library` và `/api/v1/library/{id}` thành công |
 | BE-08 - RAG proxy API | Tâm | P0 | BE-07, AI-03 | DONE | `POST /api/v1/rag/answer` kiểm tra document tồn tại + `processing_status=PROCESSED` + `publication_status=PUBLISHED`, sau đó gọi đồng bộ AI `/v1/answer-question` qua `AiServiceClient`; hỗ trợ `topK`, `language`, `history`; compile + test pass |
+| BE-RAG-HIST-01 - Migration cho RAG conversation history | Tâm | P0 | BE-08 | DONE | Flyway migration V7 tạo bảng `rag_conversations` và `rag_messages` với unique constraint `(user_id, document_id)`, index query theo conversation/time; migration chạy được |
+| BE-RAG-HIST-02 - Entities, repositories, DTOs | Tâm | P0 | BE-RAG-HIST-01 | DONE | Entity `RagConversation`, `RagMessage`, enum `RagMessageRole`, DTO `RagConversationResponse`, `RagMessageResponse`, `RagSendMessageRequest`, `RagSendMessageResponse`; repository `RagConversationRepository`, `RagMessageRepository`; compile pass |
+| BE-RAG-HIST-03 - Conversation service + permission checks | Tâm | P0 | BE-RAG-HIST-02 | DONE | `RagConversationService.getOrCreateConversation`, `getMessages`, `clearMessages` với kiểm tra document `PUBLISHED` + `PROCESSED` và ownership conversation |
+| BE-RAG-HIST-04 - Persist send-message flow + AI call | Tâm | P0 | BE-RAG-HIST-03 | DONE | `sendMessage` lưu user message, lấy 6 messages gần nhất làm history, gọi AI `/v1/answer-question`, lưu assistant message + citations + `notFound` + `tokensUsed`; giữ `POST /api/v1/rag/answer` cũ để backward compatibility |
+| BE-RAG-HIST-05 - Clear history + tests | Tâm | P0 | BE-RAG-HIST-04 | DONE | `DELETE /api/v1/rag/conversations/{id}/messages` xóa messages và reset counters; unit test `RagConversationServiceTest` 14 cases pass |
 | BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | SHOULD_HAVE | Không chặn core demo |
 
 ### 6.2. Frontend tasks
@@ -191,6 +196,7 @@ Quy ước trạng thái:
 | INFRA-01 - Docker/shared volume | Tâm + Khánh | P0 | BE-03, AI-01 | DONE | `docker-compose.yml` đã có `postgres`, `backend`, `ai-service`, `pgadmin`, volume `uploads`; Backend mount `/storage/uploads` read-write, AI mount read-only; đã test cùng một file tồn tại trong cả hai container |
 | INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
 | INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | IN_PROGRESS | Review -> Library đã test bằng cách set `PROCESSED` thủ công; Backend RAG proxy `POST /api/v1/rag/answer` đã có; RAG đã test trực tiếp qua AI `/v1/answer-question`; còn thiếu Frontend và E2E không can thiệp DB |
+| INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, FE-RAG-HIST-03 | TODO | Backend API đã sẵn sàng, chờ FE nối API và test ask -> reload -> resume -> follow-up -> clear |
 | QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | TODO | Chạy kịch bản Teacher A/Admin/Teacher B |
 
 ### 6.5. Cách cập nhật bảng tracking

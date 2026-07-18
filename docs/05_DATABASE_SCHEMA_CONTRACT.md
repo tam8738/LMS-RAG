@@ -24,11 +24,13 @@ SQL migration chi tiết, index, seed và checklist triển khai nằm ở:
 ## 2. Bảng core cần có
 
 | Bảng | Bắt buộc | Owner logic | Mục đích |
-|---|---:|---|---|
+|---|---|---:|---|---|
 | `users` | Có | Backend | Tài khoản Admin/Teacher, login, role, status |
 | `documents` | Có | Backend | Tài liệu do Teacher upload, bảng trung tâm nghiệp vụ |
 | `document_processing_jobs` | Có | Backend | Theo dõi các lần AI process/reprocess |
 | `document_chunks` | Có | AI ghi, Backend tạo migration | Lưu chunk text và embedding pgvector |
+| `rag_conversations` | Có | Backend | Lưu conversation RAG per user per document |
+| `rag_messages` | Có | Backend | Lưu user/assistant messages trong conversation |
 
 ## 3. Bảng không thuộc core MVP
 
@@ -39,7 +41,7 @@ SQL migration chi tiết, index, seed và checklist triển khai nằm ở:
 | `course_members` | Không có enrollment/lớp học |
 | `subjects` | Chưa cần bảng riêng; dùng text metadata trước |
 | `document_reviews` | MVP lưu review trực tiếp trong `documents` |
-| `chat_sessions`, `chat_messages` | Lịch sử hỏi đáp là Should-have |
+| `chat_sessions`, `chat_messages` | Đã thay bằng `rag_conversations`/`rag_messages` cho RAG history resume |
 | `quiz_attempts`, `quiz_results` | Student/quiz flow out-of-scope |
 
 Nếu code cũ còn entity/table `Course`, `Lecture`, `CourseMember`, chúng là dấu vết hướng LMS cũ và không được dùng làm dependency của Document MVP mới.
@@ -49,11 +51,16 @@ Nếu code cũ còn entity/table `Course`, `Lecture`, `CourseMember`, chúng là
 ```txt
 users.id
   ├── documents.uploaded_by
-  └── documents.reviewed_by
+  ├── documents.reviewed_by
+  └── rag_conversations.user_id
 
 documents.id
   ├── document_processing_jobs.document_id
-  └── document_chunks.document_id
+  ├── document_chunks.document_id
+  └── rag_conversations.document_id
+
+rag_conversations.id
+  └── rag_messages.conversation_id
 ```
 
 Cardinality:
@@ -62,13 +69,17 @@ Cardinality:
 |---|---|
 | `users 1 - N documents` | Một Teacher upload nhiều Document |
 | `users 1 - N reviewed documents` | Một Admin review nhiều Document |
+| `users 1 - N rag_conversations` | Một User có nhiều RAG conversation |
 | `documents 1 - N document_processing_jobs` | Một Document có thể process/reprocess nhiều lần |
 | `documents 1 - N document_chunks` | Một Document có nhiều chunks sau khi AI xử lý |
+| `documents 1 - N rag_conversations` | Một Document có nhiều conversation (mỗi user một conversation) |
+| `rag_conversations 1 - N rag_messages` | Một Conversation có nhiều messages |
 
 Cascade rule:
 
-- Xóa `documents` thì cascade xóa `document_processing_jobs` và `document_chunks`.
-- Không cascade xóa `documents` khi xóa/khóa `users`; MVP nên khóa tài khoản bằng `users.status = 'INACTIVE'`.
+- Xóa `documents` thì cascade xóa `document_processing_jobs`, `document_chunks` và `rag_conversations`.
+- Xóa `users` thì cascade xóa `rag_conversations`; không cascade xóa `documents`.
+- Xóa `rag_conversations` thì cascade xóa `rag_messages`.
 - `documents.reviewed_by` dùng `ON DELETE SET NULL` nếu reviewer bị xóa trong môi trường dev.
 
 ## 5. Quy ước kiểu dữ liệu
@@ -193,6 +204,49 @@ parse/chunk/embed xong
 ```
 
 Nếu insert lỗi thì rollback, chunks cũ phải còn nguyên.
+
+## 9.1. Contract bảng rag_conversations
+
+Field/rule chính:
+
+| Cột | Rule |
+|---|---|
+| `id` | Primary key |
+| `user_id` | FK tới `users.id`, cascade delete |
+| `document_id` | FK tới `documents.id`, cascade delete |
+| `title` | Optional, VARCHAR(255) |
+| `message_count` | INTEGER, NOT NULL, DEFAULT 0, >= 0 |
+| `last_message_at` | TIMESTAMPTZ |
+| `created_at` | TIMESTAMPTZ, NOT NULL |
+| `updated_at` | TIMESTAMPTZ, NOT NULL |
+| `deleted_at` | TIMESTAMPTZ, soft delete |
+
+Rule bắt buộc:
+
+- Unique constraint `(user_id, document_id)`.
+- Một conversation cho mỗi cặp user + document trong v1.
+
+## 9.2. Contract bảng rag_messages
+
+Field/rule chính:
+
+| Cột | Rule |
+|---|---|
+| `id` | Primary key |
+| `conversation_id` | FK tới `rag_conversations.id`, cascade delete |
+| `role` | VARCHAR(20), NOT NULL, CHECK `user` \| `assistant` |
+| `content` | TEXT, NOT NULL |
+| `not_found` | BOOLEAN, NOT NULL, DEFAULT FALSE |
+| `citations_json` | JSONB, NOT NULL, DEFAULT `'[]'` |
+| `tokens_used` | INTEGER, NOT NULL, DEFAULT 0, >= 0 |
+| `error_code` | VARCHAR(100) |
+| `created_at` | TIMESTAMPTZ, NOT NULL |
+
+Rule bắt buộc:
+
+- `citations_json` phải là JSON array.
+- `not_found` chỉ có ý nghĩa với assistant message.
+- `tokens_used` chỉ có ý nghĩa với assistant message.
 
 ## 10. Retrieval contract
 

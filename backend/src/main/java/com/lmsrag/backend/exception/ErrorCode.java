@@ -92,6 +92,12 @@ public enum ErrorCode {
     LESSON_EMPTY(HttpStatus.BAD_REQUEST, "Bài học không được để trống"),
 
     // =========================================================
+    // ===== RAG CONVERSATION =====
+    // =========================================================
+    CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy cuộc hội thoại"),
+    CONVERSATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Không có quyền truy cập cuộc hội thoại này"),
+
+    // =========================================================
     // ===== AI SERVICE =====
     // =========================================================
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "Lỗi khi giao tiếp với AI Service"),

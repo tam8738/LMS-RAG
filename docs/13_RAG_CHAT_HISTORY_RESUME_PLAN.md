@@ -820,31 +820,33 @@ Pass criteria:
 
 Feature được xem là xong khi:
 
-- BE có migration, entities, repositories, service, controller và tests.
+- ✅ BE có migration, entities, repositories, service, controller và tests.
 - FE load/resume messages, send persisted message, clear history và build pass.
 - AI regression pass với stateless history.
 - E2E test qua Docker: ask -> reload -> resume -> follow-up -> clear.
 - Not-found answers không hiển thị citations cả trước và sau reload.
-- Docs/API notes được cập nhật nếu contract thực tế khác bản đề xuất này.
+- ✅ Docs/API notes được cập nhật nếu contract thực tế khác bản đề xuất này.
+
+**Trạng thái hiện tại (18/07/2026):** Backend đã hoàn thành toàn bộ 5 task BE-RAG-HIST. FE và AI task còn TODO. API contract thực tế khớp với bản đề xuất.
 
 ## 17. Task Summary Cho Team
 
-| Task | Owner | Priority | Output |
-|---|---|---:|---|
-| BE-RAG-HIST-01 | BE | P0 | Migration conversations/messages |
-| BE-RAG-HIST-02 | BE | P0 | Entities, repositories, DTOs |
-| BE-RAG-HIST-03 | BE | P0 | Get/create conversation + permission |
-| BE-RAG-HIST-04 | BE | P0 | Persist send-message flow + AI call |
-| BE-RAG-HIST-05 | BE | P1 | Clear history + tests |
-| FE-RAG-HIST-01 | FE | P0 | API client + types |
-| FE-RAG-HIST-02 | FE | P0 | Load/resume messages |
-| FE-RAG-HIST-03 | FE | P0 | Send via conversation endpoint |
-| FE-RAG-HIST-04 | FE | P1 | Clear persisted history |
-| FE-RAG-HIST-05 | FE | P1 | UX polish |
-| AI-RAG-HIST-01 | AI | P0 | Verify stateless history contract |
-| AI-RAG-HIST-02 | AI | P1 | Extra history tests |
-| AI-RAG-HIST-03 | AI | P1 | AI docs handoff update |
-| INT-RAG-HIST-01 | ALL | P0 | Resume chat E2E |
+| Task | Owner | Priority | Output | Trạng thái |
+|---|---|---:|---|---:|
+| BE-RAG-HIST-01 | BE | P0 | Migration conversations/messages | DONE |
+| BE-RAG-HIST-02 | BE | P0 | Entities, repositories, DTOs | DONE |
+| BE-RAG-HIST-03 | BE | P0 | Get/create conversation + permission | DONE |
+| BE-RAG-HIST-04 | BE | P0 | Persist send-message flow + AI call | DONE |
+| BE-RAG-HIST-05 | BE | P1 | Clear history + tests | DONE |
+| FE-RAG-HIST-01 | FE | P0 | API client + types | TODO |
+| FE-RAG-HIST-02 | FE | P0 | Load/resume messages | TODO |
+| FE-RAG-HIST-03 | FE | P0 | Send via conversation endpoint | TODO |
+| FE-RAG-HIST-04 | FE | P1 | Clear persisted history | TODO |
+| FE-RAG-HIST-05 | FE | P1 | UX polish | TODO |
+| AI-RAG-HIST-01 | AI | P0 | Verify stateless history contract | TODO |
+| AI-RAG-HIST-02 | AI | P1 | Extra history tests | TODO |
+| AI-RAG-HIST-03 | AI | P1 | AI docs handoff update | TODO |
+| INT-RAG-HIST-01 | ALL | P0 | Resume chat E2E | TODO |
 
 ## 18. Ghi Chú Chốt
 
