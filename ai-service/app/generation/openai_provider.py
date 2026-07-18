@@ -17,6 +17,10 @@ from app.core.errors import ErrorCode, ServiceError
 from app.generation.base import GeneratedAnswer, GenerationProvider
 from app.schemas.answer_question import ConversationMessage
 from app.schemas.document import RetrievedDocumentChunk
+from app.utils.question_intent import is_summary_question
+
+_SUMMARY_MAX_TOKENS = 700
+_DEFAULT_MAX_TOKENS = 500
 
 _RETRYABLE_EXCEPTIONS = (
     APIConnectionError,
@@ -117,7 +121,7 @@ class OpenAIGenerationProvider(GenerationProvider):
                     model=self.model_name,
                     messages=messages,
                     temperature=0.2,
-                    max_tokens=500,
+                    max_tokens=self._select_max_tokens(question),
                     timeout=self.request_timeout_seconds,
                 )
             except _RETRYABLE_EXCEPTIONS as exc:
@@ -153,6 +157,8 @@ class OpenAIGenerationProvider(GenerationProvider):
             "Do not use outside knowledge. Do not invent citations; the UI "
             "shows citations separately from retrieved chunks. "
             f"Reply in {language_name}. Keep the answer clear and concise. "
+            "For summary or main-points questions, cover all major ideas present "
+            "in the supplied context and group related ideas into a coherent outline. "
             "If the context is insufficient, say that the selected document "
             "does not contain enough information."
         )
@@ -167,6 +173,12 @@ class OpenAIGenerationProvider(GenerationProvider):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
+
+    @classmethod
+    def _select_max_tokens(cls, question: str) -> int:
+        if is_summary_question(question):
+            return _SUMMARY_MAX_TOKENS
+        return _DEFAULT_MAX_TOKENS
 
     @staticmethod
     def _format_history(history: list[ConversationMessage]) -> str:

@@ -134,6 +134,23 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         )
 
 
+    def test_summary_question_uses_wider_retrieval_top_k(self) -> None:
+        self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
+        request = AnswerQuestionRequest(
+            document_ids=[12],
+            question="T\u00f3m t\u1eaft c\u00e1c \u00fd ch\u00ednh c\u1ee7a t\u00e0i li\u1ec7u?",
+            top_k=3,
+        )
+
+        result = self.service.answer(request)
+
+        self.assertFalse(result.not_found)
+        self.repository.search_similar_chunks.assert_called_once_with(
+            [12],
+            [0.1, 0.2, 0.3],
+            8,
+        )
+
     def test_returns_not_found_without_generation_when_no_chunks(self) -> None:
         self.repository.search_similar_chunks.return_value = []
         request = AnswerQuestionRequest(

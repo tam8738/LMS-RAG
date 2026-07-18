@@ -99,6 +99,25 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
         self.assertIn("Database normalization reduces redundancy.", user_prompt)
         self.assertIn("Question:\nWhat is normalization?", user_prompt)
 
+    def test_summary_question_gets_broader_prompt_budget(self) -> None:
+        self.client.chat.completions.create.return_value = chat_response(
+            "A broader summary.",
+            total_tokens=91,
+        )
+        provider = self._provider()
+
+        result = provider.generate_answer(
+            question="Summarize the main points of the document.",
+            language="en",
+            history=[],
+            chunks=[chunk("Information, data, and knowledge are discussed.")],
+        )
+
+        self.assertEqual(result.answer, "A broader summary.")
+        call = self.client.chat.completions.create.call_args.kwargs
+        self.assertEqual(call["max_tokens"], 700)
+        self.assertIn("cover all major ideas", call["messages"][0]["content"])
+
     def test_retries_timeout_then_succeeds(self) -> None:
         timeout = APITimeoutError(request=httpx.Request("POST", "https://api.test"))
         self.client.chat.completions.create.side_effect = [
