@@ -1,5 +1,6 @@
 """OpenAI chat implementation for grounded RAG answers."""
 
+import re
 import time
 from collections.abc import Callable
 from typing import Any
@@ -21,6 +22,8 @@ from app.utils.question_intent import is_summary_question
 
 _SUMMARY_MAX_TOKENS = 700
 _DEFAULT_MAX_TOKENS = 500
+_MARKDOWN_EMPHASIS_PATTERN = re.compile(r"(\*\*\*|\*\*|___|__)(.+?)\1")
+_MARKDOWN_HEADING_PATTERN = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
 
 _RETRYABLE_EXCEPTIONS = (
     APIConnectionError,
@@ -157,6 +160,8 @@ class OpenAIGenerationProvider(GenerationProvider):
             "Do not use outside knowledge. Do not invent citations; the UI "
             "shows citations separately from retrieved chunks. "
             f"Reply in {language_name}. Keep the answer clear and concise. "
+            "Use plain text only. Do not use Markdown syntax such as **bold**, "
+            "headings, code fences, or table formatting. Plain numbered lists are allowed. "
             "For summary or main-points questions, cover all major ideas present "
             "in the supplied context and group related ideas into a coherent outline. "
             "If the context is insufficient, say that the selected document "
@@ -209,7 +214,8 @@ class OpenAIGenerationProvider(GenerationProvider):
     @staticmethod
     def _parse_response(response: Any) -> GeneratedAnswer:
         try:
-            answer = response.choices[0].message.content.strip()
+            content = response.choices[0].message.content
+            answer = OpenAIGenerationProvider._clean_answer_text(content)
         except Exception as exc:
             raise ServiceError(
                 ErrorCode.INVALID_OUTPUT,
@@ -230,6 +236,12 @@ class OpenAIGenerationProvider(GenerationProvider):
             tokens_used = 0
 
         return GeneratedAnswer(answer=answer, tokens_used=tokens_used)
+
+    @staticmethod
+    def _clean_answer_text(answer: str) -> str:
+        cleaned = _MARKDOWN_HEADING_PATTERN.sub("", answer.strip())
+        cleaned = _MARKDOWN_EMPHASIS_PATTERN.sub(r"\2", cleaned)
+        return cleaned.strip()
 
     def _validate_configuration(self) -> None:
         if self.max_retries < 0:

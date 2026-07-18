@@ -15,6 +15,16 @@ export interface LocalChatMessage {
   errorMessage?: string;
 }
 
+const MARKDOWN_EMPHASIS_PATTERN = /(\*\*\*|\*\*|___|__)(.+?)\1/g;
+const MARKDOWN_HEADING_PATTERN = /^\s{0,3}#{1,6}\s+/gm;
+
+function cleanAssistantDisplayText(content: string) {
+  return content
+    .replace(MARKDOWN_HEADING_PATTERN, "")
+    .replace(MARKDOWN_EMPHASIS_PATTERN, "$2")
+    .trim();
+}
+
 export function RagChatPanel({ 
   document, 
   isEligible,
@@ -117,7 +127,7 @@ export function RagChatPanel({
       const assistantMsg: LocalChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: response.answer,
+        content: cleanAssistantDisplayText(response.answer),
         citations: response.citations || [],
         state: isNotFound ? "not_found" : "success"
       };
@@ -375,6 +385,9 @@ export function RagChatPanel({
           messages.map((msg, index) => {
             const isUser = msg.role === "user";
             const isLast = index === messages.length - 1;
+            const displayContent = isUser
+              ? msg.content
+              : cleanAssistantDisplayText(msg.content);
             
             return (
               <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"} animate-fadeIn`}>
@@ -394,7 +407,7 @@ export function RagChatPanel({
                   {msg.state === "error" && <AlertCircle className="w-4 h-4 text-red-655 mb-1.5 inline-block mr-1 align-text-bottom" />}
                   {msg.state === "cancelled" && <XCircle className="w-4 h-4 text-gray-500 mb-1.5 inline-block mr-1 align-text-bottom" />}
                   
-                  <span className="whitespace-pre-wrap select-text">{msg.content}</span>
+                  <span className="whitespace-pre-wrap select-text">{displayContent}</span>
                   
                   {/* Retry option for error message if it is user question related */}
                   {msg.state === "error" && isLast && index >= 1 && messages[index - 1].role === "user" && (

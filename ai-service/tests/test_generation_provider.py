@@ -92,6 +92,7 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
         self.assertEqual(call["temperature"], 0.2)
         self.assertEqual(call["timeout"], 5.0)
         self.assertIn("Answer only from the supplied document context", call["messages"][0]["content"])
+        self.assertIn("Use plain text only", call["messages"][0]["content"])
         user_prompt = call["messages"][1]["content"]
         self.assertIn("Conversation history", user_prompt)
         self.assertIn("User: What is this about?", user_prompt)
@@ -168,6 +169,30 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
 
         self.assertEqual(context.exception.code, ErrorCode.GENERATION_ERROR)
         self.assertEqual(self.client.chat.completions.create.call_count, 1)
+
+    def test_strips_basic_markdown_from_answer(self) -> None:
+        markdown_answer = (
+            "### Summary\n\n"
+            "1. ***Information***: Raw facts.\n"
+            "2. __Knowledge__: Processed information."
+        )
+        self.client.chat.completions.create.return_value = chat_response(
+            markdown_answer,
+            total_tokens=84,
+        )
+        provider = self._provider()
+
+        result = provider.generate_answer(
+            question="Summarize the document.",
+            language="en",
+            history=[],
+            chunks=[chunk()],
+        )
+
+        self.assertEqual(
+            result.answer,
+            "Summary\n\n1. Information: Raw facts.\n2. Knowledge: Processed information.",
+        )
 
     def test_rejects_empty_or_malformed_output(self) -> None:
         provider = self._provider()
