@@ -619,7 +619,7 @@ export function MyDocumentDetailPage({
         </div>
 
         {/* Right Column: RAG Chat */}
-        <div className="lg:col-span-7 xl:col-span-8 h-[500px] lg:h-full">
+        <div className="lg:col-span-7 xl:col-span-8 h-[500px] min-h-0 lg:h-[calc(100vh-190px)]">
           <RagChatPanel 
             document={doc} 
             isEligible={ragEligible} 
@@ -928,4 +928,3 @@ export function MyDocumentDetailPage({
     </div>
   );
 }
-

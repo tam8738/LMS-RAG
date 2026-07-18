@@ -160,7 +160,7 @@ export function LibraryDocumentDetailPage({
         </div>
 
         {/* Right Column: Scoped RAG Chat */}
-        <div className="lg:col-span-8 xl:col-span-9 h-[500px] lg:h-full">
+        <div className="lg:col-span-8 xl:col-span-9 h-[500px] min-h-0 lg:h-[calc(100vh-160px)]">
           <RagChatPanel document={doc} isEligible={ragEligible} />
         </div>
         

@@ -212,7 +212,7 @@ export function RagChatPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#F8F7F4] rounded-2xl border border-[rgba(14,13,11,0.08)] overflow-hidden font-sans-body relative">
+    <div className="flex flex-col h-full min-h-0 bg-[#F8F7F4] rounded-2xl border border-[rgba(14,13,11,0.08)] overflow-hidden font-sans-body relative">
       {/* Header */}
       <div className="px-5 py-3.5 bg-white border-b border-[rgba(14,13,11,0.06)] flex items-center justify-between flex-shrink-0 text-left">
         <div className="flex items-center gap-2 min-w-0">
@@ -239,7 +239,7 @@ export function RagChatPanel({
       <div 
         ref={chatContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-5 flex flex-col gap-6 scroll-smooth"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 flex flex-col gap-6 scroll-smooth"
       >
         {messages.length === 0 ? (
           !isEligible ? (
