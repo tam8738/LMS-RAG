@@ -329,6 +329,32 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertEqual(call["history"], request.history)
         self.assertEqual(call["chunks"], [chunk])
 
+    def test_generation_insufficient_answer_returns_not_found_without_citations(self) -> None:
+        self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
+        generation_provider = FakeGenerationProvider(
+            answer="Tai lieu khong chua thong tin ve dinh nghia cay nhi phan."
+        )
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Dinh nghia cay nhi phan la gi?",
+            )
+        )
+
+        self.assertTrue(result.not_found)
+        self.assertEqual(
+            result.answer,
+            "Tai lieu khong chua thong tin ve dinh nghia cay nhi phan.",
+        )
+        self.assertEqual(result.citations, [])
+        self.assertEqual(result.tokens_used, 37)
+
     def test_generation_only_receives_chunks_that_pass_threshold(self) -> None:
         strong_chunk = retrieved_chunk(chunk_id=120, score=0.75, distance=0.25)
         weak_chunk = retrieved_chunk(chunk_id=121, score=0.40, distance=0.60)

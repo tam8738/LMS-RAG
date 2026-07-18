@@ -11,7 +11,7 @@ from app.schemas.answer_question import (
     AnswerQuestionResult,
 )
 from app.schemas.document import RetrievedDocumentChunk
-from app.utils.question_intent import is_summary_question
+from app.utils.question_intent import is_insufficient_answer, is_summary_question
 
 
 _SUMMARY_TOP_K = 8
@@ -63,6 +63,14 @@ class AnswerQuestionService:
                 history=request.history,
                 chunks=chunks,
             )
+            if is_insufficient_answer(generated.answer):
+                return AnswerQuestionResult(
+                    answer=generated.answer,
+                    not_found=True,
+                    citations=[],
+                    tokens_used=generated.tokens_used,
+                )
+
             return AnswerQuestionResult(
                 answer=generated.answer,
                 not_found=False,
