@@ -46,7 +46,7 @@ class Settings:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "150"))
     default_top_k: int = int(os.getenv("DEFAULT_TOP_K", "5"))
-    rag_similarity_threshold: float = float(os.getenv("RAG_SIMILARITY_THRESHOLD", "0.65"))
+    rag_similarity_threshold: float = float(os.getenv("RAG_SIMILARITY_THRESHOLD", "0.3"))
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
 
     # Cách gọi OpenAI embedding: batch, retry có giới hạn và timeout.
@@ -57,6 +57,13 @@ class Settings:
     )
     embedding_request_timeout_seconds: float = float(
         os.getenv("EMBEDDING_REQUEST_TIMEOUT_SECONDS", "30")
+    )
+    generation_max_retries: int = int(os.getenv("GENERATION_MAX_RETRIES", "2"))
+    generation_retry_base_delay_seconds: float = float(
+        os.getenv("GENERATION_RETRY_BASE_DELAY_SECONDS", "0.5")
+    )
+    generation_request_timeout_seconds: float = float(
+        os.getenv("GENERATION_REQUEST_TIMEOUT_SECONDS", "30")
     )
 
     @property

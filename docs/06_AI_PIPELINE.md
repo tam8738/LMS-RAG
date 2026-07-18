@@ -185,23 +185,29 @@ Quy tắc:
 
 ## 4. RAG answer
 
-Trạng thái AI-04: endpoint `/v1/answer-question` hỗ trợ stateless multi-turn ở mức retrieval query. Luồng trả lời vẫn là extractive, tức là câu trả lời được compose trực tiếp từ các chunks tìm được, chưa gọi LLM generation/chat provider riêng.
+Status AI-09: `/v1/answer-question` supports stateless multi-turn RAG and grounded LLM generation.
+The service still retrieves context first and only sends retrieved chunks to the generation provider.
+Citations are still built from real `document_chunks` rows, not invented by the model.
 
 ```txt
-retrieved chunks
--> compose extractive answer từ top chunks
--> tạo citations từ chính retrieved chunks
--> trả answer/not_found/citations/tokens_used
+question + history
+-> embed retrieval query
+-> retrieve chunks by Backend-authorized document_ids
+-> filter by similarity threshold
+-> if no chunks: return not_found=true without generation
+-> call generation provider with question + history + chunks
+-> return natural answer + real citations + tokens_used
 ```
 
-Quy tắc bắt buộc:
+Required rules:
 
-- Chỉ dùng retrieved context.
-- Không tự bổ sung kiến thức ngoài tài liệu.
-- Nếu không có chunk, trả `not_found=true`.
-- Không tạo citation không tồn tại.
-- Trả lời theo `language`.
-- `tokens_used=0` trong MVP vì chưa gọi generation model.
+- Use only retrieved context.
+- Do not add outside knowledge.
+- If no chunk remains after threshold, return `not_found=true`.
+- Do not create fake citations.
+- Reply according to `language`.
+- `tokens_used` uses provider usage when generation runs; remains `0` when not-found happens before generation.
+
 ## 5. Citation
 
 Mỗi citation:

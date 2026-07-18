@@ -243,7 +243,7 @@ Hành vi:
 
 ## 8. Answer question
 
-Implementation status AI-04: endpoint `/v1/answer-question` đã hỗ trợ stateless multi-turn RAG. Backend/Frontend có thể gửi `history` trong request; AI dùng history để làm giàu retrieval query nhưng không lưu conversation và vẫn chỉ trả lời từ retrieved chunks/citations thật.
+Implementation status AI-09: `/v1/answer-question` now uses grounded LLM generation after retrieval. Backend still checks permissions first; AI retrieves chunks by `document_ids`, filters by similarity threshold, then sends only those retrieved chunks to the generation provider.
 
 ### `POST /v1/answer-question`
 
@@ -290,7 +290,7 @@ Success `200`:
         "score": 0.92
       }
     ],
-    "tokens_used": 0
+    "tokens_used": 245
   },
   "message": "Trả lời thành công"
 }
@@ -311,7 +311,7 @@ Không có context phù hợp vẫn trả `200`:
 }
 ```
 
-AI không dùng kiến thức ngoài retrieved context để bù dữ liệu thiếu. Trong MVP hiện tại, answer được compose trực tiếp từ retrieved chunks nên `tokens_used=0`; nếu sau này thêm LLM generation thì vẫn phải giữ nguyên nguyên tắc chỉ dùng retrieved context.
+AI does not use outside knowledge to fill missing data. After AI-09, when retrieval finds strong context, AI calls the generation model and returns provider usage in `tokens_used`. If no suitable chunk remains, AI does not call generation and still returns `not_found=true`, `citations=[]`, `tokens_used=0`.
 
 ## 8. Error codes
 

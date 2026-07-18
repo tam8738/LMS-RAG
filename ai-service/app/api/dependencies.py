@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from app.core.errors import ErrorCode, ServiceError
 from app.embeddings.openai_provider import OpenAIEmbeddingProvider
+from app.generation.openai_provider import OpenAIGenerationProvider
 from app.repositories.postgres_document_chunk_repository import (
     PostgresDocumentChunkRepository,
 )
@@ -56,14 +57,16 @@ def get_answer_question_service() -> AnswerQuestionService:
     """Assemble the RAG answer service lazily, same as document processing."""
     try:
         embedding_provider = OpenAIEmbeddingProvider()
+        generation_provider = OpenAIGenerationProvider()
     except ValueError as exc:
         raise ServiceError(
             ErrorCode.PROVIDER_UNAVAILABLE,
-            "Embedding provider chưa được cấu hình",
+            "OpenAI provider chua duoc cau hinh",
             status_code=503,
         ) from exc
 
     return AnswerQuestionService(
         embedding_provider=embedding_provider,
+        generation_provider=generation_provider,
         chunk_repository=PostgresDocumentChunkRepository(),
     )

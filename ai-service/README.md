@@ -181,6 +181,20 @@ text layer vẫn chưa được hỗ trợ vì MVP không triển khai OCR.
 
 Backend chịu trách nhiệm gọi endpoint trong background, quản lý processing job và cập nhật trạng thái tài liệu.
 
+
+## Grounded answer generation
+
+`POST /v1/answer-question` now runs retrieval first, filters weak chunks by `RAG_SIMILARITY_THRESHOLD`, then calls `GENERATION_MODEL` through `OpenAIGenerationProvider` to produce a more natural answer.
+The model receives only the selected question, stateless `history`, and retrieved chunks. Citations are still generated from real `document_chunks` rows. If retrieval finds no suitable context, AI Service returns `not_found=true` without calling the generation model.
+
+Generation runtime knobs:
+
+```env
+GENERATION_MODEL=gpt-4o-mini
+GENERATION_MAX_RETRIES=2
+GENERATION_RETRY_BASE_DELAY_SECONDS=0.5
+GENERATION_REQUEST_TIMEOUT_SECONDS=30
+```
 ## Xử lý lỗi thường gặp
 
 Nếu script báo timeout khi kết nối PostgreSQL:

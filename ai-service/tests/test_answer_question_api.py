@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_answer_question_service
 from app.api.internal_auth import get_expected_internal_api_key
 from app.core.errors import ErrorCode, ServiceError
+from app.generation.base import GeneratedAnswer
 from app.main import create_app
 from app.schemas.answer_question import AnswerQuestionRequest
 from app.schemas.document import RetrievedDocumentChunk
@@ -27,13 +28,31 @@ class FakeEmbeddingProvider:
         return self.vectors
 
 
+class FakeGenerationProvider:
+    model_name = "mock-generation"
+
+    def __init__(self, answer: str = "Cau tra loi tu nhien tu LLM.") -> None:
+        self.answer = answer
+        self.calls: list[dict[str, object]] = []
+
+    def generate_answer(self, **kwargs) -> GeneratedAnswer:
+        self.calls.append(kwargs)
+        return GeneratedAnswer(answer=self.answer, tokens_used=37)
+
+
+class FailingGenerationProvider:
+    model_name = "failing-generation"
+
+    def generate_answer(self, **_kwargs) -> GeneratedAnswer:
+        raise ServiceError(ErrorCode.GENERATION_ERROR, "mock generation failed")
+
 def retrieved_chunk(
     *,
     chunk_id: int = 120,
     document_id: int = 12,
     page_number: int | None = 5,
     chunk_index: int = 7,
-    content: str = "Chuẩn hóa dữ liệu giúp giảm dư thừa và tránh bất nhất.",
+    content: str = "Chuáº©n hÃ³a dá»¯ liá»‡u giÃºp giáº£m dÆ° thá»«a vÃ  trÃ¡nh báº¥t nháº¥t.",
     distance: float = 0.08,
     score: float = 0.92,
 ) -> RetrievedDocumentChunk:
@@ -62,22 +81,22 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
         request = AnswerQuestionRequest(
             document_ids=[12, 12],
-            question="  Chuẩn hóa dữ liệu là gì?  ",
+            question="  Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?  ",
             top_k=5,
         )
 
         result = self.service.answer(request)
 
         self.assertFalse(result.not_found)
-        self.assertIn("Dựa trên tài liệu đã chọn", result.answer)
-        self.assertIn("Chuẩn hóa dữ liệu", result.answer)
+        self.assertIn("D\u1ef1a tr\u00ean t\u00e0i li\u1ec7u \u0111\u00e3 ch\u1ecdn", result.answer)
+        self.assertIn("Chuáº©n hÃ³a dá»¯ liá»‡u", result.answer)
         self.assertEqual(result.tokens_used, 0)
         self.assertEqual(len(result.citations), 1)
         self.assertEqual(result.citations[0].chunk_id, 120)
         self.assertEqual(result.citations[0].document_id, 12)
         self.assertEqual(result.citations[0].page_number, 5)
         self.assertEqual(result.citations[0].score, 0.92)
-        self.assertEqual(self.embedding_provider.calls, [["Chuẩn hóa dữ liệu là gì?"]])
+        self.assertEqual(self.embedding_provider.calls, [["Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?"]])
         self.repository.search_similar_chunks.assert_called_once_with(
             [12],
             [0.1, 0.2, 0.3],
@@ -88,11 +107,11 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
         request = AnswerQuestionRequest(
             document_ids=[12],
-            question="Còn ví dụ nào khác?",
+            question="Any other example?",
             top_k=5,
             history=[
-                {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
-                {"role": "assistant", "content": "Là cách giảm dư thừa dữ liệu."},
+                {"role": "user", "content": "What is normalization?"},
+                {"role": "assistant", "content": "It reduces data redundancy."},
             ],
         )
 
@@ -103,9 +122,9 @@ class AnswerQuestionServiceTest(unittest.TestCase):
             self.embedding_provider.calls,
             [[
                 "Previous conversation:\n"
-                "User: Chuẩn hóa dữ liệu là gì?\n"
-                "Assistant: Là cách giảm dư thừa dữ liệu.\n"
-                "Current question: Còn ví dụ nào khác?"
+                "User: What is normalization?\n"
+                "Assistant: It reduces data redundancy.\n"
+                "Current question: Any other example?"
             ]],
         )
         self.repository.search_similar_chunks.assert_called_once_with(
@@ -119,7 +138,7 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.repository.search_similar_chunks.return_value = []
         request = AnswerQuestionRequest(
             document_ids=[12],
-            question="Không có trong tài liệu?",
+            question="KhÃ´ng cÃ³ trong tÃ i liá»‡u?",
             top_k=3,
         )
 
@@ -130,7 +149,7 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertEqual(result.tokens_used, 0)
         self.assertEqual(
             result.answer,
-            "Không tìm thấy thông tin này trong tài liệu đã chọn.",
+            "Kh\u00f4ng t\u00ecm th\u1ea5y th\u00f4ng tin n\u00e0y trong t\u00e0i li\u1ec7u \u0111\u00e3 ch\u1ecdn.",
         )
 
     def test_filters_chunks_below_similarity_threshold(self) -> None:
@@ -146,7 +165,7 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         result = service.answer(
             AnswerQuestionRequest(
                 document_ids=[12],
-                question="Câu hỏi ngoài ngữ cảnh?",
+                question="CÃ¢u há»i ngoÃ i ngá»¯ cáº£nh?",
                 top_k=3,
             )
         )
@@ -156,19 +175,19 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertEqual(result.tokens_used, 0)
         self.assertEqual(
             result.answer,
-            "Không tìm thấy thông tin này trong tài liệu đã chọn.",
+            "Kh\u00f4ng t\u00ecm th\u1ea5y th\u00f4ng tin n\u00e0y trong t\u00e0i li\u1ec7u \u0111\u00e3 ch\u1ecdn.",
         )
 
     def test_keeps_chunks_at_threshold_and_drops_weaker_hits(self) -> None:
         strong_chunk = retrieved_chunk(
             chunk_id=120,
-            content="Nội dung đủ liên quan.",
+            content="Ná»™i dung Ä‘á»§ liÃªn quan.",
             score=0.65,
             distance=0.35,
         )
         weak_chunk = retrieved_chunk(
             chunk_id=121,
-            content="Nội dung yếu hơn.",
+            content="Ná»™i dung yáº¿u hÆ¡n.",
             score=0.64,
             distance=0.36,
         )
@@ -182,14 +201,14 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         result = service.answer(
             AnswerQuestionRequest(
                 document_ids=[12],
-                question="Nội dung nào liên quan?",
+                question="Ná»™i dung nÃ o liÃªn quan?",
                 top_k=5,
             )
         )
 
         self.assertFalse(result.not_found)
-        self.assertIn("Nội dung đủ liên quan", result.answer)
-        self.assertNotIn("Nội dung yếu hơn", result.answer)
+        self.assertIn("Ná»™i dung Ä‘á»§ liÃªn quan", result.answer)
+        self.assertNotIn("Ná»™i dung yáº¿u hÆ¡n", result.answer)
         self.assertEqual([citation.chunk_id for citation in result.citations], [120])
 
     def test_returns_english_not_found_without_generation(self) -> None:
@@ -221,7 +240,7 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         result = self.service.answer(
             AnswerQuestionRequest(
                 document_ids=[12],
-                question="Câu hỏi?",
+                question="CÃ¢u há»i?",
                 top_k=3,
             )
         )
@@ -249,7 +268,7 @@ class AnswerQuestionServiceTest(unittest.TestCase):
             service.answer(
                 AnswerQuestionRequest(
                     document_ids=[12],
-                    question="Câu hỏi?",
+                    question="CÃ¢u há»i?",
                     top_k=3,
                 )
             )
@@ -257,6 +276,128 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertEqual(context.exception.code, ErrorCode.EMBEDDING_ERROR)
         self.repository.search_similar_chunks.assert_not_called()
 
+
+    def test_uses_generation_provider_after_retrieval(self) -> None:
+        chunk = retrieved_chunk(score=0.91, distance=0.09)
+        self.repository.search_similar_chunks.return_value = [chunk]
+        generation_provider = FakeGenerationProvider(
+            answer="Chuan hoa du lieu la cach to chuc bang de giam du thua."
+        )
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+        )
+        request = AnswerQuestionRequest(
+            document_ids=[12],
+            question="Chuan hoa du lieu la gi?",
+            history=[
+                {"role": "user", "content": "Noi ve database normalization"},
+            ],
+        )
+
+        result = service.answer(request)
+
+        self.assertFalse(result.not_found)
+        self.assertEqual(
+            result.answer,
+            "Chuan hoa du lieu la cach to chuc bang de giam du thua.",
+        )
+        self.assertEqual(result.tokens_used, 37)
+        self.assertEqual([citation.chunk_id for citation in result.citations], [120])
+        self.assertEqual(len(generation_provider.calls), 1)
+        call = generation_provider.calls[0]
+        self.assertEqual(call["question"], "Chuan hoa du lieu la gi?")
+        self.assertEqual(call["language"], "vi")
+        self.assertEqual(call["history"], request.history)
+        self.assertEqual(call["chunks"], [chunk])
+
+    def test_generation_only_receives_chunks_that_pass_threshold(self) -> None:
+        strong_chunk = retrieved_chunk(chunk_id=120, score=0.75, distance=0.25)
+        weak_chunk = retrieved_chunk(chunk_id=121, score=0.40, distance=0.60)
+        self.repository.search_similar_chunks.return_value = [strong_chunk, weak_chunk]
+        generation_provider = FakeGenerationProvider(answer="Generated from strong chunk.")
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+            similarity_threshold=0.65,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Noi dung nao lien quan?",
+            )
+        )
+
+        self.assertEqual(result.answer, "Generated from strong chunk.")
+        self.assertEqual(generation_provider.calls[0]["chunks"], [strong_chunk])
+        self.assertEqual([citation.chunk_id for citation in result.citations], [120])
+
+    def test_does_not_call_generation_provider_when_no_context_remains(self) -> None:
+        self.repository.search_similar_chunks.return_value = [
+            retrieved_chunk(score=0.10, distance=0.90),
+        ]
+        generation_provider = FakeGenerationProvider()
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+            similarity_threshold=0.65,
+        )
+
+        result = service.answer(AnswerQuestionRequest(document_ids=[12], question="X?"))
+
+        self.assertTrue(result.not_found)
+        self.assertEqual(generation_provider.calls, [])
+
+    def test_retries_retrieval_with_current_question_when_history_query_misses(self) -> None:
+        weak_chunk = retrieved_chunk(chunk_id=121, score=0.20, distance=0.80)
+        strong_chunk = retrieved_chunk(chunk_id=120, score=0.80, distance=0.20)
+        self.repository.search_similar_chunks.side_effect = [
+            [weak_chunk],
+            [strong_chunk],
+        ]
+        generation_provider = FakeGenerationProvider(answer="First normal form removes repeating groups.")
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+            similarity_threshold=0.65,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="What does the first normal form remove?",
+                history=[
+                    {"role": "user", "content": "Earlier unclear mixed-language question about First Normal Form"},
+                    {"role": "assistant", "content": "No relevant information was found."},
+                ],
+            )
+        )
+
+        self.assertFalse(result.not_found)
+        self.assertEqual(result.answer, "First normal form removes repeating groups.")
+        self.assertEqual([citation.chunk_id for citation in result.citations], [120])
+        self.assertEqual(self.repository.search_similar_chunks.call_count, 2)
+        self.assertEqual(
+            self.embedding_provider.calls[-1],
+            ["What does the first normal form remove?"],
+        )
+    def test_propagates_generation_provider_error(self) -> None:
+        self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=FailingGenerationProvider(),
+        )
+
+        with self.assertRaises(ServiceError) as context:
+            service.answer(AnswerQuestionRequest(document_ids=[12], question="X?"))
+
+        self.assertEqual(context.exception.code, ErrorCode.GENERATION_ERROR)
 
 class AnswerQuestionApiTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -284,7 +425,7 @@ class AnswerQuestionApiTest(unittest.TestCase):
         ).answer(
             AnswerQuestionRequest(
                 document_ids=[12],
-                question="Chuẩn hóa dữ liệu là gì?",
+                question="Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?",
                 top_k=5,
             )
         )
@@ -294,7 +435,7 @@ class AnswerQuestionApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_ids": [12],
-                "question": "Chuẩn hóa dữ liệu là gì?",
+                "question": "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?",
                 "top_k": 5,
             },
         )
@@ -302,12 +443,12 @@ class AnswerQuestionApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertTrue(body["success"])
-        self.assertEqual(body["message"], "Trả lời thành công")
+        self.assertEqual(body["message"], "Tr\u1ea3 l\u1eddi th\u00e0nh c\u00f4ng")
         self.assertFalse(body["data"]["not_found"])
         self.assertEqual(body["data"]["citations"][0]["chunk_id"], 120)
         request = self.service.answer.call_args.args[0]
         self.assertEqual(request.document_ids, [12])
-        self.assertEqual(request.question, "Chuẩn hóa dữ liệu là gì?")
+        self.assertEqual(request.question, "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?")
 
     def test_answer_question_endpoint_accepts_stateless_history(self) -> None:
         self.service.answer.return_value = AnswerQuestionService(
@@ -316,11 +457,11 @@ class AnswerQuestionApiTest(unittest.TestCase):
         ).answer(
             AnswerQuestionRequest(
                 document_ids=[12],
-                question="Còn ví dụ nào khác?",
+                question="CÃ²n vÃ­ dá»¥ nÃ o khÃ¡c?",
                 top_k=5,
                 history=[
-                    {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
-                    {"role": "assistant", "content": "Là cách giảm dư thừa dữ liệu."},
+                    {"role": "user", "content": "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?"},
+                    {"role": "assistant", "content": "No relevant information was found."},
                 ],
             )
         )
@@ -330,11 +471,11 @@ class AnswerQuestionApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_ids": [12],
-                "question": "Còn ví dụ nào khác?",
+                "question": "CÃ²n vÃ­ dá»¥ nÃ o khÃ¡c?",
                 "top_k": 5,
                 "history": [
-                    {"role": "user", "content": "Chuẩn hóa dữ liệu là gì?"},
-                    {"role": "assistant", "content": "Là cách giảm dư thừa dữ liệu."},
+                    {"role": "user", "content": "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?"},
+                    {"role": "assistant", "content": "LÃ  cÃ¡ch giáº£m dÆ° thá»«a dá»¯ liá»‡u."},
                 ],
             },
         )
@@ -342,7 +483,7 @@ class AnswerQuestionApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         request = self.service.answer.call_args.args[0]
         self.assertEqual(request.history[0].role, "user")
-        self.assertEqual(request.history[0].content, "Chuẩn hóa dữ liệu là gì?")
+        self.assertEqual(request.history[0].content, "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?")
         self.assertEqual(request.history[1].role, "assistant")
 
 
@@ -353,7 +494,7 @@ class AnswerQuestionApiTest(unittest.TestCase):
         ).answer(
             AnswerQuestionRequest(
                 document_ids=[12],
-                question="Không có trong tài liệu?",
+                question="KhÃ´ng cÃ³ trong tÃ i liá»‡u?",
                 top_k=3,
             )
         )
@@ -363,7 +504,7 @@ class AnswerQuestionApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_ids": [12],
-                "question": "Không có trong tài liệu?",
+                "question": "KhÃ´ng cÃ³ trong tÃ i liá»‡u?",
                 "top_k": 3,
             },
         )
@@ -372,14 +513,14 @@ class AnswerQuestionApiTest(unittest.TestCase):
         body = response.json()
         self.assertTrue(body["data"]["not_found"])
         self.assertEqual(body["data"]["citations"], [])
-        self.assertEqual(body["message"], "Không tìm thấy ngữ cảnh phù hợp")
+        self.assertEqual(body["message"], "Kh\u00f4ng t\u00ecm th\u1ea5y ng\u1eef c\u1ea3nh ph\u00f9 h\u1ee3p")
 
     def test_requires_internal_key(self) -> None:
         response = self.client.post(
             "/v1/answer-question",
             json={
                 "document_ids": [12],
-                "question": "Chuẩn hóa dữ liệu là gì?",
+                "question": "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?",
             },
         )
 
@@ -396,7 +537,7 @@ class AnswerQuestionApiTest(unittest.TestCase):
             headers={"X-Internal-Key": "test-secret"},
             json={
                 "document_ids": [12],
-                "question": "Câu hỏi hợp lệ",
+                "question": "CÃ¢u há»i há»£p lá»‡",
                 "history": [
                     {"role": "user", "content": "   "},
                 ],

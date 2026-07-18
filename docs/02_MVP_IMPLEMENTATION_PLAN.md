@@ -174,12 +174,14 @@ Quy ước trạng thái:
 |---|---|---:|---|---|---|
 | AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; Docker test thật đã gọi `/v1/process-document` với `document_id=2`, AI đọc `documents/2/v1/source.txt`, trả `PROCESSED`, `page_count=1`, `chunk_count=1` |
 | AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; đã xác nhận `document_chunks` có row thật cho `document_id=2` sau process |
-| AI-03 - Answer question endpoint | Khánh | P0 | AI-02 | DONE | Đã thêm `/v1/answer-question`, embed question, retrieval, extractive answer, citations; Docker test thật trả `not_found=false`, citation trỏ về `chunk_id=1`, `document_id=2`; MVP vẫn là extractive answer, chưa có LLM generation riêng |
+| AI-03 - Answer question endpoint | Khanh | P0 | AI-02 | DONE | Added `/v1/answer-question`, embedding retrieval, threshold/not_found, citations; original implementation was extractive, later AI-09 adds grounded LLM generation. |
 | AI-04 - Index document endpoint | Khánh | P0 | AI-01 | DONE | Đã thêm `/v1/index-document` dùng chung `ProcessDocumentService` với legacy `/v1/process-document`; phục vụ flow Admin approve -> index RAG -> lưu `document_chunks` |
 | AI-05 - RAG index safety hardening | Khánh | P0 | AI-04 | DONE | Đã map lỗi FK khi document bị xóa trong lúc index thành `DOCUMENT_DELETED_DURING_INDEX`; giữ atomic replace chunks; `pytest tests/test_document_chunk_repository.py` pass 15 tests + 6 subtests |
 | AI-06 - RAG retrieval quality threshold | Khánh | P0 | AI-03 | DONE | Thêm `RAG_SIMILARITY_THRESHOLD=0.65`; lọc chunks dưới threshold trước khi compose answer/citation; regression `answer_question + document_chunk + process_document` pass 42 tests + 12 subtests |
 | AI-07 - Embedding provider reliability tests | Khánh | P1 | AI-01 | DONE | Bổ sung tests retry nhiều lần, exponential backoff, timeout propagation, connection error mapping và SDK `max_retries=0`; regression nhóm AI chính pass 64 tests + 16 subtests |
 | AI-08 - Stateless multi-turn RAG | Khánh | P0 | AI-03, AI-06 | DONE | `/v1/answer-question` nhận optional `history` tối đa 6 messages; AI build retrieval query từ history + current question, không lưu conversation; regression nhóm AI chính pass 67 tests + 16 subtests |
+
+| AI-09 - Grounded LLM answer generation | Khanh | P0 | AI-03, AI-08 | DONE | Current AI-05 working task: added `GenerationProvider` + `OpenAIGenerationProvider`; after retrieval/threshold AI calls `GENERATION_MODEL` for natural grounded answers; no generation call when `not_found`; AI regression pass 81 tests. |
 
 ### 6.4. Infra, integration và QA tasks
 

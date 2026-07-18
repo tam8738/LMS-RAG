@@ -3,6 +3,7 @@
 from app.core.config import settings
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.embeddings.base import EmbeddingProvider
+from app.generation.base import GenerationProvider
 from app.repositories.document_chunk_repository import DocumentChunkRepository
 from app.schemas.answer_question import (
     AnswerCitation,
@@ -19,11 +20,13 @@ class AnswerQuestionService:
         self,
         embedding_provider: EmbeddingProvider,
         chunk_repository: DocumentChunkRepository,
+        generation_provider: GenerationProvider | None = None,
         similarity_threshold: float | None = None,
     ) -> None:
         """Inject dependencies so tests can use deterministic mocks."""
         self.embedding_provider = embedding_provider
         self.chunk_repository = chunk_repository
+        self.generation_provider = generation_provider
         self.similarity_threshold = (
             settings.rag_similarity_threshold
             if similarity_threshold is None
@@ -35,13 +38,10 @@ class AnswerQuestionService:
     def answer(self, request: AnswerQuestionRequest) -> AnswerQuestionResult:
         """Answer only from retrieved chunks inside Backend-authorized documents."""
         retrieval_query = self._build_retrieval_query(request)
-        query_embedding = self._embed_question(retrieval_query)
-        chunks = self.chunk_repository.search_similar_chunks(
-            request.document_ids,
-            query_embedding,
-            request.top_k,
-        )
-        chunks = self._filter_by_similarity_threshold(chunks)
+        chunks = self._retrieve_chunks(request, retrieval_query)
+
+        if not chunks and request.history:
+            chunks = self._retrieve_chunks(request, request.question)
 
         if not chunks:
             return AnswerQuestionResult(
@@ -51,14 +51,39 @@ class AnswerQuestionService:
                 tokens_used=0,
             )
 
+        if self.generation_provider is not None:
+            generated = self.generation_provider.generate_answer(
+                question=request.question,
+                language=request.language,
+                history=request.history,
+                chunks=chunks,
+            )
+            return AnswerQuestionResult(
+                answer=generated.answer,
+                not_found=False,
+                citations=[self._to_citation(chunk) for chunk in chunks],
+                tokens_used=generated.tokens_used,
+            )
+
         return AnswerQuestionResult(
             answer=self._compose_answer(chunks, request.language),
             not_found=False,
             citations=[self._to_citation(chunk) for chunk in chunks],
-            # MVP currently composes extractive answers without a generation model.
             tokens_used=0,
         )
 
+    def _retrieve_chunks(
+        self,
+        request: AnswerQuestionRequest,
+        retrieval_query: str,
+    ) -> list[RetrievedDocumentChunk]:
+        query_embedding = self._embed_question(retrieval_query)
+        chunks = self.chunk_repository.search_similar_chunks(
+            request.document_ids,
+            query_embedding,
+            request.top_k,
+        )
+        return self._filter_by_similarity_threshold(chunks)
     def _build_retrieval_query(self, request: AnswerQuestionRequest) -> str:
         """Combine recent chat history with the current question for stateless retrieval."""
         if not request.history:
