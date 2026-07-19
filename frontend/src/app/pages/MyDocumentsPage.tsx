@@ -1,25 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Document, User } from "../types";
-import { StatusFilterBar, MyDocsFilterState } from "../components/StatusFilterBar";
 import { MyDocumentActionMenu } from "../components/MyDocumentActionMenu";
-import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
-import { FileText, Plus, SearchX, AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
+import { FilterDrawer, AdvancedFilterState } from "../components/FilterDrawer";
+import { FileText, Plus, Search, SearchX, AlertTriangle, CheckCircle2, X, Filter, Sparkles, Brain, Clock, HelpCircle, ArrowRight } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
-import { 
-  isAnalysisInProgress, 
-  isAnalysisComplete, 
-  isRagIndexing, 
-  isRagReady, 
-  isProcessingFailed, 
-  mapSubmitReviewError 
+import { libraryService } from "../services/libraryService";
+import {
+  isAnalysisInProgress,
+  isAnalysisComplete,
+  isRagIndexing,
+  isRagReady,
+  isProcessingFailed,
+  mapSubmitReviewError
 } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 
-export function MyDocumentsPage({ 
+export function MyDocumentsPage({
   user,
   onNavigateUpload,
   onNavigateDetail
-}: { 
+}: {
   user: User;
   onNavigateUpload: () => void;
   onNavigateDetail: (id: number) => void;
@@ -30,7 +31,25 @@ export function MyDocumentsPage({
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [error, setError] = useState("");
-  
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+
+  // Search and Advanced Filters
+  const [searchVal, setSearchVal] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterState>({
+    subject: "",
+    topic: "",
+    author: "",
+    fileType: "",
+    publicationStatus: "",
+    processingStatus: "",
+  });
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Submit states
   const [submitTargetId, setSubmitTargetId] = useState<number | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -48,13 +67,6 @@ export function MyDocumentsPage({
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
   const [editError, setEditError] = useState("");
 
-  // Replace File states
-  const [replaceTargetDoc, setReplaceTargetDoc] = useState<Document | null>(null);
-  const [replaceFileSelected, setReplaceFileSelected] = useState<File | null>(null);
-  const [isReplacingFile, setIsReplacingFile] = useState(false);
-  const [replaceError, setReplaceError] = useState("");
-  const [uploadProgress, setUploadProgress] = useState(0);
-
 
   // Delete states
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
@@ -66,40 +78,74 @@ export function MyDocumentsPage({
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [reprocessError, setReprocessError] = useState("");
 
-  // General notification states
   const [successToast, setSuccessToast] = useState("");
 
+  // Focus Search Bar Shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
-  const [filters, setFilters] = useState<MyDocsFilterState>({
-    q: "",
-    processing_status: "ALL",
-    publication_status: "ALL"
-  });
+  // Sync advanced filters
+  useEffect(() => {
+    setAdvancedFilters(prev => ({ ...prev, subject: selectedSubject }));
+  }, [selectedSubject]);
 
   const loadDocuments = async (pageNum: number, silent = false) => {
     if (!silent) setLoading(true);
     setError("");
     try {
-      const result = await teacherDocumentService.getMyDocuments(pageNum);
-      setDocs(result.documents);
+      const apiFilters = {
+        q: searchVal.trim() || undefined,
+        processingStatus: advancedFilters.processingStatus || undefined,
+        publicationStatus: advancedFilters.publicationStatus || undefined,
+        subject: advancedFilters.subject || undefined,
+        topic: advancedFilters.topic || undefined,
+        tags: undefined,
+      };
+
+      const result = await teacherDocumentService.getMyDocuments(pageNum, 12, apiFilters);
+
+      // Client filtering for author & fileType which aren't in API queries
+      let filtered = result.documents;
+      if (advancedFilters.fileType) {
+        filtered = filtered.filter(doc => doc.fileType === advancedFilters.fileType);
+      }
+      if (advancedFilters.author) {
+        const authorQuery = advancedFilters.author.toLowerCase();
+        filtered = filtered.filter(doc => doc.authorName.toLowerCase().includes(authorQuery));
+      }
+
+      setDocs(filtered);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
+
+      // Extract unique subjects
+      if (availableSubjects.length === 0 && result.documents.length > 0) {
+        const subs = Array.from(new Set(result.documents.map(d => d.subject))) as string[];
+        setAvailableSubjects(subs.filter(Boolean));
+      }
     } catch (err: any) {
-      console.error("Failed to load documents", err);
+      console.error("Failed to load personal documents", err);
       if (!silent) {
-        setError(err.message || "Không thể kết nối đến máy chủ để lấy danh sách tài liệu.");
+        setError(err.message || "Không thể kết nối đến máy chủ để lấy danh sách tài liệu cá nhân.");
       }
     } finally {
       if (!silent) setLoading(false);
     }
   };
 
-
   useEffect(() => {
     loadDocuments(page);
-  }, [page, user.id]);
+  }, [page, searchVal, advancedFilters.processingStatus, advancedFilters.publicationStatus, advancedFilters.subject, advancedFilters.topic, advancedFilters.fileType, advancedFilters.author]);
 
-  // Polling hook to monitor active AI analysis/indexing jobs in real-time
+  // Polling for processing status
   useEffect(() => {
     const hasActiveProcessing = docs.some(
       (doc) =>
@@ -111,17 +157,13 @@ export function MyDocumentsPage({
     if (!hasActiveProcessing) return;
 
     const intervalId = setInterval(() => {
-      loadDocuments(page, true); // silent load to prevent loading skeletons flickering
-    }, 2500);
+      loadDocuments(page, true);
+    }, 4000);
 
-    return () => {
-      clearInterval(intervalId);
-    };
+    return () => clearInterval(intervalId);
   }, [docs, page]);
 
-
   const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     return () => {
       if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
@@ -135,11 +177,10 @@ export function MyDocumentsPage({
 
   const handleConfirmSubmit = async () => {
     if (!submitTargetId) return;
-    const id = submitTargetId;
     setIsSubmitting(true);
     setSubmitError("");
     try {
-      await teacherDocumentService.submitDocumentForReview(id);
+      await teacherDocumentService.submitDocumentForReview(submitTargetId);
       setSubmitSuccess(true);
       if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
       submitTimerRef.current = setTimeout(() => setSubmitSuccess(false), 4000);
@@ -153,7 +194,6 @@ export function MyDocumentsPage({
     }
   };
 
-  // Edit Action handlers
   const handleEditClick = (id: number) => {
     const doc = docs.find(d => d.id === id);
     if (!doc) return;
@@ -182,8 +222,8 @@ export function MyDocumentsPage({
     try {
       const parsedTags = editTags
         .split(",")
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
+        .map(t => t.trim().toLowerCase())
+        .filter((t, i, arr) => t.length > 0 && arr.indexOf(t) === i);
 
       await teacherDocumentService.updateDocument(editTargetDoc.id, {
         title: editTitle.trim(),
@@ -206,73 +246,7 @@ export function MyDocumentsPage({
     }
   };
 
-  // Replace Action handlers
-  const handleReplaceClick = (id: number) => {
-    const doc = docs.find(d => d.id === id);
-    if (!doc) return;
-    setReplaceTargetDoc(doc);
-    setReplaceFileSelected(null);
-    setReplaceError("");
-  };
 
-  const handleReplaceFile = async () => {
-    if (!replaceTargetDoc || !replaceFileSelected) return;
-
-    const extension = replaceFileSelected.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'pdf' && extension !== 'txt') {
-      setReplaceError("Định dạng file không hợp lệ. Chỉ hỗ trợ .pdf hoặc .txt.");
-      return;
-    }
-    if (replaceFileSelected.size > 20 * 1024 * 1024) {
-      setReplaceError("Dung lượng file vượt quá giới hạn 20MB.");
-      return;
-    }
-
-    setIsReplacingFile(true);
-    setReplaceError("");
-    setUploadProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 150);
-
-    try {
-      await teacherDocumentService.updateDocument(
-        replaceTargetDoc.id,
-        {
-          title: replaceTargetDoc.title,
-          description: replaceTargetDoc.description || undefined,
-          subject: replaceTargetDoc.subject,
-          topic: replaceTargetDoc.topic || undefined,
-          chapter: replaceTargetDoc.chapter || undefined,
-          tags: replaceTargetDoc.tags || undefined,
-        },
-        replaceFileSelected
-      );
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      setSuccessToast("Đã tải lên phiên bản file mới thành công.");
-      setTimeout(() => setSuccessToast(""), 4000);
-      setReplaceTargetDoc(null);
-      loadDocuments(page);
-    } catch (err: any) {
-      clearInterval(progressInterval);
-      console.error("Failed to replace file", err);
-      setReplaceError(err.message || "Đã xảy ra lỗi khi thay thế file mới.");
-    } finally {
-      setIsReplacingFile(false);
-    }
-  };
-
-
-  // Delete Action handlers
   const handleDeleteClick = (id: number) => {
     setDeleteTargetId(id);
     setDeleteError("");
@@ -287,8 +261,7 @@ export function MyDocumentsPage({
       setSuccessToast("Đã xóa tài liệu thành công.");
       setTimeout(() => setSuccessToast(""), 4000);
 
-      const nextDocsLength = filteredDocs.length - 1;
-      if (nextDocsLength === 0 && page > 0) {
+      if (docs.length === 1 && page > 0) {
         setPage(p => p - 1);
       } else {
         loadDocuments(page);
@@ -302,7 +275,6 @@ export function MyDocumentsPage({
     }
   };
 
-  // Reprocess RAG handler
   const handleRetryProcessingClick = (id: number) => {
     setReprocessTargetId(id);
     setReprocessError("");
@@ -314,193 +286,334 @@ export function MyDocumentsPage({
     setReprocessError("");
     try {
       await teacherDocumentService.reprocessRag(reprocessTargetId);
-      setSuccessToast("Đã gửi yêu cầu lập chỉ mục lại tài liệu.");
+      setSuccessToast("Đã gửi yêu cầu xử lý lại chỉ mục AI.");
       setTimeout(() => setSuccessToast(""), 4000);
       setReprocessTargetId(null);
       loadDocuments(page);
     } catch (err: any) {
       console.error("Failed to reprocess RAG", err);
-      setReprocessError(err.message || "Không thể yêu cầu lập chỉ mục lại tài liệu.");
+      setReprocessError(err.message || "Không thể xử lý lại chỉ mục.");
     } finally {
       setIsReprocessing(false);
     }
   };
 
-
-  const filteredDocs = docs.filter(d => {
-    if (filters.processing_status !== "ALL" && d.processingStatus !== filters.processing_status) return false;
-    if (filters.publication_status !== "ALL" && d.publicationStatus !== filters.publication_status) return false;
-    if (filters.q) {
-      const q = filters.q.toLowerCase();
-      if (!d.title.toLowerCase().includes(q) && !d.subject.toLowerCase().includes(q)) return false;
+  const handleDownload = async (id: number) => {
+    const doc = docs.find(d => d.id === id);
+    if (!doc) return;
+    try {
+      setDownloadError("");
+      await teacherDocumentService.downloadDocumentFile(id, doc.originalFilename || `${doc.title}.pdf`);
+    } catch (err: any) {
+      console.error("Download failed", err);
+      setDownloadError(err.message || "Không thể tải tài liệu gốc.");
+      setTimeout(() => setDownloadError(""), 4000);
     }
-    return true;
-  });
+  };
+
+  const activeFiltersCount = Object.entries(advancedFilters).filter(([key, val]) => {
+    return val !== "";
+  }).length;
 
   return (
-    <div className="w-full text-left">
+    <div className="w-full text-left font-sans space-y-6 pb-16">
+
+      {/* Header Info */}
+      <div>
+        <h1 className="text-[26px] font-bold text-[#0E0D0B] tracking-tight leading-tight">Học liệu của tôi</h1>
+        <p className="text-[13.5px] text-[#6B6963] mt-1 font-sans">
+          Quản lý kho học liệu bài giảng cá nhân, theo dõi trạng thái biên dịch chỉ mục AI và gửi kiểm duyệt lên Thư viện.
+        </p>
+      </div>
+
+      {/* Notifications bar */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2">
+        <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
-      {(submitSuccess || successToast) && (
-        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-250 text-emerald-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
-          <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0" />
-          <span>{submitSuccess ? "Tài liệu đã được gửi để kiểm duyệt." : successToast}</span>
+      {downloadError && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{downloadError}</span>
         </div>
       )}
-      <div className="flex justify-end mb-6">
-        <button
-          onClick={onNavigateUpload}
-          className="flex items-center gap-2 h-10 px-5 bg-[#0E0D0B] text-white text-[13px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm flex-shrink-0 cursor-pointer border-none font-action"
-        >
-          <Plus className="w-4 h-4" />
-          Tải lên tài liệu
-        </button>
+      {(submitSuccess || successToast) && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[13.5px] flex items-center gap-2 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0" />
+          <span>{submitSuccess ? "Tài liệu đã được gửi kiểm duyệt thành công." : successToast}</span>
+        </div>
+      )}
+
+      {/* Unified Toolbar: Search + Filter + Upload */}
+      <div className="flex flex-col md:flex-row md:items-center gap-3 w-full">
+        {/* Search Field */}
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#AAAA9F]" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchVal}
+            onChange={e => {
+              setSearchVal(e.target.value);
+              setPage(0); // Reset pagination on search change
+            }}
+            placeholder="Tìm kiếm tài liệu cá nhân..."
+            className="w-full h-11 pl-11 pr-16 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all shadow-xs font-sans"
+          />
+          <kbd className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:inline-block px-1.5 py-0.5 rounded border border-[#0E0D0B]/[0.08] bg-[#F8F7F4] text-[10px] font-mono text-[#AAAA9F] select-none">
+            Ctrl + K
+          </kbd>
+        </div>
+
+        {/* Actions Button group */}
+        <div className="flex items-center gap-3 flex-wrap md:flex-nowrap w-full md:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className={`flex-1 md:flex-none h-11 px-4.5 rounded-xl text-[13px] font-semibold transition-all shadow-xs cursor-pointer border flex items-center justify-center gap-2 whitespace-nowrap ${activeFiltersCount > 0
+                ? "bg-[#4F63D2]/10 border-[#4F63D2]/25 text-[#4F63D2]"
+                : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B]"
+              }`}
+          >
+            <Filter className="w-4 h-4" />
+            Lọc nâng cao {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+          </button>
+
+          <button
+            type="button"
+            onClick={onNavigateUpload}
+            className="flex-1 md:flex-none h-11 px-5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer border-none"
+          >
+            <Plus className="w-4 h-4" />
+            Tải lên tài liệu mới
+          </button>
+        </div>
       </div>
 
-      <StatusFilterBar filters={filters} onChange={setFilters} />
+      {/* Applied Filters Display */}
+      {activeFiltersCount > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-[12px] text-[#AAAA9F] mr-1">Đang lọc theo:</span>
+          {Object.entries(advancedFilters).map(([key, val]) => {
+            if (!val) return null;
+            let label = val;
+            if (key === "processingStatus") {
+              if (val === "PROCESSED") label = "AI Active";
+              else if (val === "ANALYZING") label = "AI Analyzing";
+              else if (val === "PROCESSING") label = "RAG Indexing";
+              else if (val === "FAILED") label = "AI Lỗi";
+            }
+            if (key === "publicationStatus") {
+              if (val === "DRAFT") label = "Bản nháp";
+              else if (val === "PENDING_REVIEW") label = "Chờ duyệt";
+              else if (val === "PUBLISHED") label = "Đã xuất bản";
+              else if (val === "REJECTED") label = "Từ chối";
+              else if (val === "ARCHIVED") label = "Lưu trữ";
+            }
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-lg bg-[#F4F3F0] text-[#0E0D0B] text-[12.5px] font-medium border border-[#0E0D0B]/[0.04]"
+              >
+                {label}
+                <button
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, [key]: "" }));
+                    if (key === "subject") setSelectedSubject("");
+                  }}
+                  className="p-0.5 rounded-full hover:bg-[#ECEAE4] text-[#AAAA9F] hover:text-[#0E0D0B] cursor-pointer border-none bg-transparent"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            );
+          })}
+          <button
+            onClick={() => {
+              setAdvancedFilters({
+                subject: "",
+                topic: "",
+                author: "",
+                fileType: "",
+                publicationStatus: "",
+                processingStatus: "",
+              });
+              setSelectedSubject("");
+            }}
+            className="text-[12px] text-[#4F63D2] hover:text-[#3D50B8] font-semibold cursor-pointer border-none bg-transparent ml-2"
+          >
+            Xóa tất cả bộ lọc
+          </button>
+        </div>
+      )}
 
+      {/* Tabular Management Grid Layout */}
       {loading ? (
-        <LoadingSkeleton viewMode="list" />
-      ) : filteredDocs.length > 0 ? (
-        <div className="bg-white border border-[rgba(14,13,11,0.08)] rounded-2xl shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[900px]">
+        <div className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-6">
+          <LoadingSkeleton viewMode="list" />
+        </div>
+      ) : docs.length > 0 ? (
+        <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl overflow-hidden shadow-xs">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse min-w-[800px] font-sans">
               <thead>
-                <tr className="border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/50">
-                  <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium">Tài liệu</th>
-                  <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-48">Tiến trình AI</th>
-                  <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-48">Trạng thái xuất bản</th>
-                  <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-32">Cập nhật</th>
-                  <th className="px-3 py-3 w-16"></th>
+                <tr className="bg-[#F8F7F4]/55 border-b border-[#0E0D0B]/[0.06]">
+                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Tên học liệu</th>
+                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Môn học</th>
+                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Trạng thái AI</th>
+                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Xuất bản</th>
+                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Cập nhật</th>
+                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(14,13,11,0.04)]">
-                {filteredDocs.map(doc => (
-                  <tr key={doc.id} className="hover:bg-[#F8F7F4]/50 transition-colors group">
-                    <td className="px-5 py-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#F4F3F0] flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <FileText className="w-3.5 h-3.5 text-[#6B6963]" />
-                        </div>
-                        <div>
-                          <p 
-                            onClick={() => onNavigateDetail(doc.id)}
-                            className="text-[14.5px] font-medium text-[#0E0D0B] mb-0.5 line-clamp-1 hover:text-[#4F63D2] transition-colors cursor-pointer"
-                          >
-                            {doc.title}
-                          </p>
-                          <p className="text-[12.5px] text-[#AAAA9F]">{doc.subject} · {doc.fileType}</p>
-                          {doc.publicationStatus === "REJECTED" && doc.rejectReason && (
-                            <div className="flex items-start gap-1.5 mt-2 bg-red-50 text-red-700 p-2 rounded-lg text-[13px]">
-                              <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                              <span className="line-clamp-2">{doc.rejectReason}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    
-                    <td className="px-5 py-4 align-top pt-5">
-                      <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-                        (isAnalysisInProgress(doc.processingStatus) || isRagIndexing(doc.processingStatus)) ? "text-amber-700 bg-amber-50" :
-                        (isAnalysisComplete(doc.processingStatus) || isRagReady(doc.processingStatus)) ? "text-emerald-700 bg-emerald-50" :
-                        isProcessingFailed(doc.processingStatus) ? "text-red-700 bg-red-50" : "text-[#6B6963] bg-[#F4F3F0]"
-                      }`}>
-                        {doc.processingStatus === "UPLOADED" ? "Đã tải lên" :
-                         doc.processingStatus === "ANALYZING" ? "Đang phân tích tài liệu" :
-                         doc.processingStatus === "ANALYZED" ? "Đã phân tích — sẵn sàng gửi duyệt" :
-                         doc.processingStatus === "PROCESSING" ? "Đang lập chỉ mục RAG" :
-                         doc.processingStatus === "PROCESSED" ? "RAG đã sẵn sàng" :
-                         isProcessingFailed(doc.processingStatus) ? (doc.publicationStatus === "PUBLISHED" ? "Lập chỉ mục RAG thất bại" : "Phân tích tài liệu thất bại") : "Đã tải lên"}
-                      </span>
-                    </td>
-                    
-                    <td className="px-5 py-4 align-top pt-5">
-                       <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-                        doc.publicationStatus === "PENDING_REVIEW" ? "text-amber-700 bg-amber-50" :
-                        doc.publicationStatus === "PUBLISHED" ? "text-emerald-700 bg-emerald-50" :
-                        doc.publicationStatus === "REJECTED" ? "text-red-700 bg-red-50" :
-                        doc.publicationStatus === "ARCHIVED" ? "text-gray-500 bg-gray-100" : "text-[#6B6963] bg-[#F4F3F0]"
-                      }`}>
-                        {doc.publicationStatus === "PENDING_REVIEW" ? "Chờ duyệt" : 
-                         doc.publicationStatus === "PUBLISHED" ? "Đã xuất bản" :
-                         doc.publicationStatus === "REJECTED" ? "Bị từ chối" :
-                         doc.publicationStatus === "ARCHIVED" ? "Đã lưu trữ" : "Bản nháp"}
-                      </span>
-                    </td>
-                    
-                    <td className="px-5 py-4 align-top pt-5 text-[12.5px] text-[#6B6963] font-mono-label">
-                      {doc.updatedAt}
-                    </td>
-                    
-                    <td className="px-3 py-4 align-top pt-4">
-                      <MyDocumentActionMenu 
-                        document={doc}
-                        onView={onNavigateDetail}
-                        onEdit={handleEditClick}
-                        onReplace={handleReplaceClick}
-                        onDelete={handleDeleteClick}
-                        onSubmitReview={handleSubmitReview}
-                        onDownload={() => {}}
-                        onRetryProcessing={handleRetryProcessingClick}
-                        disabled={loading || isSavingMetadata || isReplacingFile || isDeleting || isSubmitting}
-                      />
+              <tbody className="divide-y divide-[#0E0D0B]/[0.05]">
+                {docs.map((doc) => {
+                  const isAiReady = doc.ragEligible || doc.processingStatus === "PROCESSED";
+                  const isProcessing = isAnalysisInProgress(doc.processingStatus) || isRagIndexing(doc.processingStatus);
+                  const isFailed = isProcessingFailed(doc.processingStatus);
 
-                    </td>
-                  </tr>
-                ))}
+                  return (
+                    <tr
+                      key={doc.id}
+                      onClick={() => onNavigateDetail(doc.id)}
+                      className="hover:bg-[#FDFDFB] transition-colors cursor-pointer group"
+                    >
+                      {/* Document Details column */}
+                      <td className="px-6 py-4 min-w-[280px]">
+                        <div className="flex items-start gap-3.5">
+                          <div className="w-9 h-9 rounded-lg bg-[#F4F3F0] flex items-center justify-center flex-shrink-0 text-[#6B6963] group-hover:bg-[#4F63D2]/10 group-hover:text-[#4F63D2] transition-colors">
+                            <FileText className="w-4.5 h-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-[#0E0D0B] text-[14.5px] line-clamp-1 group-hover:text-[#4F63D2] transition-colors">
+                              {doc.title}
+                            </span>
+                            <span className="text-[12px] text-[#AAAA9F] line-clamp-1 mt-0.5">
+                              {doc.description || "Không có mô tả."}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Subject column */}
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11.5px] font-semibold text-[#6B6963] bg-[#F4F3F0] uppercase tracking-wide">
+                          {doc.subject}
+                        </span>
+                      </td>
+
+                      {/* AI Status column */}
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md border ${isAiReady ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
+                            isProcessing ? "text-amber-700 bg-amber-50 border-amber-100" :
+                              isFailed ? "text-red-700 bg-red-50 border-red-100" : "text-slate-500 bg-slate-50 border-transparent"
+                          }`}>
+                          {isProcessing && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />}
+                          {doc.processingStatus === "PROCESSED" ? "RAG Sẵn sàng" :
+                            doc.processingStatus === "ANALYZING" ? "AI Phân tích" :
+                              doc.processingStatus === "PROCESSING" ? "Nạp RAG" :
+                                doc.processingStatus === "FAILED" ? "AI Thất bại" : "Chờ xử lý"}
+                        </span>
+                      </td>
+
+                      {/* Publication Status column */}
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-md border ${doc.publicationStatus === "PUBLISHED" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
+                            doc.publicationStatus === "PENDING_REVIEW" ? "text-amber-700 bg-amber-50 border-amber-100" :
+                              doc.publicationStatus === "REJECTED" ? "text-red-700 bg-red-50 border-red-100" : "text-[#6B6963] bg-[#F4F3F0] border-transparent"
+                          }`}>
+                          {doc.publicationStatus === "PUBLISHED" ? "Đã xuất bản" :
+                            doc.publicationStatus === "PENDING_REVIEW" ? "Chờ duyệt" :
+                              doc.publicationStatus === "REJECTED" ? "Từ chối" : "Bản nháp"}
+                        </span>
+                      </td>
+
+                      {/* Date updated column */}
+                      <td className="px-6 py-4 text-[13px] text-[#6B6963] whitespace-nowrap">
+                        {doc.updatedAt}
+                      </td>
+
+                      {/* Action Menu column */}
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <MyDocumentActionMenu
+                          document={doc}
+                          onView={onNavigateDetail}
+                          onEdit={handleEditClick}
+                          onDelete={handleDeleteClick}
+                          onSubmitReview={handleSubmitReview}
+                          onDownload={handleDownload}
+                          onRetryProcessing={handleRetryProcessingClick}
+                          disabled={loading || isSavingMetadata || isDeleting || isSubmitting}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <div className="px-5 py-3 border-t border-[rgba(14,13,11,0.06)] flex items-center justify-between text-[13px] text-[#AAAA9F]">
-            <span>
-              Hiển thị {filteredDocs.length} trên {docs.length} tài liệu (Trang {page + 1}/{totalPages || 1})
-            </span>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                className="px-2 py-1 rounded hover:bg-[#F4F3F0] disabled:opacity-50 border-none bg-transparent cursor-pointer" 
-                disabled={page === 0}
-              >
-                Trước
-              </button>
-              <span className="px-2 py-1 text-[#0E0D0B] font-medium">{page + 1}</span>
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                className="px-2 py-1 rounded hover:bg-[#F4F3F0] disabled:opacity-50 border-none bg-transparent cursor-pointer" 
-                disabled={page >= totalPages - 1}
-              >
-                Sau
-              </button>
+
+          {/* Table Pagination row */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-[#0E0D0B]/[0.06] bg-[#FDFDFB]">
+              <div className="text-[13px] text-[#6B6963]">
+                Hiển thị <span className="font-semibold text-[#0E0D0B]">{(page * 12) + 1}</span> - <span className="font-semibold text-[#0E0D0B]">{Math.min((page + 1) * 12, totalElements)}</span> trong số <span className="font-semibold text-[#0E0D0B]">{totalElements}</span> học liệu
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="h-8 px-3.5 text-[13px] font-semibold border border-[#0E0D0B]/[0.12] rounded-lg hover:bg-[#F4F3F0] disabled:opacity-40 bg-white cursor-pointer"
+                >
+                  Trước
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page === totalPages - 1}
+                  className="h-8 px-3.5 text-[13px] font-semibold border border-[#0E0D0B]/[0.12] rounded-lg hover:bg-[#F4F3F0] disabled:opacity-40 bg-white cursor-pointer"
+                >
+                  Tiếp
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] mt-4">
-          <EmptyState 
-            icon={<SearchX className="w-6 h-6" />}
+        <div className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-6">
+          <EmptyState
+            icon={<SearchX className="w-8 h-8" />}
             title="Không tìm thấy tài liệu"
-            description={filters.q || filters.processing_status !== "ALL" || filters.publication_status !== "ALL" 
-              ? "Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm." 
-              : "Bạn chưa tải lên tài liệu nào."}
+            description={searchVal || activeFiltersCount > 0
+              ? "Vui lòng tinh chỉnh từ khóa tìm kiếm hoặc tham số lọc."
+              : "Bạn chưa đăng tải học liệu cá nhân nào."}
             action={
-              (filters.q || filters.processing_status !== "ALL" || filters.publication_status !== "ALL") ? (
-                <button 
-                  onClick={() => setFilters({ q: "", processing_status: "ALL", publication_status: "ALL" })}
-                  className="h-9 px-4 text-[13px] font-medium text-[#4F63D2] hover:bg-[#F0F2FF] rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+              (searchVal || activeFiltersCount > 0) ? (
+                <button
+                  onClick={() => {
+                    setSearchVal("");
+                    setSelectedSubject("");
+                    setAdvancedFilters({
+                      subject: "",
+                      topic: "",
+                      author: "",
+                      fileType: "",
+                      publicationStatus: "",
+                      processingStatus: "",
+                    });
+                  }}
+                  className="h-9 px-4 text-[13px] font-semibold text-[#4F63D2] hover:bg-[#4F63D2]/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
                 >
-                  Xóa bộ lọc
+                  Xóa bộ lọc tìm kiếm
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={onNavigateUpload}
-                  className="h-9 px-5 text-[13px] font-medium text-white bg-[#0E0D0B] hover:bg-[#1C1A17] rounded-lg transition-colors border-none cursor-pointer"
+                  className="h-9 px-4 text-[13px] font-semibold text-white bg-[#0E0D0B] hover:bg-[#1C1A17] rounded-lg cursor-pointer border-none"
                 >
-                  Tải lên ngay
+                  Tải lên ngay bây giờ
                 </button>
               )
             }
@@ -508,209 +621,131 @@ export function MyDocumentsPage({
         </div>
       )}
 
-      {/* Edit Metadata Modal */}
+      {/* Advanced Filter drawer */}
+      <FilterDrawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        filters={advancedFilters}
+        onChange={setAdvancedFilters}
+        availableSubjects={availableSubjects}
+        mode="my-documents"
+      />
+
+      {/* Sửa Metadata Modal */}
       {editTargetDoc && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0E0D0B]/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-[500px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col animate-[fade-in_150ms_ease-out]">
-            <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)]">
-              <h3 className="text-[16px] font-semibold text-[#0E0D0B] font-sans-body">Sửa thông tin (Metadata)</h3>
-              <button 
-                onClick={() => setEditTargetDoc(null)} 
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0E0D0B]/40 backdrop-blur-xs p-4 animate-[fade-in_150ms_ease-out]">
+          <div className="bg-white rounded-2xl w-full max-w-[500px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-[#0E0D0B]/[0.06]">
+              <h3 className="text-[16px] font-semibold text-[#0E0D0B]">Chỉnh sửa siêu dữ liệu</h3>
+              <button
+                onClick={() => setEditTargetDoc(null)}
                 disabled={isSavingMetadata}
-                className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent focus-visible:outline-none"
+                className="text-[#AAAA9F] hover:text-[#0E0D0B] p-1 cursor-pointer border-none bg-transparent"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
               {editError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-800 text-[13px] font-sans-body">
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-800 text-[12.5px]">
                   {editError}
                 </div>
               )}
-              
+
               <div>
-                <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Tiêu đề tài liệu *</label>
+                <label className="block mb-1.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Tiêu đề học liệu *</label>
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   disabled={isSavingMetadata}
-                  className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                  className="w-full px-3 py-2.5 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] focus:outline-none focus:border-[#4F63D2] transition-all"
                 />
               </div>
 
               <div>
-                <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mô tả</label>
+                <label className="block mb-1.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Mô tả chi tiết</label>
                 <textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   disabled={isSavingMetadata}
                   rows={3}
-                  className="w-full p-3 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all resize-none"
+                  className="w-full p-3 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] focus:outline-none focus:border-[#4F63D2] transition-all resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Môn học *</label>
+                  <label className="block mb-1.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Môn học *</label>
                   <input
                     type="text"
                     value={editSubject}
                     onChange={(e) => setEditSubject(e.target.value)}
                     disabled={isSavingMetadata}
-                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] focus:outline-none focus:border-[#4F63D2] transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Chủ đề</label>
+                  <label className="block mb-1.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Chủ đề (Topic)</label>
                   <input
                     type="text"
                     value={editTopic}
                     onChange={(e) => setEditTopic(e.target.value)}
                     disabled={isSavingMetadata}
-                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] focus:outline-none focus:border-[#4F63D2] transition-all"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Chương</label>
+                  <label className="block mb-1.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Chương học</label>
                   <input
                     type="text"
                     value={editChapter}
                     onChange={(e) => setEditChapter(e.target.value)}
                     disabled={isSavingMetadata}
-                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] focus:outline-none focus:border-[#4F63D2] transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Thẻ (cách nhau bởi dấu phẩy)</label>
+                  <label className="block mb-1.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Thẻ (Phân tách bằng dấu phẩy)</label>
                   <input
                     type="text"
                     value={editTags}
                     onChange={(e) => setEditTags(e.target.value)}
                     disabled={isSavingMetadata}
-                    className="w-full px-3 py-2 bg-white border border-[rgba(14,13,11,0.12)] focus:border-[#4F63D2] focus:ring-2 focus:ring-[#4F63D2]/10 rounded-xl text-[13.5px] focus:outline-none transition-all"
-                    placeholder="VD: java, oop"
+                    className="w-full px-3 py-2.5 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] focus:outline-none focus:border-[#4F63D2] transition-all"
+                    placeholder="tag1, tag2"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-[#F8F7F4] border-t border-[rgba(14,13,11,0.06)] rounded-b-2xl flex justify-end gap-3">
+            <div className="px-6 py-4 bg-[#F8F7F4] border-t border-[#0E0D0B]/[0.06] rounded-b-2xl flex justify-end gap-3">
               <button
                 onClick={() => setEditTargetDoc(null)}
                 disabled={isSavingMetadata}
-                className="h-9 px-4 rounded-xl text-[13px] font-medium text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#ECEAE4] transition-colors disabled:opacity-50 cursor-pointer border-none bg-transparent"
+                className="h-9.5 px-4 rounded-xl text-[13px] font-medium text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#ECEAE4] transition-colors border-none bg-transparent cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 onClick={handleSaveMetadata}
                 disabled={isSavingMetadata}
-                className="h-9 px-5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] rounded-xl text-[13px] font-medium transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer border-none"
+                className="h-9.5 px-5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] rounded-xl text-[13px] font-semibold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer border-none"
               >
                 {isSavingMetadata && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {isSavingMetadata ? "Đang lưu..." : "Lưu thay đổi"}
+                {isSavingMetadata ? "Đang lưu..." : "Lưu dữ liệu"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Replace File Modal */}
-      {replaceTargetDoc && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0E0D0B]/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-[450px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col animate-[fade-in_150ms_ease-out]">
-            <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)]">
-              <h3 className="text-[16px] font-semibold text-[#0E0D0B] font-sans-body">Thay thế file mới</h3>
-              <button 
-                onClick={() => setReplaceTargetDoc(null)} 
-                disabled={isReplacingFile}
-                className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent focus-visible:outline-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="p-6 flex flex-col gap-4 text-left">
-              {replaceError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-800 text-[13px] font-sans-body">
-                  {replaceError}
-                </div>
-              )}
-
-              <p className="text-[13px] text-[#6B6963] leading-relaxed">
-                Tải lên phiên bản mới của file tài liệu. Hệ thống sẽ tự động cập nhật và phân tích lại nội dung.
-              </p>
-
-              <div className="border-2 border-dashed border-[rgba(14,13,11,0.15)] rounded-xl p-6 text-center hover:bg-[#F8F7F4]/55 transition-colors relative cursor-pointer">
-                <input
-                  type="file"
-                  accept=".pdf,.txt"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setReplaceFileSelected(e.target.files[0]);
-                      setReplaceError("");
-                    }
-                  }}
-                  disabled={isReplacingFile}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="flex flex-col items-center justify-center gap-1.5">
-                  <span className="text-[13px] text-[#0E0D0B] font-medium">
-                    {replaceFileSelected ? replaceFileSelected.name : "Nhấp để chọn file mới"}
-                  </span>
-                  <span className="text-[11.5px] text-[#AAAA9F]">
-                    {replaceFileSelected 
-                      ? `${(replaceFileSelected.size / (1024 * 1024)).toFixed(2)} MB`
-                      : "Chấp nhận định dạng .pdf hoặc .txt, tối đa 20MB"}
-                  </span>
-                </div>
-              </div>
-
-              {isReplacingFile && (
-                <div className="mt-2 flex flex-col gap-1.5 w-full">
-                  <div className="flex justify-between text-[11.5px] font-medium text-[#6B6963]">
-                    <span>Đang tải lên phiên bản mới...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-[#F4F3F0] h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-[#4F63D2] h-full rounded-full transition-all duration-300 ease-out"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-
-            <div className="px-6 py-4 bg-[#F8F7F4] border-t border-[rgba(14,13,11,0.06)] rounded-b-2xl flex justify-end gap-3">
-              <button
-                onClick={() => setReplaceTargetDoc(null)}
-                disabled={isReplacingFile}
-                className="h-9 px-4 rounded-xl text-[13px] font-medium text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#ECEAE4] transition-colors disabled:opacity-50 cursor-pointer border-none bg-transparent"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleReplaceFile}
-                disabled={isReplacingFile || !replaceFileSelected}
-                className="h-9 px-5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] rounded-xl text-[13px] font-medium transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer border-none"
-              >
-                {isReplacingFile && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {isReplacingFile ? "Đang tải lên..." : "Tải lên bản mới"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Document Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <ConfirmDialog
         isOpen={deleteTargetId !== null}
         title="Xóa tài liệu?"
@@ -729,6 +764,7 @@ export function MyDocumentsPage({
         }}
       />
 
+      {/* Submit Confirmation */}
       <ConfirmDialog
         isOpen={submitTargetId !== null}
         title="Gửi tài liệu để kiểm duyệt?"
@@ -747,7 +783,7 @@ export function MyDocumentsPage({
         }}
       />
 
-      {/* Reprocess RAG Confirmation Dialog */}
+      {/* Reprocess AI Confirmation */}
       <ConfirmDialog
         isOpen={reprocessTargetId !== null}
         title="Lập chỉ mục lại tài liệu?"
@@ -768,4 +804,3 @@ export function MyDocumentsPage({
     </div>
   );
 }
-

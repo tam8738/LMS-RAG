@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { RagCitation } from "../types/rag";
-import { ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { FileText, ExternalLink, Minimize2, Maximize2 } from "lucide-react";
 
 interface CitationListProps {
   citations: RagCitation[];
@@ -20,7 +20,6 @@ function buildCitationLabel(citation: RagCitation, fallbackIndex: number) {
   if (citation.pageNumber !== undefined && citation.pageNumber !== null && citation.pageNumber > 0) {
     return `Trang ${citation.pageNumber}`;
   }
-
   return `Đoạn ${citation.chunkIndex ?? fallbackIndex + 1}`;
 }
 
@@ -28,7 +27,6 @@ function getCitationKey(citation: RagCitation, fallbackIndex: number) {
   if (citation.pageNumber !== undefined && citation.pageNumber !== null && citation.pageNumber > 0) {
     return `page-${citation.pageNumber}`;
   }
-
   return `chunk-${citation.chunkId ?? citation.chunkIndex ?? fallbackIndex}`;
 }
 
@@ -66,67 +64,69 @@ export function CitationList({ citations, documentTitle }: CitationListProps) {
 
   const visibleGroups = showAll ? citationGroups : citationGroups.slice(0, INITIAL_VISIBLE_CITATIONS);
   const hiddenCount = citationGroups.length - visibleGroups.length;
-  const hasMergedSources = citationGroups.length !== citations.length;
-
-  const toggleExpand = (key: string) => {
-    setExpandedKey(expandedKey === key ? null : key);
-  };
 
   return (
-    <div className="mt-4 border-t border-[rgba(14,13,11,0.08)] pt-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h4 className="text-[12px] font-semibold text-[#8C8A82] uppercase tracking-wider font-mono-label">
-          Nguồn tài liệu tham khảo ({citationGroups.length})
+    <div className="mt-4 border-t border-[#0E0D0B]/[0.06] pt-4 text-left">
+      <div className="mb-3 flex items-center justify-between">
+        <h4 className="text-[11.5px] font-bold text-[#6B6963] uppercase tracking-widest font-mono">
+          Nguồn trích dẫn ({citationGroups.length})
         </h4>
-        {hasMergedSources && (
-          <span className="text-[11px] text-[#8C8A82] font-mono-label whitespace-nowrap">
-            {citations.length} đoạn
-          </span>
-        )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[rgba(14,13,11,0.06)] bg-[#F8F7F4] divide-y divide-[rgba(14,13,11,0.05)]">
-        {visibleGroups.map((group) => {
+      {/* Grid of source cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        {visibleGroups.map((group, idx) => {
           const isExpanded = expandedKey === group.key;
           return (
-            <div key={group.key} className="transition-colors duration-150 hover:bg-[#F4F3F0]">
-              <button
-                onClick={() => toggleExpand(group.key)}
-                aria-expanded={isExpanded}
-                className="w-full text-left px-3.5 py-2 flex items-center justify-between gap-3 border-none bg-transparent cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+            <div
+              key={group.key}
+              className={`group rounded-xl border border-[#0E0D0B]/[0.06] p-3.5 bg-white hover:border-[#4F63D2]/35 transition-all duration-200 shadow-xs flex flex-col justify-between ${
+                isExpanded ? "sm:col-span-2" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="w-8.5 h-8.5 rounded-lg bg-[#F4F3F0] group-hover:bg-[#4F63D2]/10 flex items-center justify-center flex-shrink-0 transition-colors">
+                    <FileText className="w-4 h-4 text-[#6B6963] group-hover:text-[#4F63D2] transition-colors" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[13px] font-medium text-[#0E0D0B] truncate">
-                        {documentTitle}
-                      </span>
-                      {group.count > 1 && (
-                        <span className="text-[10.5px] text-[#4F63D2] bg-indigo-50 px-1.5 py-0.5 rounded-md font-mono-label whitespace-nowrap">
-                          {group.count} đoạn
-                        </span>
-                      )}
-                    </div>
-                    <span className="block text-[11px] text-[#8C8A82] mt-0.5 font-mono-label">
-                      {group.label}
+                    <span className="text-[13px] font-semibold text-[#0E0D0B] line-clamp-1 block">
+                      {documentTitle}
+                    </span>
+                    <span className="text-[10px] text-[#AAAA9F] font-mono uppercase font-semibold block mt-0.5">
+                      {group.label} {group.count > 1 && `· ${group.count} đoạn`}
                     </span>
                   </div>
                 </div>
-                {isExpanded ? (
-                  <ChevronUp className="w-4 h-4 text-[#AAAA9F] flex-shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-[#AAAA9F] flex-shrink-0" />
-                )}
-              </button>
+                <span className="w-5 h-5 rounded-full bg-[#4F63D2]/10 text-[#4F63D2] text-[10px] font-bold flex items-center justify-center flex-shrink-0 font-mono">
+                  [{idx + 1}]
+                </span>
+              </div>
 
-              {isExpanded && (
-                <div className="px-3.5 pb-3 pt-0.5">
-                  <p className="text-[13px] text-[#6B6963] leading-relaxed italic bg-white p-3 rounded-lg border border-[rgba(14,13,11,0.04)] font-sans-body select-text">
-                    "{group.citation.excerpt}"
-                  </p>
-                </div>
-              )}
+              {/* Preview content excerpt */}
+              <p className={`text-[12.5px] text-[#6B6963] leading-relaxed italic bg-[#F8F7F4] p-3 rounded-lg border border-[#0E0D0B]/[0.03] mt-3 font-sans select-text ${
+                isExpanded ? "" : "line-clamp-2"
+              }`}>
+                "{group.citation.excerpt}"
+              </p>
+
+              {/* Action buttons inside source cards */}
+              <div className="flex items-center gap-3.5 mt-3 pt-3 border-t border-[#0E0D0B]/[0.04]">
+                <button
+                  onClick={() => setExpandedKey(isExpanded ? null : group.key)}
+                  className="flex items-center gap-1 text-[11.5px] font-semibold text-[#4F63D2] border-none bg-transparent cursor-pointer hover:underline outline-none"
+                >
+                  {isExpanded ? (
+                    <>
+                      <Minimize2 className="w-3 h-3" /> Thu nhỏ
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3 h-3" /> Xem đầy đủ trích dẫn
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           );
         })}
@@ -135,9 +135,9 @@ export function CitationList({ citations, documentTitle }: CitationListProps) {
       {citationGroups.length > INITIAL_VISIBLE_CITATIONS && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="mt-2 text-[12px] font-medium text-[#4F63D2] hover:text-[#3346B0] border-none bg-transparent cursor-pointer font-action outline-none focus-visible:underline"
+          className="mt-3 text-[12px] font-semibold text-[#4F63D2] hover:text-[#3D50B8] border-none bg-transparent cursor-pointer font-action outline-none"
         >
-          {showAll ? "Thu gọn nguồn" : `Hiện thêm ${hiddenCount} nguồn`}
+          {showAll ? "Thu gọn nguồn trích dẫn" : `Xem thêm ${hiddenCount} nguồn trích dẫn khác`}
         </button>
       )}
     </div>

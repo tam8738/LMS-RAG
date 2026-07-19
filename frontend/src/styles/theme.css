@@ -39,6 +39,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --shadow-premium: 0 4px 20px -2px rgba(14, 13, 11, 0.02), 0 2px 6px -1px rgba(14, 13, 11, 0.03);
+  --shadow-premium-hover: 0 12px 30px -4px rgba(14, 13, 11, 0.08), 0 4px 12px -2px rgba(14, 13, 11, 0.05);
 }
 
 .dark {
@@ -117,6 +119,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-premium: var(--shadow-premium);
+  --shadow-premium-hover: var(--shadow-premium-hover);
 
   --font-sans: 'Inter', sans-serif;
   --font-serif: 'Instrument Serif', serif;

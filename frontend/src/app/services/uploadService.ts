@@ -56,7 +56,7 @@ export const uploadService = {
           }
         } else {
           // Centrally handle session expiration if unauthorized
-          if (currentXhr.status === 401 && token) {
+          if (currentXhr.status === 401) {
             localStorage.removeItem("token");
             window.dispatchEvent(new Event("auth-unauthorized"));
             reject(new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."));
@@ -75,7 +75,7 @@ export const uploadService = {
       };
 
       currentXhr.onabort = () => {
-        reject(new Error("Quá trình tải lên đã bị hủy bởi người dùng."));
+        reject(new Error("YÊU_CẦU_BỊ_HỦY"));
       };
 
       const formData = new FormData();

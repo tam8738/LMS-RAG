@@ -72,6 +72,36 @@ export function MyDocumentDetailPage({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [previewError, setPreviewError] = useState("");
+  const [isPreviewing, setIsPreviewing] = useState(false);
+
+  const handleDownload = async () => {
+    if (!doc) return;
+    try {
+      setDownloadError("");
+      await teacherDocumentService.downloadDocumentFile(doc.id, doc.originalFilename || `${doc.title}.pdf`);
+    } catch (err: any) {
+      console.error(err);
+      setDownloadError(err.message || "Không thể tải tài liệu gốc.");
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!doc) return;
+    setIsPreviewing(true);
+    setPreviewError("");
+    try {
+      await teacherDocumentService.previewDocumentFile(doc.id);
+    } catch (err: any) {
+      console.error(err);
+      setPreviewError(err.message || "Không thể mở xem trực tuyến.");
+      setTimeout(() => setPreviewError(""), 4000);
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
 
   const isMountedRef = useRef(true);
   const submitTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -440,46 +470,42 @@ export function MyDocumentDetailPage({
           <ArrowLeft className="w-3.5 h-3.5" /> Trở về danh sách
         </button>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Secondary Action group (Outlines) */}
           {canReplace && (
             <button 
               onClick={handleReplaceClick}
               disabled={isMutatingActive}
-              className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
+              className="h-8.5 px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
             >
-              <Replace className="w-3.5 h-3.5" /> Thay file
+              <Replace className="w-3.5 h-3.5 text-[#6B6963]" /> Thay file
             </button>
           )}
           {canEdit && (
             <button 
               onClick={handleEditClick}
               disabled={isMutatingActive}
-              className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
+              className="h-8.5 px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
             >
-              <Edit2 className="w-3.5 h-3.5" /> Sửa thông tin
+              <Edit2 className="w-3.5 h-3.5 text-[#6B6963]" /> Sửa thông tin
             </button>
           )}
+
+          {/* Primary Action group (Solid dark) */}
           {showRetry && (
             <button 
               onClick={handleRetryProcessingClick}
               disabled={isMutatingActive}
-              className="h-8 px-3 flex items-center gap-1.5 bg-white border border-amber-200 text-amber-800 text-[13px] font-medium rounded-lg hover:bg-amber-50 transition-colors cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
+              className="h-8.5 px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Thử xử lý lại AI
             </button>
           )}
-          <button 
-            disabled={true} 
-            title="Chức năng này chưa được máy chủ hỗ trợ (thiếu API Backend)"
-            className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg opacity-50 cursor-not-allowed font-action"
-          >
-            <Download className="w-3.5 h-3.5 text-[#AAAA9F]" /> Tải file gốc
-          </button>
           {canSubmit && (
             <button 
               onClick={() => setIsConfirmOpen(true)}
               disabled={isMutatingActive}
-              className="h-8 px-4 flex items-center gap-1.5 bg-[#4F63D2] text-white text-[13px] font-medium rounded-lg hover:bg-[#3D50B8] transition-colors shadow-sm cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-8.5 px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
@@ -495,19 +521,21 @@ export function MyDocumentDetailPage({
             </button>
           )}
           {pStatus === "PENDING_REVIEW" && (
-            <span className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
+            <span className="inline-flex items-center gap-1.5 h-8.5 px-3 text-[13px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl">
               <Clock className="w-3.5 h-3.5 text-amber-650 animate-pulse" />
               Đang chờ kiểm duyệt
             </span>
           )}
+
+          {/* Destructive Action */}
           {canDelete && (
             <button 
               onClick={handleDeleteClick}
               disabled={isMutatingActive}
-              className="h-8 px-3 flex items-center justify-center bg-white border border-red-200 text-red-650 rounded-lg hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed" 
+              className="h-8.5 px-3 flex items-center justify-center bg-white border border-red-200 text-red-655 rounded-xl hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed font-action" 
               title="Xóa tài liệu"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -522,10 +550,26 @@ export function MyDocumentDetailPage({
 
       {submitError && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
-          <AlertTriangle className="w-4 h-4 text-red-650 flex-shrink-0" />
+          <AlertTriangle className="w-4 h-4 text-red-655 flex-shrink-0" />
           <span>{submitError}</span>
         </div>
       )}
+
+      {downloadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
+          <AlertTriangle className="w-4 h-4 text-red-655 flex-shrink-0" />
+          <span>{downloadError}</span>
+        </div>
+      )}
+
+      {previewError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
+          <AlertTriangle className="w-4 h-4 text-red-655 flex-shrink-0" />
+          <span>{previewError}</span>
+        </div>
+      )}
+
+
 
       {pollingTimeoutReached && (
         <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-[13.5px] flex items-center justify-between font-sans-body shadow-sm">
@@ -547,17 +591,10 @@ export function MyDocumentDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         
         {/* Left Column: Info & Timeline */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-0 overflow-y-auto pr-1 scrollbar-hide">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 overflow-y-auto pr-1 scrollbar-hide">
           
-          {/* Banners */}
-          {isProcessingFailed(aiStatus) && doc.failReason && (
-            <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
-          )}
-          {pStatus === "REJECTED" && doc.rejectReason && (
-            <RejectionReasonBanner reason={doc.rejectReason} />
-          )}
-
-          <div className="mb-6 bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6">
+          {/* 1. Document Summary */}
+          <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 shadow-premium text-left flex-shrink-0">
             <h1 className="text-[24px] font-sans-body font-semibold text-[#0E0D0B] leading-snug mb-3">
               {doc.title}
             </h1>
@@ -574,8 +611,8 @@ export function MyDocumentDetailPage({
             </p>
           </div>
 
-          {/* File Information Card */}
-          <div className="mb-6 bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 text-left">
+          {/* 2. File Information Card */}
+          <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 text-left shadow-premium flex-shrink-0">
             <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-4 font-sans-body">Tệp tài liệu gốc</h3>
             <div className="space-y-3.5">
               <div>
@@ -589,33 +626,48 @@ export function MyDocumentDetailPage({
                 </div>
                 <div>
                   <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Phiên bản tải lên</p>
-                  <p className="text-[14px] text-[#0E0D0B] font-medium">Bản v{doc.fileVersion || 1}</p>
+                  <p className="text-[14px] text-[#0E0D0B] font-medium font-mono">Bản v{doc.fileVersion || 1}</p>
                 </div>
               </div>
               <div>
                 <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Cập nhật lần cuối</p>
                 <p className="text-[14px] text-[#0E0D0B] font-medium">{doc.updatedAt}</p>
               </div>
-              
-              {canReplace && (
-                <div className="pt-2">
-                  <button 
-                    onClick={handleReplaceClick}
-                    disabled={isMutatingActive}
-                    className="w-full h-9 flex items-center justify-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-xl hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
-                  >
-                    <Replace className="w-3.5 h-3.5" /> Thay thế file mới
-                  </button>
-                </div>
-              )}
+
+              {/* File Information Actions: compact, side by side */}
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={handlePreview}
+                  disabled={isPreviewing}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9.5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
+                >
+                  {isPreviewing ? "Đang tải..." : "Xem nội dung"}
+                </button>
+                <button 
+                  onClick={handleDownload}
+                  disabled={isMutatingActive}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9.5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action disabled:opacity-50"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#6B6963]" />
+                  Tải file gốc
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* 3. Metadata */}
+          <DocumentMetadataPanel doc={doc} isOwner={true} />
+
+          {/* 4. Processing/Publication Timeline */}
           <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
           
-          <div className="mt-6 pb-10">
-             <DocumentMetadataPanel doc={doc} isOwner={true} />
-          </div>
+          {/* 5. Rejection or Failure Details banners */}
+          {isProcessingFailed(aiStatus) && doc.failReason && (
+            <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
+          )}
+          {pStatus === "REJECTED" && doc.rejectReason && (
+            <RejectionReasonBanner reason={doc.rejectReason} />
+          )}
         </div>
 
         {/* Right Column: RAG Chat */}

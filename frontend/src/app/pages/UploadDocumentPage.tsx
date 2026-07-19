@@ -4,10 +4,10 @@ import { UploadProgress, UploadStepper } from "../components/UploadProgress";
 import { uploadService } from "../services/uploadService";
 import { Document } from "../types";
 
-export function UploadDocumentPage({ 
+export function UploadDocumentPage({
   onDone,
   onSuccess
-}: { 
+}: {
   onDone: () => void;
   onSuccess?: (id: number) => void;
 }) {
@@ -15,7 +15,7 @@ export function UploadDocumentPage({
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [isSubmitActive, setIsSubmitActive] = useState(false);
-  
+
   // Progress states
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export function UploadDocumentPage({
   const validateAndSetFile = (f: File) => {
     const validTypes = ["application/pdf", "text/plain"];
     const fileExt = f.name.split(".").pop()?.toLowerCase();
-    
+
     if (!validTypes.includes(f.type) && fileExt !== "pdf" && fileExt !== "txt") {
       setErrors({ file: "Chỉ hỗ trợ file PDF hoặc TXT." });
       return;
@@ -65,7 +65,7 @@ export function UploadDocumentPage({
     }
     setErrors({});
     setFile(f);
-    
+
     // Auto-fill title from filename without extension
     const nameWithoutExt = f.name.substring(0, f.name.lastIndexOf(".")) || f.name;
     setTitle(nameWithoutExt);
@@ -129,7 +129,7 @@ export function UploadDocumentPage({
       abortUploadRef.current = abort;
 
       const doc = await promise;
-      
+
       // Cleanup ref and submission state
       abortUploadRef.current = null;
       setIsSubmitActive(false);
@@ -137,6 +137,10 @@ export function UploadDocumentPage({
     } catch (err: any) {
       abortUploadRef.current = null;
       setIsSubmitActive(false);
+      if (err.message === "YÊU_CẦU_BỊ_HỦY") {
+        setStep(2);
+        return;
+      }
       setUploadError(err.message || "Tải lên thất bại. Vui lòng thử lại.");
     }
   };
@@ -179,9 +183,8 @@ export function UploadDocumentPage({
             onDragOver={e => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
-            className={`rounded-2xl border-2 border-dashed p-12 flex flex-col items-center gap-4 transition-all duration-200 ${
-              dragging ? "border-[#4F63D2] bg-[#F0F2FF]" : "bg-white border-[rgba(14,13,11,0.12)] hover:border-[rgba(14,13,11,0.22)]"
-            }`}
+            className={`rounded-2xl border-2 border-dashed p-12 flex flex-col items-center gap-4 transition-all duration-200 ${dragging ? "border-[#4F63D2] bg-[#F0F2FF]" : "bg-white border-[rgba(14,13,11,0.12)] hover:border-[rgba(14,13,11,0.22)]"
+              }`}
           >
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${dragging ? "bg-[#4F63D2]/10" : "bg-[#F4F3F0]"}`}>
               <Upload className={`w-5 h-5 transition-colors ${dragging ? "text-[#4F63D2]" : "text-[#6B6963]"}`} />
@@ -221,9 +224,8 @@ export function UploadDocumentPage({
             <button
               onClick={handleNextToMetadata}
               disabled={!file}
-              className={`flex items-center gap-2 h-10 px-5 text-[13px] font-medium rounded-xl transition-all cursor-pointer border-none font-sans-body ${
-                file ? "bg-[#0E0D0B] text-white hover:bg-[#1C1A17]" : "bg-[#F4F3F0] text-[#C2BFB8] cursor-not-allowed"
-              }`}
+              className={`flex items-center gap-2 h-10 px-5 text-[13px] font-medium rounded-xl transition-all cursor-pointer border-none font-sans-body ${file ? "bg-[#0E0D0B] text-white hover:bg-[#1C1A17]" : "bg-[#F4F3F0] text-[#C2BFB8] cursor-not-allowed"
+                }`}
             >
               Tiếp tục <ArrowRight className="w-4 h-4" />
             </button>
@@ -277,18 +279,18 @@ export function UploadDocumentPage({
             <div>
               <label className="block mb-1.5 text-[13px] font-sans-body font-semibold text-[#6B6963] uppercase tracking-widest">Thẻ (Tags)</label>
               <div className="flex bg-white border border-[rgba(14,13,11,0.12)] rounded-lg overflow-hidden focus-within:border-[#4F63D2] transition-colors">
-                <input 
-                  type="text" 
-                  value={tagInput} 
-                  onChange={e => setTagInput(e.target.value)} 
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
-                  placeholder="Nhập và Enter" 
-                  className="w-full h-10 px-3 text-[13.5px] focus:outline-none text-slate-800 font-sans-body" 
+                  placeholder="Nhập và Enter"
+                  className="w-full h-10 px-3 text-[13.5px] focus:outline-none text-slate-800 font-sans-body"
                 />
               </div>
             </div>
           </div>
-          
+
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {tags.map(t => (
@@ -302,8 +304,8 @@ export function UploadDocumentPage({
 
           <div className="flex justify-between pt-6 border-t border-[rgba(14,13,11,0.06)]">
             <button onClick={() => setStep(1)} className="h-10 px-4 text-[#6B6963] hover:text-[#0E0D0B] text-[13.5px] font-medium transition-colors border-none bg-transparent cursor-pointer font-sans-body">Quay lại</button>
-            <button 
-              onClick={handleUploadSubmit} 
+            <button
+              onClick={handleUploadSubmit}
               disabled={isSubmitActive}
               className="flex items-center gap-2 h-10 px-6 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -316,7 +318,7 @@ export function UploadDocumentPage({
 
       {step === 3 && (
         <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] p-8 text-center shadow-sm">
-          
+
           {/* Case 1: Uploading in progress */}
           {uploadProgress < 100 && !uploadError && !uploadedDoc && (
             <div className="max-w-[300px] mx-auto py-6">
@@ -324,8 +326,8 @@ export function UploadDocumentPage({
               <h3 className="text-[15.5px] font-medium text-[#0E0D0B] mb-2 font-sans-body font-semibold">Đang tải lên hệ thống...</h3>
               <UploadProgress progress={uploadProgress} />
               <p className="text-[13px] text-[#AAAA9F] mt-3 font-mono-label mb-6">{Math.floor(uploadProgress)}% hoàn tất</p>
-              
-              <button 
+
+              <button
                 onClick={handleCancelUpload}
                 className="h-9 px-4 bg-white border border-red-200 hover:bg-red-50 text-red-650 text-[13px] font-medium rounded-lg transition-colors cursor-pointer"
               >
@@ -375,14 +377,14 @@ export function UploadDocumentPage({
                 Tài liệu "{uploadedDoc.title}" đã được tải lên hệ thống thành công. Hệ thống đang tiến hành phân tích nội dung.
               </p>
               <div className="flex gap-3">
-                <button 
-                  onClick={() => onSuccess && onSuccess(uploadedDoc.id)} 
+                <button
+                  onClick={() => onSuccess && onSuccess(uploadedDoc.id)}
                   className="h-9 px-5 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all shadow-sm cursor-pointer border-none font-sans-body"
                 >
                   Xem chi tiết tài liệu
                 </button>
-                <button 
-                  onClick={onDone} 
+                <button
+                  onClick={onDone}
                   className="h-9 px-4 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13.5px] font-medium rounded-lg hover:border-[rgba(14,13,11,0.2)] transition-colors cursor-pointer font-sans-body"
                 >
                   Quản lý tài liệu
