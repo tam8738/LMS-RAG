@@ -3,8 +3,9 @@ import { Send, Sparkles, AlertCircle, Loader2, Clock, Trash2, XCircle, ChevronRi
 import { Document } from "../types";
 import { isAnalysisInProgress, isRagIndexing, isProcessingFailed } from "../utils/documentHelpers";
 import { CitationList } from "./CitationList";
+import { ConfirmDialog } from "./Dialogs";
 import { ragService } from "../services/ragService";
-import { RagChatMessage, RagCitation } from "../types/rag";
+import { RagCitation, RagMessageResponse } from "../types/rag";
 
 export interface LocalChatMessage {
   id: string;
@@ -13,6 +14,7 @@ export interface LocalChatMessage {
   citations?: RagCitation[];
   state?: "idle" | "submitting" | "success" | "not_found" | "error" | "cancelled";
   errorMessage?: string;
+  createdAt?: string;
 }
 
 const MARKDOWN_EMPHASIS_PATTERN = /(\*\*\*|\*\*|___|__)(.+?)\1/g;
@@ -49,14 +51,42 @@ function isInsufficientAssistantAnswer(content: string) {
   return INSUFFICIENT_ANSWER_PHRASES.some(phrase => normalized.includes(phrase));
 }
 
-export function RagChatPanel({ 
-  document, 
+function formatMessageTime(createdAt?: string) {
+  if (!createdAt) return "";
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function mapPersistedMessageToLocalMessage(message: RagMessageResponse): LocalChatMessage {
+  const isAssistant = message.role === "assistant";
+  const cleanedContent = isAssistant
+    ? cleanAssistantDisplayText(message.content)
+    : message.content;
+  const isNotFound = isAssistant
+    && (message.notFound || isInsufficientAssistantAnswer(cleanedContent));
+
+  return {
+    id: `persisted-${message.id}`,
+    role: message.role,
+    content: cleanedContent,
+    citations: isNotFound ? [] : message.citations || [],
+    state: isAssistant ? (isNotFound ? "not_found" : "success") : "idle",
+    createdAt: message.createdAt
+  };
+}
+
+export function RagChatPanel({
+  document,
   isEligible,
   isTimeout,
   onRetry,
   onBack,
   isOwner
-}: { 
+}: {
   document: Document | null;
   isEligible: boolean;
   isTimeout?: boolean;
@@ -69,6 +99,13 @@ export function RagChatPanel({
   const [messages, setMessages] = useState<LocalChatMessage[]>([]);
   const [chatState, setChatState] = useState<"idle" | "submitting" | "success" | "not_found" | "error" | "cancelled">("idle");
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyClearing, setHistoryClearing] = useState(false);
+  const [historyLoadError, setHistoryLoadError] = useState("");
+  const [historyActionError, setHistoryActionError] = useState("");
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -80,6 +117,56 @@ export function RagChatPanel({
       abortControllerRef.current?.abort();
     };
   }, []);
+
+  // Load persisted conversation history whenever the selected RAG-ready document changes.
+  useEffect(() => {
+    if (!document || !isEligible) {
+      setConversationId(null);
+      setMessages([]);
+      setHistoryLoadError("");
+      setHistoryActionError("");
+      setHistoryLoading(false);
+      setHistoryClearing(false);
+      setIsClearConfirmOpen(false);
+      setChatState("idle");
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    setConversationId(null);
+    setMessages([]);
+    setHistoryLoadError("");
+    setHistoryActionError("");
+    setHistoryLoading(true);
+    setChatState("idle");
+
+    ragService.getConversationByDocument(document.id, controller.signal)
+      .then(conversation => {
+        if (!active) return;
+        const loadedMessages = (conversation.messages || []).map(mapPersistedMessageToLocalMessage);
+        setConversationId(conversation.conversationId);
+        setMessages(loadedMessages);
+        setChatState(loadedMessages.length > 0 ? "success" : "idle");
+      })
+      .catch((err: any) => {
+        if (!active || err.name === "AbortError") return;
+        setHistoryLoadError(err.message || "Không thể tải lịch sử hỏi đáp.");
+        setMessages([]);
+        setChatState("error");
+      })
+      .finally(() => {
+        if (active) {
+          setHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [document?.id, isEligible, historyReloadKey]);
 
   // Handle auto-scroll whenever messages change
   useEffect(() => {
@@ -105,21 +192,24 @@ export function RagChatPanel({
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !document || !isEligible || loading) return;
+    if (!input.trim() || !document || !isEligible || !conversationId || loading || historyLoading || historyClearing) return;
 
     const userQuestion = input.trim();
+    const activeConversationId = conversationId;
     setInput("");
-    
+    setHistoryActionError("");
+
     // Auto resize textarea back to standard
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
 
-    const userMsgId = Date.now().toString();
+    const userMsgId = `pending-user-${Date.now()}`;
     const userMsg: LocalChatMessage = {
       id: userMsgId,
       role: "user",
-      content: userQuestion
+      content: userQuestion,
+      createdAt: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -129,36 +219,21 @@ export function RagChatPanel({
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    // Build chat history matching the expected API contract
-    // Exclude cancelled, error, and not_found UI-only notice messages.
-    const apiHistory: RagChatMessage[] = messages
-      .filter(m => m.state !== "error" && m.state !== "cancelled" && m.state !== "not_found")
-      .slice(-6)
-      .map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
     try {
-      const response = await ragService.askQuestion({
-        documentIds: [document.id],
+      const response = await ragService.sendConversationMessage(activeConversationId, {
         question: userQuestion,
-        history: apiHistory,
         language: "vi"
       }, controller.signal);
 
-      const cleanedAnswer = cleanAssistantDisplayText(response.answer);
-      const isNotFound = response.notFound || isInsufficientAssistantAnswer(cleanedAnswer);
-      const assistantMsg: LocalChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: cleanedAnswer,
-        citations: isNotFound ? [] : response.citations || [],
-        state: isNotFound ? "not_found" : "success"
-      };
+      const persistedUserMsg = mapPersistedMessageToLocalMessage(response.userMessage);
+      const assistantMsg = mapPersistedMessageToLocalMessage(response.assistantMessage);
 
-      setMessages(prev => [...prev, assistantMsg]);
-      setChatState(isNotFound ? "not_found" : "success");
+      setConversationId(response.conversationId);
+      setMessages(prev => [
+        ...prev.map(message => message.id === userMsgId ? persistedUserMsg : message),
+        assistantMsg
+      ]);
+      setChatState(assistantMsg.state === "not_found" ? "not_found" : "success");
     } catch (err: any) {
       if (err.name === "AbortError") {
         const cancelledMsg: LocalChatMessage = {
@@ -172,7 +247,7 @@ export function RagChatPanel({
       } else {
         // Detailed error matrix mappings
         let userFriendlyError = "Đã xảy ra lỗi hệ thống khi liên hệ với máy chủ AI. Vui lòng thử lại sau.";
-        
+
         if (err.status === 400) {
           userFriendlyError = err.message || "Dữ liệu yêu cầu không hợp lệ hoặc tài liệu chưa sẵn sàng.";
         } else if (err.status === 403) {
@@ -203,7 +278,6 @@ export function RagChatPanel({
       abortControllerRef.current = null;
     }
   };
-
   const handleCancel = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -219,9 +293,39 @@ export function RagChatPanel({
     }, 50);
   };
 
-  const clearChat = () => {
-    setMessages([]);
-    setChatState("idle");
+  const retryLoadHistory = () => {
+    setHistoryActionError("");
+    setHistoryReloadKey(prev => prev + 1);
+  };
+
+  const openClearConfirm = () => {
+    if (!conversationId || loading || historyLoading || historyClearing) return;
+    setHistoryActionError("");
+    setIsClearConfirmOpen(true);
+  };
+
+  const closeClearConfirm = () => {
+    if (historyClearing) return;
+    setHistoryActionError("");
+    setIsClearConfirmOpen(false);
+  };
+
+  const clearChat = async () => {
+    if (!conversationId || loading || historyLoading || historyClearing) return;
+
+    setHistoryActionError("");
+    setHistoryClearing(true);
+
+    try {
+      await ragService.clearConversationMessages(conversationId);
+      setMessages([]);
+      setChatState("idle");
+      setIsClearConfirmOpen(false);
+    } catch (err: any) {
+      setHistoryActionError(err.message || "Không thể xóa lịch sử hỏi đáp. Vui lòng thử lại.");
+    } finally {
+      setHistoryClearing(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -236,6 +340,15 @@ export function RagChatPanel({
     target.style.height = "auto";
     target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
   };
+
+  const chatInputDisabled = loading || historyLoading || historyClearing || !conversationId;
+  const chatInputPlaceholder = historyLoading
+    ? "Đang tải lịch sử hỏi đáp..."
+    : historyClearing
+      ? "Đang xóa lịch sử hỏi đáp..."
+      : !conversationId
+        ? "Đang khởi tạo cuộc hội thoại..."
+        : "Đặt câu hỏi về tài liệu này...";
 
   if (!document) {
     return (
@@ -261,22 +374,56 @@ export function RagChatPanel({
         </div>
         {messages.length > 0 && (
           <button
-            onClick={clearChat}
+            onClick={openClearConfirm}
+            disabled={chatInputDisabled}
             aria-label="Xóa lịch sử trò chuyện"
-            className="p-1.5 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-red-650 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+            className="p-1.5 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-red-650 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Trash2 className="w-4 h-4" />
+            {historyClearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           </button>
         )}
       </div>
 
+      {historyActionError && (
+        <div className="mx-5 mt-3 px-3 py-2 bg-red-50 border border-red-100 rounded-xl text-[12.5px] text-red-800 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span className="flex-1 leading-relaxed">{historyActionError}</span>
+          <button
+            onClick={() => setHistoryActionError("")}
+            aria-label="Đóng thông báo lỗi"
+            className="border-none bg-transparent text-red-700 hover:text-red-900 cursor-pointer p-0 leading-none"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {/* Chat Area */}
-      <div 
+      <div
         ref={chatContainerRef}
         onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 flex flex-col gap-6 scroll-smooth"
       >
-        {messages.length === 0 ? (
+        {historyLoading ? (
+          <div className="m-auto text-center max-w-[280px] p-6 bg-white border border-[rgba(14,13,11,0.06)] rounded-2xl shadow-sm flex flex-col items-center">
+            <Loader2 className="w-7 h-7 text-[#4F63D2] mb-3 animate-spin" />
+            <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Đang tải lịch sử hỏi đáp</h4>
+            <p className="text-[13px] text-[#6B6963] leading-relaxed">
+              Hệ thống đang khởi tạo cuộc hội thoại và khôi phục các tin nhắn đã lưu.
+            </p>
+          </div>
+        ) : historyLoadError && isEligible ? (
+          <div className="m-auto text-center max-w-[320px] p-6 bg-white border border-red-100 rounded-2xl shadow-sm flex flex-col items-center">
+            <AlertCircle className="w-8 h-8 text-red-650 mb-3" />
+            <h4 className="text-[15.5px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Không thể tải lịch sử</h4>
+            <p className="text-[13px] text-[#6B6963] leading-relaxed mb-4">{historyLoadError}</p>
+            <button
+              onClick={retryLoadHistory}
+              className="h-9 px-4 bg-[#0E0D0B] text-white text-[12.5px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all border-none cursor-pointer font-action"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : messages.length === 0 ? (
           !isEligible ? (
             isOwner ? (
               <div className="m-auto text-center max-w-[320px] p-6 bg-white border border-[rgba(14,13,11,0.06)] rounded-2xl shadow-sm flex flex-col items-center">
@@ -396,7 +543,7 @@ export function RagChatPanel({
                   <button
                     key={i}
                     onClick={() => setInput(q)}
-                    disabled={!isEligible}
+                    disabled={!isEligible || chatInputDisabled}
                     className="w-full flex items-center justify-between px-3.5 py-2 bg-white border border-[rgba(14,13,11,0.06)] hover:border-[#4F63D2]/30 rounded-lg text-[13.5px] text-[#6B6963] hover:text-[#0E0D0B] transition-colors disabled:opacity-50 cursor-pointer text-left font-sans-body outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                   >
                     <span className="truncate">{q}</span>
@@ -417,7 +564,8 @@ export function RagChatPanel({
               && msg.state !== "not_found"
               && !!msg.citations?.length
               && !isInsufficientAssistantAnswer(displayContent);
-            
+            const displayTime = formatMessageTime(msg.createdAt);
+
             return (
               <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"} animate-fadeIn`}>
                 <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-[14.5px] leading-relaxed text-left font-sans-body focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isUser
@@ -435,9 +583,9 @@ export function RagChatPanel({
                   {msg.state === "not_found" && <AlertCircle className="w-4 h-4 text-amber-600 mb-1.5 inline-block mr-1 align-text-bottom" />}
                   {msg.state === "error" && <AlertCircle className="w-4 h-4 text-red-655 mb-1.5 inline-block mr-1 align-text-bottom" />}
                   {msg.state === "cancelled" && <XCircle className="w-4 h-4 text-gray-500 mb-1.5 inline-block mr-1 align-text-bottom" />}
-                  
+
                   <span className="whitespace-pre-wrap select-text">{displayContent}</span>
-                  
+
                   {/* Retry option for error message if it is user question related */}
                   {msg.state === "error" && isLast && index >= 1 && messages[index - 1].role === "user" && (
                     <button
@@ -448,7 +596,11 @@ export function RagChatPanel({
                     </button>
                   )}
                 </div>
-                
+
+                {displayTime && (
+                  <span className="mt-1 px-1 text-[10.5px] text-[#AAAA9F] font-mono-label">{displayTime}</span>
+                )}
+
                 {shouldShowCitations && (
                   <div className="w-[85%] mt-1">
                     <CitationList citations={msg.citations} documentTitle={document.title} />
@@ -535,13 +687,13 @@ export function RagChatPanel({
               onKeyDown={handleKeyDown}
               onInput={handleTextareaInput}
               aria-label="Đặt câu hỏi về tài liệu này"
-              placeholder="Đặt câu hỏi về tài liệu này..."
-              disabled={loading}
+              placeholder={chatInputPlaceholder}
+              disabled={chatInputDisabled}
               className="w-full pl-4 pr-12 py-3 bg-transparent text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none resize-none max-h-[120px] scrollbar-hide text-left leading-normal font-sans-body focus:ring-0 focus:border-transparent focus:ring-offset-0 border-none"
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || chatInputDisabled}
               aria-label="Gửi câu hỏi"
               className="absolute right-1.5 bottom-1.5 w-8 h-8 flex items-center justify-center bg-[#0E0D0B] text-white rounded-lg disabled:opacity-40 disabled:bg-[#C2BFB8] hover:bg-[#1C1A17] transition-colors border-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
@@ -550,6 +702,19 @@ export function RagChatPanel({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={isClearConfirmOpen}
+        title="Xóa lịch sử hỏi đáp?"
+        message="Hành động này sẽ xóa toàn bộ lịch sử hỏi đáp của tài liệu này. Bạn không thể hoàn tác hành động này."
+        confirmText="Xóa lịch sử"
+        cancelText="Giữ lại"
+        isDestructive
+        isSubmitting={historyClearing}
+        error={historyActionError}
+        onConfirm={clearChat}
+        onClose={closeClearConfirm}
+      />
     </div>
   );
 }

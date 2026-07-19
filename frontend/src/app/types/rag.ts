@@ -26,3 +26,33 @@ export interface RagQuestionRequest {
   language?: string;
   history?: RagChatMessage[];
 }
+export interface RagMessageResponse {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  notFound?: boolean;
+  citations?: RagCitation[];
+  tokensUsed?: number;
+  createdAt: string;
+}
+
+export interface RagConversationResponse {
+  conversationId: number;
+  documentId: number;
+  documentTitle: string;
+  messageCount: number;
+  lastMessageAt?: string | null;
+  messages: RagMessageResponse[];
+}
+
+export interface RagSendConversationMessageRequest {
+  question: string;
+  topK?: number;
+  language?: string;
+}
+
+export interface RagSendConversationMessageResponse {
+  conversationId: number;
+  userMessage: RagMessageResponse;
+  assistantMessage: RagMessageResponse;
+}
