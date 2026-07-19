@@ -24,7 +24,7 @@ SQL migration chi tiết, index, seed và checklist triển khai nằm ở:
 ## 2. Bảng core cần có
 
 | Bảng | Bắt buộc | Owner logic | Mục đích |
-|---|---|---:|---|---|
+|---|---:|---|---|
 | `users` | Có | Backend | Tài khoản Admin/Teacher, login, role, status |
 | `documents` | Có | Backend | Tài liệu do Teacher upload, bảng trung tâm nghiệp vụ |
 | `document_processing_jobs` | Có | Backend | Theo dõi các lần AI process/reprocess |

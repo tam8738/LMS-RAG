@@ -61,7 +61,7 @@ public class RagConversationService {
      * Lấy conversation theo user và document; nếu chưa có thì tạo mới.
      * Document phải tồn tại, đã PUBLISHED và đã PROCESSED.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public RagConversationResponse getOrCreateConversation(User user, Long documentId) {
         log.info("[RAG_CONV] Lấy/tạo conversation | userId={} | documentId={}", user.getId(), documentId);
 
