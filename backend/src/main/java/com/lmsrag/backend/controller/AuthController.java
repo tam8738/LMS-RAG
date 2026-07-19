@@ -5,6 +5,8 @@ import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.AuthUserResponse;
 import com.lmsrag.backend.dto.LoginRequestDTO;
 import com.lmsrag.backend.dto.LoginResponseDTO;
+import com.lmsrag.backend.dto.UpdateProfileRequestDTO;
+import com.lmsrag.backend.dto.ChangePasswordRequestDTO;
 import com.lmsrag.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -13,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -84,5 +87,31 @@ public class AuthController {
         String token = authHeader.replace("Bearer ", "");
         authService.logout(token);
         return ApiResponse.success(null, "Đăng xuất thành công");
+    }
+
+    @Operation(
+            summary = "Cập nhật thông tin giảng viên",
+            description = "Cập nhật họ và tên của giảng viên",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @PutMapping("/profile")
+    public ApiResponse<AuthUserResponse> updateProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody UpdateProfileRequestDTO request) {
+        AuthUserResponse response = authService.updateProfile(userDetails.getUsername(), request);
+        return ApiResponse.success(response, "Cập nhật thông tin giảng viên thành công");
+    }
+
+    @Operation(
+            summary = "Thay đổi mật khẩu",
+            description = "Thay đổi mật khẩu tài khoản",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @PutMapping("/change-password")
+    public ApiResponse<Void> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody ChangePasswordRequestDTO request) {
+        authService.changePassword(userDetails.getUsername(), request);
+        return ApiResponse.success(null, "Đổi mật khẩu thành công");
     }
 }

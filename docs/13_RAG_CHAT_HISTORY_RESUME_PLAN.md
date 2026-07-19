@@ -555,6 +555,7 @@ feat(fe): resume rag chat history in document detail
 Owner: Frontend  
 Priority: P0  
 Dependencies: FE-RAG-HIST-02, BE-RAG-HIST-04
+Status: DONE - FE đã gửi câu hỏi qua conversation endpoint, dùng persisted user/assistant messages từ BE response.
 
 Đầu việc:
 
@@ -582,6 +583,7 @@ feat(fe): send rag questions through persisted conversation
 Owner: Frontend  
 Priority: P1  
 Dependencies: BE-RAG-HIST-05
+Status: DONE - FE đã confirm nhẹ, gọi clear persisted endpoint, reset UI sau success và hiển thị lỗi inline khi fail.
 
 Đầu việc:
 
@@ -606,6 +608,7 @@ feat(fe): clear persisted rag chat history
 Owner: Frontend  
 Priority: P1  
 Dependencies: FE-RAG-HIST-03
+Status: DONE - FE đã polish placeholder/disabled states, timestamp nhỏ, autoscroll sau resume và kiểm soát citations cho not_found.
 
 Đầu việc:
 
@@ -830,7 +833,7 @@ Feature được xem là xong khi:
 - Not-found answers không hiển thị citations cả trước và sau reload.
 - ✅ Docs/API notes được cập nhật nếu contract thực tế khác bản đề xuất này.
 
-**Trạng thái hiện tại (19/07/2026):** Backend đã hoàn thành toàn bộ 5 task BE-RAG-HIST. AI Service đã hoàn thành phần stateless history từ AI-08/AI-09 và đã có contract/tests/docs tương ứng. Frontend vẫn chưa nối conversation endpoint mới, nên phần resume chat trên web và E2E còn TODO.
+**Trạng thái hiện tại (19/07/2026):** Backend đã hoàn thành toàn bộ 5 task BE-RAG-HIST. AI Service đã hoàn thành phần stateless history từ AI-08/AI-09 và đã có contract/tests/docs tương ứng. Frontend đã có API client, load/resume messages, send message qua conversation endpoint, clear persisted history và UX polish; E2E còn TODO.
 
 ## 17. Task Summary Cho Team
 
@@ -841,11 +844,11 @@ Feature được xem là xong khi:
 | BE-RAG-HIST-03 | BE | P0 | Get/create conversation + permission | DONE |
 | BE-RAG-HIST-04 | BE | P0 | Persist send-message flow + AI call | DONE |
 | BE-RAG-HIST-05 | BE | P1 | Clear history + tests | DONE |
-| FE-RAG-HIST-01 | FE | P0 | API client + types | TODO |
-| FE-RAG-HIST-02 | FE | P0 | Load/resume messages | TODO |
-| FE-RAG-HIST-03 | FE | P0 | Send via conversation endpoint | TODO |
-| FE-RAG-HIST-04 | FE | P1 | Clear persisted history | TODO |
-| FE-RAG-HIST-05 | FE | P1 | UX polish | TODO |
+| FE-RAG-HIST-01 | FE | P0 | API client + types | DONE |
+| FE-RAG-HIST-02 | FE | P0 | Load/resume messages | DONE |
+| FE-RAG-HIST-03 | FE | P0 | Send via conversation endpoint | DONE |
+| FE-RAG-HIST-04 | FE | P1 | Clear persisted history | DONE |
+| FE-RAG-HIST-05 | FE | P1 | UX polish | DONE |
 | AI-RAG-HIST-01 | AI | P0 | Verify stateless history contract | DONE |
 | AI-RAG-HIST-02 | AI | P1 | Extra history tests | DONE |
 | AI-RAG-HIST-03 | AI | P1 | AI docs handoff update | DONE |

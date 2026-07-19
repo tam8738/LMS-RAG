@@ -166,11 +166,11 @@ Quy ước trạng thái:
 | FE-02 - Login screen | Việt | P0 | FE-01, Auth API | TODO | Cần redirect theo role |
 | FE-03 - Library list/filter | Việt | P0 | FE-01, BE-07 | TODO | Filter theo metadata document |
 | FE-04 - Library detail/RAG UI | Việt | P0 | FE-03, BE-08 | TODO | Hiển thị answer + citations |
-| FE-RAG-HIST-01 - Conversation API client/types | Việt | P0 | BE-RAG-HIST-03 | TODO | Cần thêm client cho `GET /api/v1/rag/conversations/by-document/{documentId}`, `POST /api/v1/rag/conversations/{id}/messages`, `DELETE /api/v1/rag/conversations/{id}/messages`; FE hiện vẫn gọi legacy `/api/v1/rag/answer` |
-| FE-RAG-HIST-02 - Load/resume messages | Việt | P0 | FE-RAG-HIST-01 | TODO | `RagChatPanel` cần load conversation theo document và render lại messages đã lưu sau reload/switch document |
-| FE-RAG-HIST-03 - Send qua persisted conversation | Việt | P0 | FE-RAG-HIST-02, BE-RAG-HIST-04 | TODO | Khi gửi câu hỏi, FE dùng conversation endpoint mới; không tự build `history` cho BE nữa |
-| FE-RAG-HIST-04 - Clear persisted history | Việt | P1 | FE-RAG-HIST-03, BE-RAG-HIST-05 | TODO | Nút clear chat gọi Backend để xóa messages và reset UI |
-| FE-RAG-HIST-05 - UX polish/history states | Việt | P1 | FE-RAG-HIST-03 | TODO | Loading/error/empty state, scroll trong panel, not-found không hiện citations sau reload |
+| FE-RAG-HIST-01 - Conversation API client/types | Việt | P0 | BE-RAG-HIST-03 | DONE | Đã thêm types và `ragService` methods cho get-or-create conversation, send conversation message, clear conversation messages; được dùng bởi FE-RAG-HIST-02/03 |
+| FE-RAG-HIST-02 - Load/resume messages | Việt | P0 | FE-RAG-HIST-01 | DONE | `RagChatPanel` load persisted conversation khi document đủ điều kiện RAG, render lại messages/citations/not_found, có loading/error/retry state; `npm run build` pass |
+| FE-RAG-HIST-03 - Send qua persisted conversation | Việt | P0 | FE-RAG-HIST-02, BE-RAG-HIST-04 | DONE | `RagChatPanel` gửi câu hỏi qua conversation endpoint mới, dùng response persisted user/assistant messages và không tự build `history` cho BE nữa |
+| FE-RAG-HIST-04 - Clear persisted history | Việt | P1 | FE-RAG-HIST-03, BE-RAG-HIST-05 | DONE | Nút clear chat confirm nhẹ, gọi Backend xóa persisted messages, reset UI sau success và giữ messages nếu clear fail |
+| FE-RAG-HIST-05 - UX polish/history states | Việt | P1 | FE-RAG-HIST-03 | DONE | Thêm timestamp nhỏ, placeholder/disabled states khi conversation chưa sẵn sàng/đang clear, force scroll xuống cuối sau resume, giữ not_found không hiện citations |
 | FE-05 - My Documents list | Việt | P0 | FE-01, BE-05 | TODO | Hiển thị processing/publication status |
 | FE-06 - Upload Document screen | Việt | P0 | FE-05, BE-03 | TODO | Form metadata, không có Course/Lecture select |
 | FE-07 - My Document detail | Việt | P0 | FE-05, BE-05 | TODO | Submit/reprocess/edit metadata |
@@ -204,7 +204,7 @@ Quy ước trạng thái:
 | INFRA-01 - Docker/shared volume | Tâm + Khánh | P0 | BE-03, AI-01 | DONE | `docker-compose.yml` đã có `postgres`, `backend`, `ai-service`, `pgadmin`, volume `uploads`; Backend mount `/storage/uploads` read-write, AI mount read-only; đã test cùng một file tồn tại trong cả hai container |
 | INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
 | INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | IN_PROGRESS | Review -> Library đã test bằng cách set `PROCESSED` thủ công; Backend RAG proxy `POST /api/v1/rag/answer` đã có; RAG đã test trực tiếp qua AI `/v1/answer-question`; còn thiếu Frontend và E2E không can thiệp DB |
-| INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-03 | TODO | Backend API và AI stateless history đã sẵn sàng; chờ FE nối API rồi test ask -> reload -> resume -> follow-up -> clear |
+| INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-05 | TODO | Backend API, AI stateless history và FE send/resume/clear/polish đã sẵn sàng; còn chạy E2E ask -> reload -> resume -> follow-up -> clear |
 | QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | TODO | Chạy kịch bản Teacher A/Admin/Teacher B |
 
 ### 6.5. Cách cập nhật bảng tracking

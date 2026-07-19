@@ -3,6 +3,8 @@ package com.lmsrag.backend.service;
 import com.lmsrag.backend.dto.AuthUserResponse;
 import com.lmsrag.backend.dto.LoginRequestDTO;
 import com.lmsrag.backend.dto.LoginResponseDTO;
+import com.lmsrag.backend.dto.UpdateProfileRequestDTO;
+import com.lmsrag.backend.dto.ChangePasswordRequestDTO;
 import com.lmsrag.backend.entity.User;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
@@ -80,6 +82,41 @@ public class AuthService {
 
         long remainingTime = jwtService.getRemainingTime(token);
         blacklistService.blacklistToken(token, remainingTime);
+    }
+
+    /**
+     * Cập nhật họ và tên của giảng viên trong cơ sở dữ liệu.
+     */
+    public AuthUserResponse updateProfile(String email, UpdateProfileRequestDTO request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            throw new AppException(ErrorCode.NAME_REQUIRED);
+        }
+
+        user.setName(request.getName().trim());
+        User updated = userRepository.save(user);
+        return mapToAuthUserResponse(updated);
+    }
+
+    /**
+     * Thay đổi mật khẩu tài khoản trong cơ sở dữ liệu.
+     */
+    public void changePassword(String email, ChangePasswordRequestDTO request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+            throw new AppException(ErrorCode.PASSWORD_WEAK);
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     /**

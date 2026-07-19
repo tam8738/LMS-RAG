@@ -242,7 +242,10 @@ public class RagConversationService {
         List<RagMessage> orderedMessages = new ArrayList<>(recentMessages);
         Collections.reverse(orderedMessages); // cũ -> mới
         return orderedMessages.stream()
-                .map(msg -> new AiChatMessage(msg.getRole().name(), msg.getContent()))
+                .map(msg -> new AiChatMessage(
+                        msg.getRole().name(),
+                        msg.getContent()
+                ))
                 .toList();
     }
 

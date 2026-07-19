@@ -192,7 +192,6 @@ export function MyDocumentActionMenu({
               <span className="flex-1">Tải file gốc</span>
             </button>
           )}
-
           {showEdit && (
             <button
               type="button"

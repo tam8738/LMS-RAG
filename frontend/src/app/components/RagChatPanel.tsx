@@ -1,23 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Send, 
-  Sparkles, 
-  AlertCircle, 
-  Loader2, 
-  Clock, 
-  Trash2, 
-  XCircle, 
-  ArrowRight, 
-  BrainCircuit, 
-  AlertTriangle, 
-  ChevronRight,
-  Sparkle
-} from "lucide-react";
+import { Send, Sparkles, AlertCircle, Loader2, Clock, Trash2, XCircle, ArrowRight, BrainCircuit } from "lucide-react";
 import { Document } from "../types";
-import { isAnalysisInProgress, isProcessingFailed } from "../utils/documentHelpers";
 import { CitationList } from "./CitationList";
 import { ragService } from "../services/ragService";
-import { RagChatMessage, RagCitation, RagMessageResponse } from "../types/rag";
+import { RagCitation, RagMessageResponse } from "../types/rag";
 import { ConfirmDialog } from "./Dialogs";
 
 export interface LocalChatMessage {
@@ -77,12 +63,16 @@ function formatMessageTime(isoString?: string): string {
 }
 
 function mapPersistedMessageToLocalMessage(msg: RagMessageResponse): LocalChatMessage {
+  const isAssistant = msg.role === "assistant";
+  const cleanedContent = isAssistant ? cleanAssistantDisplayText(msg.content) : msg.content;
+  const isNotFound = isAssistant && (msg.notFound || isInsufficientAssistantAnswer(cleanedContent));
+
   return {
-    id: msg.id.toString(),
+    id: `persisted-${msg.id}`,
     role: msg.role,
-    content: msg.content,
-    citations: msg.citations || [],
-    state: msg.notFound ? "not_found" : "success",
+    content: cleanedContent,
+    citations: isNotFound ? [] : msg.citations || [],
+    state: isAssistant ? (isNotFound ? "not_found" : "success") : "idle",
     createdAt: msg.createdAt
   };
 }
@@ -130,42 +120,51 @@ export function RagChatPanel({
 
   // Handle loading and resuming of conversation history on mount or document changes
   useEffect(() => {
-    let active = true;
-    setMessages([]);
-    setConversationId(null);
-    setHistoryLoadError("");
-    setHistoryActionError("");
-
     if (!document || !isEligible) {
+      setConversationId(null);
+      setMessages([]);
+      setHistoryLoadError("");
+      setHistoryActionError("");
       setHistoryLoading(false);
+      setHistoryClearing(false);
+      setIsClearConfirmOpen(false);
+      setChatState("idle");
       return;
     }
 
-    const loadHistory = async () => {
-      setHistoryLoading(true);
-      try {
-        const response = await ragService.getConversationByDocument(document.id);
-        if (active) {
-          setConversationId(response.conversationId);
-          const localMsgs = response.messages.map(mapPersistedMessageToLocalMessage);
-          setMessages(localMsgs);
-        }
-      } catch (err: any) {
-        console.error("Failed to load RAG conversation history", err);
-        if (active) {
-          setHistoryLoadError(err.message || "Không thể kết nối đến máy chủ để tải lịch sử hỏi đáp.");
-        }
-      } finally {
+    let active = true;
+    const controller = new AbortController();
+
+    setConversationId(null);
+    setMessages([]);
+    setHistoryLoadError("");
+    setHistoryActionError("");
+    setHistoryLoading(true);
+    setChatState("idle");
+
+    ragService.getConversationByDocument(document.id, controller.signal)
+      .then(conversation => {
+        if (!active) return;
+        const loadedMessages = (conversation.messages || []).map(mapPersistedMessageToLocalMessage);
+        setConversationId(conversation.conversationId);
+        setMessages(loadedMessages);
+        setChatState(loadedMessages.length > 0 ? "success" : "idle");
+      })
+      .catch((err: any) => {
+        if (!active || err.name === "AbortError") return;
+        setHistoryLoadError(err.message || "Không thể tải lịch sử hỏi đáp.");
+        setMessages([]);
+        setChatState("error");
+      })
+      .finally(() => {
         if (active) {
           setHistoryLoading(false);
         }
-      }
-    };
-
-    loadHistory();
+      });
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [document?.id, isEligible, historyReloadKey]);
 
@@ -301,18 +300,18 @@ export function RagChatPanel({
   };
 
   const handleClearChat = async () => {
-    if (!conversationId) return;
+    if (!conversationId || loading || historyLoading || historyClearing) return;
 
-    setHistoryClearing(true);
     setHistoryActionError("");
+    setHistoryClearing(true);
+
     try {
       await ragService.clearConversationMessages(conversationId);
       setMessages([]);
       setChatState("idle");
       setIsClearConfirmOpen(false);
     } catch (err: any) {
-      console.error("Failed to clear chat history", err);
-      setHistoryActionError(err.message || "Không thể xóa lịch sử trò chuyện. Vui lòng thử lại.");
+      setHistoryActionError(err.message || "Không thể xóa lịch sử hỏi đáp. Vui lòng thử lại.");
     } finally {
       setHistoryClearing(false);
     }
@@ -448,11 +447,13 @@ export function RagChatPanel({
   };
 
   const chatInputDisabled = loading || historyLoading || historyClearing || !conversationId;
-  const chatInputPlaceholder = historyLoading 
-    ? "Đang tải lịch sử hội thoại..." 
-    : !conversationId 
-      ? "Lỗi khởi tạo hội thoại..." 
-      : "Đặt câu hỏi về nội dung tài liệu này...";
+  const chatInputPlaceholder = historyLoading
+    ? "Đang tải lịch sử hỏi đáp..."
+    : historyClearing
+      ? "Đang xóa lịch sử hỏi đáp..."
+      : !conversationId
+        ? "Đang khởi tạo cuộc hội thoại..."
+        : "Đặt câu hỏi về nội dung tài liệu này...";
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#FDFDFB] rounded-3xl border border-[#0E0D0B]/[0.06] overflow-hidden font-sans relative shadow-premium">
