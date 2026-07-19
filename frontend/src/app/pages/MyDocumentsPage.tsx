@@ -5,6 +5,7 @@ import { MyDocumentActionMenu } from "../components/MyDocumentActionMenu";
 import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
 import { FileText, Plus, SearchX, AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
+import { documentFileService } from "../services/documentFileService";
 import { 
   isAnalysisInProgress, 
   isAnalysisComplete, 
@@ -30,6 +31,8 @@ export function MyDocumentsPage({
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [error, setError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   
   // Submit states
   const [submitTargetId, setSubmitTargetId] = useState<number | null>(null);
@@ -302,6 +305,25 @@ export function MyDocumentsPage({
     }
   };
 
+  const handleDownload = async (id: number) => {
+    if (downloadingId !== null) return;
+
+    const target = docs.find(doc => doc.id === id);
+    setDownloadError("");
+    setDownloadingId(id);
+
+    try {
+      await documentFileService.downloadOriginalDocument(
+        id,
+        target?.originalFilename || `${target?.title || "document"}.${target?.fileType?.toLowerCase() || "pdf"}`
+      );
+    } catch (err: any) {
+      console.error("Failed to download document", err);
+      setDownloadError(err.message || "Không thể tải file gốc. Vui lòng thử lại.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
   // Reprocess RAG handler
   const handleRetryProcessingClick = (id: number) => {
     setReprocessTargetId(id);
@@ -339,6 +361,12 @@ export function MyDocumentsPage({
 
   return (
     <div className="w-full text-left">
+      {downloadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{downloadError}</span>
+        </div>
+      )}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -445,9 +473,9 @@ export function MyDocumentsPage({
                         onReplace={handleReplaceClick}
                         onDelete={handleDeleteClick}
                         onSubmitReview={handleSubmitReview}
-                        onDownload={() => {}}
+                        onDownload={handleDownload}
                         onRetryProcessing={handleRetryProcessingClick}
-                        disabled={loading || isSavingMetadata || isReplacingFile || isDeleting || isSubmitting}
+                        disabled={loading || isSavingMetadata || isReplacingFile || isDeleting || isSubmitting || downloadingId !== null}
                       />
 
                     </td>

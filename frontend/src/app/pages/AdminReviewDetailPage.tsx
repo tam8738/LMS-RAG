@@ -4,9 +4,10 @@ import { MOCK_DOCUMENTS } from "../mockData";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { ConfirmDialog, RejectDialog } from "../components/Dialogs";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle, Loader2 } from "lucide-react";
 import { isAnalysisComplete, mapSubmitReviewError } from "../utils/documentHelpers";
 import { adminReviewService } from "../services/adminReviewService";
+import { documentFileService } from "../services/documentFileService";
 
 export function AdminReviewDetailPage({
   documentId,
@@ -24,6 +25,8 @@ export function AdminReviewDetailPage({
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [approveError, setApproveError] = useState("");
   const [rejectError, setRejectError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -60,6 +63,24 @@ export function AdminReviewDetailPage({
     };
   }, [documentId]);
 
+  const handleDownload = async () => {
+    if (!doc || isDownloading) return;
+
+    setDownloadError("");
+    setIsDownloading(true);
+
+    try {
+      await documentFileService.downloadOriginalDocument(
+        doc.id,
+        doc.originalFilename || `${doc.title}.${doc.fileType.toLowerCase()}`
+      );
+    } catch (err: any) {
+      console.error("Failed to download document", err);
+      setDownloadError(err.message || "Không thể tải file gốc. Vui lòng thử lại.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   const handleActionComplete = (msg: string) => {
     setToast({ msg, type: 'success' });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -132,6 +153,12 @@ export function AdminReviewDetailPage({
         </div>
       )}
 
+      {downloadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{downloadError}</span>
+        </div>
+      )}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -184,8 +211,13 @@ export function AdminReviewDetailPage({
               <p className="text-[12.5px] text-[#AAAA9F] font-mono-label">{doc.fileType} · {doc.fileSize} · {doc.pageCount} trang</p>
             </div>
           </div>
-          <button className="h-9 px-4 flex items-center gap-2 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-xl hover:bg-[#F4F3F0] transition-colors shadow-sm cursor-pointer font-action">
-            <Download className="w-3.5 h-3.5" /> Xem / Tải file
+          <button
+            onClick={handleDownload}
+            disabled={isDownloading || isSubmitting}
+            className="h-9 px-4 flex items-center gap-2 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-xl hover:bg-[#F4F3F0] transition-colors shadow-sm cursor-pointer font-action disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            {isDownloading ? "Đang tải..." : "Xem / Tải file"}
           </button>
         </div>
 

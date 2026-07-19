@@ -185,19 +185,17 @@ export function MyDocumentActionMenu({
             <button
               type="button"
               role="menuitem"
-              disabled={true}
-              title="Tính năng chưa được hỗ trợ bởi máy chủ (thiếu API Backend)"
               onClick={(e) => {
                 e.stopPropagation();
+                setOpen(false);
+                onDownload(doc.id);
               }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] opacity-50 cursor-not-allowed border-none bg-transparent text-left outline-none"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-[#F8F7F4]"
             >
-              <Download className="w-3.5 h-3.5 text-[#AAAA9F]" /> 
+              <Download className="w-3.5 h-3.5 text-[#6B6963]" />
               <span className="flex-1">Tải file gốc</span>
-              <span className="text-[10px] text-red-500 font-mono-label">NO API</span>
             </button>
           )}
-
           {showEdit && (
             <button
               type="button"

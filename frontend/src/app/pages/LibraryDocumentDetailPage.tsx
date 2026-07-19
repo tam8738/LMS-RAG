@@ -3,9 +3,10 @@ import { Document, User } from "../types";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { RagChatPanel } from "../components/RagChatPanel";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Download, FileText, Archive, AlertTriangle, Check } from "lucide-react";
+import { ArrowLeft, Download, FileText, Archive, AlertTriangle, Check, Loader2 } from "lucide-react";
 import { libraryService } from "../services/libraryService";
 import { adminReviewService } from "../services/adminReviewService";
+import { documentFileService } from "../services/documentFileService";
 import { canUseDocumentRag } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 
@@ -25,6 +26,8 @@ export function LibraryDocumentDetailPage({
   const [showArchive, setShowArchive] = useState(false);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [archiveError, setArchiveError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -61,6 +64,24 @@ export function LibraryDocumentDetailPage({
     };
   }, [documentId]);
 
+  const handleDownload = async () => {
+    if (!doc || isDownloading) return;
+
+    setDownloadError("");
+    setIsDownloading(true);
+
+    try {
+      await documentFileService.downloadOriginalDocument(
+        doc.id,
+        doc.originalFilename || `${doc.title}.${doc.fileType.toLowerCase()}`
+      );
+    } catch (err: any) {
+      console.error("Failed to download document", err);
+      setDownloadError(err.message || "Không thể tải file gốc. Vui lòng thử lại.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   const handleArchive = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -109,6 +130,12 @@ export function LibraryDocumentDetailPage({
         </div>
       )}
 
+      {downloadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{downloadError}</span>
+        </div>
+      )}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -139,9 +166,13 @@ export function LibraryDocumentDetailPage({
               {doc.description || "Chưa có mô tả."}
             </p>
             
-            <button className="w-full flex items-center justify-center gap-2 h-10 bg-[#0E0D0B] text-white text-[14.5px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm border-none cursor-pointer font-action">
-              <Download className="w-4 h-4" />
-              Tải file gốc
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="w-full flex items-center justify-center gap-2 h-10 bg-[#0E0D0B] text-white text-[14.5px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all shadow-sm border-none cursor-pointer font-action disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isDownloading ? "Đang tải..." : "Tải file gốc"}
             </button>
 
             {user?.role === "admin" && (

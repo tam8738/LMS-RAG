@@ -3,8 +3,9 @@ import { LibraryDocument, LibraryQuery } from "../types";
 import { SearchFilters, FilterState } from "../components/SearchFilters";
 import { DocumentCard } from "../components/DocumentCard";
 import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
-import { SearchX } from "lucide-react";
+import { AlertTriangle, SearchX } from "lucide-react";
 import { libraryService } from "../services/libraryService";
+import { documentFileService } from "../services/documentFileService";
 
 export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: number) => void }) {
   const [loading, setLoading] = useState(true);
@@ -12,6 +13,8 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [error, setError] = useState<string>("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
@@ -74,8 +77,35 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
     fetchLibrary();
   }, [query]);
 
+  const handleDownload = async (documentId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (downloadingId !== null) return;
+
+    const target = documents.find(doc => doc.id === documentId);
+    setDownloadError("");
+    setDownloadingId(documentId);
+
+    try {
+      await documentFileService.downloadOriginalDocument(
+        documentId,
+        target?.originalFilename || `${target?.title || "document"}.${target?.fileType?.toLowerCase() || "pdf"}`
+      );
+    } catch (err: any) {
+      console.error("Failed to download document", err);
+      setDownloadError(err.message || "Không thể tải file gốc. Vui lòng thử lại.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
   return (
     <div className="w-full text-left">
+      {downloadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{downloadError}</span>
+        </div>
+      )}
+
       <SearchFilters
         filters={filterState}
         onChange={handleFilterChange}
@@ -97,6 +127,7 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
                 document={doc}
                 viewMode={viewMode}
                 onClick={onNavigateDetail}
+                onDownload={handleDownload}
               />
             ))}
           </div>

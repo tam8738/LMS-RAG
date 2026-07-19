@@ -6,6 +6,7 @@ import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle, Loader2, CheckCircle2, Clock, X, FileText, RefreshCw } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
+import { documentFileService } from "../services/documentFileService";
 import { 
   isAnalysisInProgress, 
   isAnalysisComplete, 
@@ -34,6 +35,8 @@ export function MyDocumentDetailPage({
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
   const [pollingTimeoutReached, setPollingTimeoutReached] = useState(false);
   
   // Submit review states
@@ -336,6 +339,24 @@ export function MyDocumentDetailPage({
     }
   };
 
+  const handleDownload = async () => {
+    if (!doc || isDownloading) return;
+
+    setDownloadError("");
+    setIsDownloading(true);
+
+    try {
+      await documentFileService.downloadOriginalDocument(
+        doc.id,
+        doc.originalFilename || `${doc.title}.${doc.fileType.toLowerCase()}`
+      );
+    } catch (err: any) {
+      console.error("Failed to download document", err);
+      setDownloadError(err.message || "Không thể tải file gốc. Vui lòng thử lại.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   // Delete Action handlers
   const handleDeleteClick = () => {
     setDeleteError("");
@@ -426,7 +447,7 @@ export function MyDocumentDetailPage({
   const ragEligible = canUseDocumentRag(doc);
   const showRetry = canRetryProcessing(doc);
 
-  const isMutatingActive = isSubmitting || isSavingMetadata || isUploading || isDeleting;
+  const isMutatingActive = isSubmitting || isSavingMetadata || isUploading || isDeleting || isDownloading;
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
@@ -468,12 +489,13 @@ export function MyDocumentDetailPage({
               <RefreshCw className="w-3.5 h-3.5" /> Thử xử lý lại AI
             </button>
           )}
-          <button 
-            disabled={true} 
-            title="Chức năng này chưa được máy chủ hỗ trợ (thiếu API Backend)"
-            className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg opacity-50 cursor-not-allowed font-action"
+          <button
+            onClick={handleDownload}
+            disabled={isMutatingActive}
+            className="h-8 px-3 flex items-center gap-1.5 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-lg hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
           >
-            <Download className="w-3.5 h-3.5 text-[#AAAA9F]" /> Tải file gốc
+            {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#AAAA9F]" /> : <Download className="w-3.5 h-3.5 text-[#AAAA9F]" />}
+            {isDownloading ? "Đang tải..." : "Tải file gốc"}
           </button>
           {canSubmit && (
             <button 
@@ -513,6 +535,12 @@ export function MyDocumentDetailPage({
         </div>
       </div>
 
+      {downloadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm">
+          <AlertTriangle className="w-4 h-4 text-red-650 flex-shrink-0" />
+          <span>{downloadError}</span>
+        </div>
+      )}
       {submitSuccess && (
         <div className="mb-4 p-4 bg-emerald-50 border border-emerald-250 text-emerald-800 rounded-xl text-[13.5px] flex items-center gap-2 font-sans-body shadow-sm animate-[fade-in_150ms_ease-out]">
           <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0" />
