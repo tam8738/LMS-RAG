@@ -635,6 +635,7 @@ AI Service hiện đã có `history` trong `/v1/answer-question`, nên không c�
 
 Owner: AI  
 Priority: P0  
+Status: DONE
 Dependencies: BE-RAG-HIST-04
 
 Đầu việc:
@@ -659,6 +660,7 @@ test(ai): verify stateless rag history contract
 
 Owner: AI  
 Priority: P1  
+Status: DONE
 Dependencies: AI-RAG-HIST-01
 
 Đầu việc:
@@ -683,6 +685,7 @@ test(ai): cover rag conversation history edge cases
 
 Owner: AI  
 Priority: P1  
+Status: DONE
 Dependencies: BE-RAG-HIST-04
 
 Đầu việc:
@@ -713,7 +716,7 @@ BE-RAG-HIST-01
 -> FE-RAG-HIST-03
 -> BE-RAG-HIST-05
 -> FE-RAG-HIST-04
--> AI-RAG-HIST-01/02
+-> AI-RAG-HIST-01/02/03 (DONE, chỉ cần chạy regression khi tích hợp FE)
 -> INT-RAG-HIST-01
 ```
 
@@ -827,7 +830,7 @@ Feature được xem là xong khi:
 - Not-found answers không hiển thị citations cả trước và sau reload.
 - ✅ Docs/API notes được cập nhật nếu contract thực tế khác bản đề xuất này.
 
-**Trạng thái hiện tại (18/07/2026):** Backend đã hoàn thành toàn bộ 5 task BE-RAG-HIST. FE và AI task còn TODO. API contract thực tế khớp với bản đề xuất.
+**Trạng thái hiện tại (19/07/2026):** Backend đã hoàn thành toàn bộ 5 task BE-RAG-HIST. AI Service đã hoàn thành phần stateless history từ AI-08/AI-09 và đã có contract/tests/docs tương ứng. Frontend vẫn chưa nối conversation endpoint mới, nên phần resume chat trên web và E2E còn TODO.
 
 ## 17. Task Summary Cho Team
 
@@ -843,9 +846,9 @@ Feature được xem là xong khi:
 | FE-RAG-HIST-03 | FE | P0 | Send via conversation endpoint | TODO |
 | FE-RAG-HIST-04 | FE | P1 | Clear persisted history | TODO |
 | FE-RAG-HIST-05 | FE | P1 | UX polish | TODO |
-| AI-RAG-HIST-01 | AI | P0 | Verify stateless history contract | TODO |
-| AI-RAG-HIST-02 | AI | P1 | Extra history tests | TODO |
-| AI-RAG-HIST-03 | AI | P1 | AI docs handoff update | TODO |
+| AI-RAG-HIST-01 | AI | P0 | Verify stateless history contract | DONE |
+| AI-RAG-HIST-02 | AI | P1 | Extra history tests | DONE |
+| AI-RAG-HIST-03 | AI | P1 | AI docs handoff update | DONE |
 | INT-RAG-HIST-01 | ALL | P0 | Resume chat E2E | TODO |
 
 ## 18. Ghi Chú Chốt
