@@ -3,19 +3,232 @@ import { LibraryDocument, LibraryQuery } from "../types";
 import { DocumentCard } from "../components/DocumentCard";
 import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
 import { FilterDrawer, AdvancedFilterState } from "../components/FilterDrawer";
-import { Search, Filter, LayoutGrid, List, SearchX, X, AlertCircle, Brain, Sparkles, ArrowRight } from "lucide-react";
+import { 
+  Search, 
+  Filter,
+  SearchX, 
+  X, 
+  AlertCircle, 
+  Brain, 
+  Sparkles, 
+  ArrowRight,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen
+} from "lucide-react";
 import { libraryService } from "../services/libraryService";
 
+/* Subject Lead Card Component representing the subject itself */
+interface SubjectLeadCardProps {
+  subjectName: string;
+  docCount: number;
+  onSelect: () => void;
+  isAiReadyRow?: boolean;
+}
+
+function SubjectLeadCard({ subjectName, docCount, onSelect, isAiReadyRow }: SubjectLeadCardProps) {
+  const Icon = isAiReadyRow ? Brain : BookOpen;
+  return (
+    <div 
+      onClick={onSelect}
+      className={`w-[280px] sm:w-[300px] h-[260px] flex-shrink-0 rounded-2xl bg-gradient-to-br ${
+        isAiReadyRow 
+          ? "from-[#4F63D2]/10 to-[#4F63D2]/5 border-[#4F63D2]/20 hover:border-[#4F63D2]/35 text-[#0E0D0B]" 
+          : "from-[#F8F7F4] to-[#F3F2EE] border border-[#0E0D0B]/[0.08] hover:border-[#0E0D0B]/[0.15]"
+      } p-6 flex flex-col justify-between cursor-pointer transition-all duration-300 shadow-premium hover:shadow-premium-hover group relative overflow-hidden text-left select-none`}
+    >
+      {/* Decorative Icon in Background */}
+      <Icon className={`absolute -right-8 -bottom-8 w-36 h-36 ${isAiReadyRow ? "text-[#4F63D2]/[0.05]" : "text-[#0E0D0B]/[0.025]"} pointer-events-none transition-transform duration-500 group-hover:scale-110`} />
+      
+      <div>
+        <span className={`text-[10px] font-bold uppercase tracking-widest block mb-2 ${isAiReadyRow ? "text-[#4F63D2]" : "text-[#AAAA9F]"}`}>
+          {isAiReadyRow ? "AI Powered" : "Chuyên mục"}
+        </span>
+        <h3 className="text-[20px] font-extrabold text-[#0E0D0B] leading-tight line-clamp-3 mb-2">
+          {subjectName}
+        </h3>
+        <p className="text-[13px] text-[#6B6963] leading-relaxed">
+          {docCount} tài liệu học tập sẵn có
+        </p>
+      </div>
+
+      <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#4F63D2] mt-auto">
+        <span>Xem tất cả</span>
+        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+      </div>
+    </div>
+  );
+}
+
+/* Subject Showcase Row Component managing its own carousel scrolling */
+interface SubjectShowcaseRowProps {
+  subjectName: string;
+  docs: LibraryDocument[];
+  onSelectSubject: (sub: string) => void;
+  onNavigateDetail: (id: number) => void;
+  handleDownload: (id: number, e: React.MouseEvent) => void;
+  isAiReadyRow?: boolean;
+}
+
+function SubjectShowcaseRow({ 
+  subjectName, 
+  docs, 
+  onSelectSubject, 
+  onNavigateDetail, 
+  handleDownload,
+  isAiReadyRow
+}: SubjectShowcaseRowProps) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // ResizeObserver to dynamically check carousel width
+  useEffect(() => {
+    if (!viewportRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setViewportWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(viewportRef.current);
+    
+    // Check mobile breakpoint
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // Compute scroll parameters: card width = 280px, gap = 20px (300px total step)
+  const visibleCards = Math.max(1, Math.floor((viewportWidth + 20) / 300));
+  const maxIndex = Math.max(0, docs.length - visibleCards);
+
+  // Reset index if filter changes or documents update
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [docs]);
+
+  // Clamp current index on viewport resizing
+  useEffect(() => {
+    if (currentIndex > maxIndex) {
+      setCurrentIndex(maxIndex);
+    }
+  }, [maxIndex, currentIndex]);
+
+  const handlePrev = () => {
+    setCurrentIndex(prev => Math.max(0, prev - visibleCards));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex(prev => Math.min(maxIndex, prev + visibleCards));
+  };
+
+  const handleSelect = () => {
+    if (isAiReadyRow) {
+      onSelectSubject(""); // Reset filter on AI Ready row select
+    } else {
+      onSelectSubject(subjectName);
+    }
+  };
+
+  return (
+    <div className="space-y-4 text-left">
+      {/* Row Header */}
+      <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.04] pb-2">
+        <div className="flex items-center gap-2 border-l-3 border-[#0E0D0B] pl-3">
+          <h3 className="text-[17px] font-extrabold text-[#0E0D0B] tracking-tight">{subjectName}</h3>
+          <span className="text-[11.5px] text-[#AAAA9F] font-bold">({docs.length} tài liệu)</span>
+        </div>
+      </div>
+
+      {/* Desktop/Tablet side-by-side versus Mobile stacked layout */}
+      <div className="flex flex-col md:flex-row gap-5 items-stretch relative">
+        
+        {/* Fixed Subject Lead Card */}
+        <SubjectLeadCard 
+          subjectName={subjectName} 
+          docCount={docs.length} 
+          onSelect={handleSelect} 
+          isAiReadyRow={isAiReadyRow}
+        />
+
+        {/* Carousel Area container */}
+        <div className="flex-1 flex items-center gap-3 min-w-0">
+          
+          {/* Previous Arrow Button */}
+          {!isMobile && maxIndex > 0 && (
+            <button
+              onClick={handlePrev}
+              disabled={currentIndex === 0}
+              aria-label={`Trước - ${subjectName}`}
+              className="w-9 h-9 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-sm hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer flex-shrink-0 transition-all duration-200"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Viewport wrapper */}
+          <div 
+            ref={viewportRef} 
+            className={`flex-1 overflow-hidden py-1 ${isMobile ? "overflow-x-auto snap-x scroll-smooth scrollbar-hide flex gap-5 pb-3 w-full" : ""}`}
+          >
+            <div 
+              className={`flex gap-5 transition-transform duration-300 ease-out`}
+              style={isMobile ? undefined : { transform: `translateX(-${currentIndex * 300}px)` }}
+            >
+              {docs.map(doc => (
+                <div 
+                  key={doc.id} 
+                  className={`w-[280px] flex-shrink-0 ${isMobile ? "snap-start" : ""}`}
+                >
+                  <DocumentCard
+                    document={doc}
+                    viewMode="grid"
+                    onClick={onNavigateDetail}
+                    onDownload={handleDownload}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Next Arrow Button */}
+          {!isMobile && maxIndex > 0 && (
+            <button
+              onClick={handleNext}
+              disabled={currentIndex >= maxIndex}
+              aria-label={`Tiếp - ${subjectName}`}
+              className="w-9 h-9 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-sm hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer flex-shrink-0 transition-all duration-200"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Master Library Page Component */
 export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: number) => void }) {
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [error, setError] = useState<string>("");
   
+  // Independent state for unfiltered RAG Recommendation Shelf
+  const [aiReadyDocs, setAiReadyDocs] = useState<LibraryDocument[]>([]);
+  
   // Spring Page Source of Truth
   const [page, setPage] = useState(0);
-  const [size] = useState(12);
+  const [size] = useState(100); // Larger default size to gather all items for subject groups
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
   
@@ -56,7 +269,7 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
   // Debounced query parameters
   const [debouncedQuery, setDebouncedQuery] = useState<LibraryQuery>({
     page: 0,
-    size: 12,
+    size: 100,
     q: "",
     subject: "",
     topic: "",
@@ -80,17 +293,22 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
     return () => clearTimeout(timeoutId);
   }, [searchVal, advancedFilters.subject, advancedFilters.topic, page, size]);
 
-  // Fetch unique subjects on mount
+  // Fetch unique subjects & unfiltered AI Ready recommendation list on mount
   useEffect(() => {
-    const fetchAllSubjects = async () => {
+    const fetchInitialData = async () => {
       try {
         const subjects = await libraryService.getAvailableSubjects();
         setAvailableSubjects(subjects);
+
+        // Fetch unfiltered RAG eligible documents for the static recommendation shelf
+        const result = await libraryService.getLibrary({ page: 0, size: 100, q: "", subject: "", topic: "", chapter: "", tags: "" });
+        const eligible = result.documents.filter(doc => doc.ragEligible || doc.processingStatus === "PROCESSED");
+        setAiReadyDocs(eligible);
       } catch (e) {
-        console.error("Failed to load library subjects:", e);
+        console.error("Failed to load library initial data:", e);
       }
     };
-    fetchAllSubjects();
+    fetchInitialData();
   }, []);
 
   // Fetch library documents based on current filters and page
@@ -149,61 +367,24 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
 
   const isFilteringOrSearching = !!searchVal || !!selectedSubject || activeFiltersCount > 0;
 
-  // Filter sections without duplicate overlap
-  // Section A: AI Ready
-  const aiReadyDocs = documents.filter(doc => doc.ragEligible || doc.processingStatus === "PROCESSED").slice(0, 4);
-  
-  // Section B: Newly Published (exclude IDs in Section A)
-  const newlyPublishedDocs = documents
-    .filter(doc => !aiReadyDocs.some(a => a.id === doc.id))
-    .slice(0, 4);
+  // Group visible documents by subject
+  const subjectGroups = documents.reduce((acc, doc) => {
+    const sub = doc.subject || "Khác";
+    if (!acc[sub]) acc[sub] = [];
+    acc[sub].push(doc);
+    return acc;
+  }, {} as Record<string, LibraryDocument[]>);
+
+  // Determine which subjects to render
+  const subjectsToRender = Object.keys(subjectGroups).sort((a, b) => {
+    if (a === "Khác") return 1;
+    if (b === "Khác") return -1;
+    return a.localeCompare(b);
+  });
 
   return (
-    <div className="w-full text-left font-sans space-y-8 pb-16">
+    <div className="w-full text-left font-sans space-y-12 pb-16">
       
-      {/* 1. Compact Editorial Hero (20-25% smaller padding/margins) */}
-      <div className="py-6 px-6 rounded-2xl bg-[#F8F7F4]/55 border border-[#0E0D0B]/[0.06] text-center relative overflow-hidden shadow-xs">
-        <h1 className="text-[28px] font-bold text-[#0E0D0B] tracking-tight leading-tight max-w-2xl mx-auto">
-          Thư viện học liệu
-        </h1>
-        <p className="text-[13.5px] text-[#6B6963] max-w-lg mx-auto mt-1.5 mb-5 leading-relaxed">
-          Khám phá tài liệu đã được xuất bản và đặt câu hỏi dựa trên nội dung tài liệu.
-        </p>
-
-        {/* Large Search Field (52-56px height) */}
-        <div className="relative max-w-xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#AAAA9F] transition-colors" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchVal}
-            onChange={e => {
-              setSearchVal(e.target.value);
-              setPage(0); // Reset page on search change
-            }}
-            placeholder="Tìm kiếm theo tên tài liệu, môn học, chủ đề..."
-            className="w-full h-13 pl-11 pr-20 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all shadow-xs"
-          />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {searchVal && (
-              <button
-                onClick={() => {
-                  setSearchVal("");
-                  setPage(0);
-                }}
-                className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
-                title="Xóa tìm kiếm"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-[#0E0D0B]/[0.08] bg-[#F8F7F4] text-[10px] font-mono text-[#AAAA9F] select-none">
-              Ctrl + K
-            </kbd>
-          </div>
-        </div>
-      </div>
-
       {downloadError && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 animate-[fade-in_150ms_ease-out]">
           <AlertCircle className="w-4 h-4 text-red-650 flex-shrink-0" />
@@ -211,16 +392,157 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
         </div>
       )}
 
-      {/* Category navigation row visually connected below search (reduced spacing) */}
-      <div className="overflow-x-auto scrollbar-hide pb-1 -mt-2">
+      {/* 1. AI Learning Hero Section (Only show when not filtering/searching) */}
+      {!isFilteringOrSearching ? (
+        <div className="space-y-8 animate-fadeIn">
+          <div className="py-12 px-6 rounded-3xl bg-gradient-to-br from-[#F8F7F4]/90 via-[#FDFDFB] to-[#F4F3F0]/50 border border-[#0E0D0B]/[0.06] text-center relative overflow-hidden shadow-premium">
+            {/* Background glowing blobs */}
+            <div className="absolute -left-20 -top-20 w-64 h-64 bg-[#4F63D2]/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#4F63D2]/10 text-[#4F63D2] text-[12px] font-bold mb-4">
+              <Sparkles className="w-3.5 h-3.5" /> AI-POWERED WORKSPACE
+            </div>
+
+            <h1 className="text-[34px] sm:text-[40px] font-bold text-[#0E0D0B] tracking-tight leading-none max-w-3xl mx-auto">
+              EduRAG AI Learning Hub
+            </h1>
+            <p className="text-[14.5px] text-[#6B6963] max-w-xl mx-auto mt-3 mb-8 leading-relaxed">
+              Khám phá kho tàng tài liệu học liệu được số hóa và trò chuyện cùng Trợ lý RAG AI dựa trên nguồn tri thức chính xác.
+            </p>
+
+            {/* Large Centered Search Box */}
+            <div className="relative max-w-2xl mx-auto shadow-md rounded-2xl">
+              <Search className="absolute left-4.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#AAAA9F]" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchVal}
+                onChange={e => {
+                  setSearchVal(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="Đặt câu hỏi hoặc tìm kiếm tài liệu, môn học, chủ đề..."
+                className="w-full h-14 pl-12 pr-24 bg-white border border-[#0E0D0B]/[0.1] rounded-2xl text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/8 focus:border-[#4F63D2] transition-all"
+              />
+              <div className="absolute right-4.5 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                {searchVal && (
+                  <button
+                    onClick={() => {
+                      setSearchVal("");
+                      setPage(0);
+                    }}
+                    className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
+                    title="Xóa tìm kiếm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-[#0E0D0B]/[0.06] bg-[#F8F7F4] text-[10.5px] text-[#AAAA9F] select-none shadow-3xs font-semibold">
+                  Ctrl + K
+                </kbd>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mt-8 flex flex-wrap justify-center items-center gap-3 text-[13px] font-semibold text-[#6B6963]">
+              <span className="text-[#AAAA9F] uppercase tracking-wider text-[10.5px]">Lối tắt nhanh:</span>
+              <button
+                onClick={() => document.getElementById("ai-ready-shelf")?.scrollIntoView({ behavior: "smooth" })}
+                className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#4F63D2] transition-all cursor-pointer shadow-3xs"
+              >
+                🤖 Hỏi đáp AI
+              </button>
+              <button
+                onClick={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
+                className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#0E0D0B] transition-all cursor-pointer shadow-3xs"
+              >
+                📚 Duyệt theo môn học
+              </button>
+            </div>
+          </div>
+
+          {/* AI Highlights Area */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Chủ đề nổi bật</span>
+              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Thuật toán đường đi ngắn nhất</h4>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Tìm hiểu cách giải bài toán Dijkstra, Bellman-Ford môn Toán rời rạc 2 qua tài liệu học liệu và hỏi đáp AI.</p>
+            </div>
+            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
+              <span className="text-[10px] font-bold text-[#4F63D2] bg-[#4F63D2]/10 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Mẹo học tập AI</span>
+              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Hỏi AI tóm tắt tài liệu</h4>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Sử dụng prompt mẫu "Tóm tắt tài liệu" hoặc "Tạo câu hỏi trắc nghiệm ôn tập" để tự đánh giá kiến thức nhanh chóng.</p>
+            </div>
+            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Mới lập chỉ mục</span>
+              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Lập trình hướng đối tượng</h4>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Toàn bộ slide bài giảng OOP Java đã hoàn tất xử lý cấu trúc và sẵn sàng hỗ trợ tra cứu RAG AI đầy đủ.</p>
+            </div>
+            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
+              <span className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Thông báo hệ thống</span>
+              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Độ chính xác Citation v2</h4>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Mô hình grounded LLM đã nâng cấp giúp hiển thị trích dẫn chính xác kèm theo số trang tham chiếu trực quan.</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* If searching/filtering, show a simpler compact search header bar */
+        <div className="py-6 px-6 rounded-2xl bg-[#F8F7F4]/55 border border-[#0E0D0B]/[0.06] shadow-xs animate-fadeIn">
+          <div className="relative max-w-xl mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#AAAA9F]" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchVal}
+              onChange={e => {
+                setSearchVal(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Tìm kiếm theo tên tài liệu, môn học, chủ đề..."
+              className="w-full h-11 pl-11 pr-20 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all shadow-xs"
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {searchVal && (
+                <button
+                  onClick={() => {
+                    setSearchVal("");
+                    setPage(0);
+                  }}
+                  className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
+                  title="Xóa tìm kiếm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Sẵn sàng hỏi đáp AI (Hiển thị cố định dưới Blog và trên Bộ lọc môn học, độc lập với filter/search) */}
+      {!loading && aiReadyDocs.length > 0 && (
+        <div id="ai-ready-shelf" className="animate-fadeIn">
+          <SubjectShowcaseRow
+            subjectName="Sẵn sàng hỏi đáp AI"
+            docs={aiReadyDocs}
+            onSelectSubject={handleCategorySelect}
+            onNavigateDetail={onNavigateDetail}
+            handleDownload={handleDownload}
+            isAiReadyRow={true}
+          />
+        </div>
+      )}
+
+      {/* Subject Chips for Filtering */}
+      <div className="overflow-x-auto scrollbar-hide pb-2 border-b border-[#0E0D0B]/[0.06] mt-4">
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleCategorySelect("")}
-            className={`flex-shrink-0 h-9 px-4.5 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer ${
-              !selectedSubject
-                ? "bg-[#0E0D0B] text-white shadow-sm"
-                : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B]"
-            }`}
+            className={`flex-shrink-0 h-9 px-4.5 rounded-xl text-[13px] font-semibold transition-all duration-200 cursor-pointer ${!selectedSubject
+              ? "bg-[#0E0D0B] text-white shadow-sm"
+              : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F4F3F0]"
+              }`}
           >
             Tất cả môn học
           </button>
@@ -230,11 +552,10 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
               <button
                 key={sub}
                 onClick={() => handleCategorySelect(sub)}
-                className={`flex-shrink-0 h-9 px-4.5 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer ${
-                  isSelected
-                    ? "bg-[#0E0D0B] text-white shadow-sm"
-                    : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B]"
-                }`}
+                className={`flex-shrink-0 h-9 px-4.5 rounded-xl text-[13px] font-semibold transition-all duration-200 cursor-pointer ${isSelected
+                  ? "bg-[#0E0D0B] text-white shadow-sm"
+                  : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F4F3F0]"
+                  }`}
               >
                 {sub}
               </button>
@@ -244,115 +565,41 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
       </div>
 
       {loading ? (
-        <LoadingSkeleton viewMode={viewMode} />
+        <LoadingSkeleton viewMode="grid" />
       ) : error ? (
         <ErrorState error={error} onRetry={fetchLibrary} />
-      ) : (
-        <div className="space-y-10">
+      ) : documents.length > 0 ? (
+        <div className="space-y-12 animate-fadeIn">
           
-          {/* Section A — AI Ready (Compact horizontal knowledge shelf) */}
-          {!isFilteringOrSearching && aiReadyDocs.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Brain className="w-5 h-5 text-[#4F63D2]" />
-                <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">Sẵn sàng hỏi đáp AI</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {aiReadyDocs.map(doc => (
-                  <div
-                    key={doc.id}
-                    onClick={() => onNavigateDetail(doc.id)}
-                    className="bg-gradient-to-br from-white to-[#F9F8F6] border border-[#4F63D2]/15 hover:border-[#4F63D2]/35 rounded-xl p-4 flex flex-col justify-between cursor-pointer hover:shadow-premium-hover transition-all h-[155px] group"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-bold text-[#4F63D2] bg-[#4F63D2]/10 px-2 py-0.5 rounded uppercase tracking-wider font-mono">
-                          {doc.subject}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                          <Sparkles className="w-2.5 h-2.5" /> AI Ready
-                        </span>
-                      </div>
-                      <h3 className="text-[14.5px] font-semibold text-[#0E0D0B] line-clamp-2 leading-snug group-hover:text-[#4F63D2] transition-colors">
-                        {doc.title}
-                      </h3>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-[#0E0D0B]/[0.04]">
-                      <span className="text-[11.5px] font-semibold text-[#4F63D2] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                        Hỏi đáp AI <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
-                      <span className="text-[10px] text-[#AAAA9F] font-mono">{doc.fileType}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Section B — Newly Published */}
-          {!isFilteringOrSearching && newlyPublishedDocs.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">Mới xuất bản</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {newlyPublishedDocs.map(doc => (
-                  <DocumentCard
-                    key={doc.id}
-                    document={doc}
-                    viewMode="grid"
-                    onClick={onNavigateDetail}
-                    onDownload={handleDownload}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Section C — All Documents (Explorer Layout) */}
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#0E0D0B]/[0.06] pb-3">
+          {/* Section: Tất cả tài liệu (Presented as Subject Showcase Rows) */}
+          <div id="all-documents-section" className="space-y-8 text-left pt-4">
+            
+            <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.06] pb-3.5">
               <div>
-                <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">Tất cả tài liệu</h2>
-                <p className="text-[12.5px] text-[#AAAA9F]">Hiển thị {totalElements} kết quả phù hợp</p>
+                <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">
+                  {isFilteringOrSearching ? "Kết quả tìm kiếm" : "Tất cả tài liệu"}
+                </h2>
+                <p className="text-[12.5px] text-[#AAAA9F] font-semibold">Hiển thị {totalElements} kết quả được phân loại theo chuyên mục</p>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setIsFilterDrawerOpen(true)}
-                  className={`flex items-center gap-2 h-9 px-4 rounded-xl text-[12.5px] font-semibold transition-all shadow-xs cursor-pointer border ${
-                    activeFiltersCount > 0
-                      ? "bg-[#4F63D2]/10 border-[#4F63D2]/25 text-[#4F63D2]"
-                      : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B]"
-                  }`}
+                  className={`flex items-center gap-2 h-9 px-4 rounded-xl text-[12.5px] font-semibold transition-all shadow-xs cursor-pointer border ${activeFiltersCount > 0
+                    ? "bg-[#4F63D2]/10 border-[#4F63D2]/25 text-[#4F63D2]"
+                    : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                    }`}
                 >
                   <Filter className="w-3.5 h-3.5" />
                   Lọc nâng cao {activeFiltersCount > 0 && `(${activeFiltersCount})`}
                 </button>
-
-                <div className="flex items-center gap-1 p-1 bg-[#F4F3F0] rounded-xl">
-                  {([["grid", LayoutGrid], ["list", List]] as const).map(([mode, Icon]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setViewMode(mode)}
-                      className={`w-7.5 h-7.5 rounded-lg flex items-center justify-center transition-all cursor-pointer border-none ${
-                        viewMode === mode
-                          ? "bg-white text-[#0E0D0B] shadow-xs"
-                          : "text-[#AAAA9F] hover:text-[#6B6963]"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 
             {/* Active Filters Display */}
             {activeFiltersCount > 0 && (
-              <div className="flex flex-wrap gap-2 items-center">
+              <div className="flex flex-wrap gap-2 items-center text-left">
                 <span className="text-[12px] text-[#AAAA9F] mr-1">Bộ lọc đang áp dụng:</span>
                 {Object.entries(advancedFilters).map(([key, val]) => {
                   if (!val || key === "publicationStatus" || key === "fileType" || key === "processingStatus") return null;
@@ -393,100 +640,52 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
               </div>
             )}
 
-            {documents.length > 0 ? (
-              <div className="space-y-6">
-                <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" : "space-y-3.5"}>
-                  {documents.map((doc) => (
-                    <DocumentCard
-                      key={doc.id}
-                      document={doc}
-                      viewMode={viewMode}
-                      onClick={onNavigateDetail}
-                      onDownload={handleDownload}
-                    />
-                  ))}
-                </div>
+            {/* Subject Showcase Carousel Rows */}
+            <div id="subjects-shelf" className="space-y-12">
+              {subjectsToRender.map((subject) => {
+                const docs = subjectGroups[subject];
+                return (
+                  <SubjectShowcaseRow
+                    key={subject}
+                    subjectName={subject}
+                    docs={docs}
+                    onSelectSubject={handleCategorySelect}
+                    onNavigateDetail={onNavigateDetail}
+                    handleDownload={handleDownload}
+                  />
+                );
+              })}
+            </div>
 
-                {/* Spring Page Pagination (Source of Truth) */}
-                {totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-[#0E0D0B]/[0.06]">
-                    <div className="text-[13px] text-[#6B6963]">
-                      Hiển thị <span className="font-semibold text-[#0E0D0B]">{(page * size) + 1}</span> – <span className="font-semibold text-[#0E0D0B]">{Math.min((page + 1) * size, totalElements)}</span> trong tổng số <span className="font-semibold text-[#0E0D0B]">{totalElements}</span> tài liệu
-                    </div>
-                    
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => setPage(p => Math.max(0, p - 1))}
-                        disabled={page === 0}
-                        className="h-8.5 px-3.5 text-[13px] font-semibold border border-[#0E0D0B]/[0.12] rounded-xl hover:bg-[#F4F3F0] transition-colors disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed bg-white shadow-xs"
-                      >
-                        Trước
-                      </button>
-
-                      {Array.from({ length: totalPages }, (_, i) => {
-                        if (totalPages > 6 && Math.abs(i - page) > 1 && i !== 0 && i !== totalPages - 1) {
-                          if (i === 1 || i === totalPages - 2) {
-                            return <span key={i} className="text-[#AAAA9F] px-1 select-none">...</span>;
-                          }
-                          return null;
-                        }
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => setPage(i)}
-                            className={`w-8.5 h-8.5 text-[13px] font-semibold rounded-xl transition-all border-none cursor-pointer ${
-                              page === i
-                                ? "bg-[#0E0D0B] text-white shadow-xs"
-                                : "bg-transparent text-[#6B6963] hover:bg-[#F4F3F0]"
-                            }`}
-                          >
-                            {i + 1}
-                          </button>
-                        );
-                      })}
-
-                      <button
-                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={page === totalPages - 1}
-                        className="h-8.5 px-3.5 text-[13px] font-semibold border border-[#0E0D0B]/[0.12] rounded-xl hover:bg-[#F4F3F0] transition-colors disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed bg-white shadow-xs"
-                      >
-                        Tiếp
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-6">
-                <EmptyState
-                  icon={<SearchX className="w-8 h-8" />}
-                  title="Không tìm thấy học liệu"
-                  description="Hãy thử thay đổi từ khóa hoặc bộ lọc tìm kiếm nâng cao."
-                  action={
-                    <button
-                      onClick={() => {
-                        setSearchVal("");
-                        setSelectedSubject("");
-                        setAdvancedFilters({
-                          subject: "",
-                          topic: "",
-                          author: "",
-                          fileType: "",
-                          publicationStatus: "",
-                          processingStatus: "",
-                        });
-                        setPage(0);
-                      }}
-                      className="h-10 px-5 text-[13px] font-semibold text-[#4F63D2] hover:bg-[#4F63D2]/10 rounded-xl transition-colors border-none bg-transparent cursor-pointer"
-                    >
-                      Xóa bộ lọc tìm kiếm
-                    </button>
-                  }
-                />
-              </div>
-            )}
           </div>
-
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-6 text-center">
+          <EmptyState
+            icon={<SearchX className="w-8 h-8" />}
+            title="Không tìm thấy học liệu"
+            description="Hãy thử thay đổi từ khóa hoặc bộ lọc tìm kiếm nâng cao."
+            action={
+              <button
+                onClick={() => {
+                  setSearchVal("");
+                  setSelectedSubject("");
+                  setAdvancedFilters({
+                    subject: "",
+                    topic: "",
+                    author: "",
+                    fileType: "",
+                    publicationStatus: "",
+                    processingStatus: "",
+                  });
+                  setPage(0);
+                }}
+                className="h-10 px-5 text-[13px] font-semibold text-[#4F63D2] hover:bg-[#4F63D2]/10 rounded-xl transition-colors border-none bg-transparent cursor-pointer"
+              >
+                Xóa bộ lọc tìm kiếm
+              </button>
+            }
+          />
         </div>
       )}
 

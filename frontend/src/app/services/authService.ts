@@ -65,4 +65,29 @@ export const authService = {
       return null;
     }
   },
+
+  /**
+   * Update authenticated user's profile name in DB
+   */
+  async updateProfile(name: string): Promise<User> {
+    const response = await apiFetch<any>("/api/v1/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    });
+    const user = response.data;
+    if (user && user.role) {
+      user.role = user.role.toLowerCase() as "teacher" | "admin";
+    }
+    return user;
+  },
+
+  /**
+   * Change authenticated user's password in DB
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await apiFetch<void>("/api/v1/auth/change-password", {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
 };

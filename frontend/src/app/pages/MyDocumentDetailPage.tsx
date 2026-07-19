@@ -6,14 +6,14 @@ import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle, Loader2, CheckCircle2, Clock, X, FileText, RefreshCw } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
-import { 
-  isAnalysisInProgress, 
-  isAnalysisComplete, 
-  isRagIndexing, 
-  isRagReady, 
-  isProcessingFailed, 
-  canSubmitDocumentForReview, 
-  canUseDocumentRag, 
+import {
+  isAnalysisInProgress,
+  isAnalysisComplete,
+  isRagIndexing,
+  isRagReady,
+  isProcessingFailed,
+  canSubmitDocumentForReview,
+  canUseDocumentRag,
   mapSubmitReviewError,
   canEditDocumentMetadata,
   canReplaceDocumentFile,
@@ -22,20 +22,20 @@ import {
 } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 
-export function MyDocumentDetailPage({ 
-  documentId, 
+export function MyDocumentDetailPage({
+  documentId,
   user,
-  onBack 
-}: { 
+  onBack
+}: {
   documentId: number,
   user: User,
-  onBack: () => void 
+  onBack: () => void
 }) {
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pollingTimeoutReached, setPollingTimeoutReached] = useState(false);
-  
+
   // Submit review states
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -219,7 +219,7 @@ export function MyDocumentDetailPage({
         submitTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) setSubmitSuccess(false);
         }, 4000);
-        setIsConfirmOpen(false); 
+        setIsConfirmOpen(false);
       }
     } catch (err: any) {
       console.error("Failed to submit review", err);
@@ -350,10 +350,10 @@ export function MyDocumentDetailPage({
         setIsReplaceOpen(false);
         setPollingTimeoutReached(false); // Reset polling timeout to allow new monitoring
       }
+      // Xử lý lỗi...
     } catch (err: any) {
       if (err.message === "YÊU_CẦU_BỊ_HỦY") {
         if (isMountedRef.current) {
-          setIsUploading(false);
           setUploadPercent(0);
         }
         return;
@@ -361,6 +361,10 @@ export function MyDocumentDetailPage({
       console.error("Failed to replace file", err);
       if (isMountedRef.current) {
         setReplaceError(err.message || "Đã xảy ra lỗi khi thay thế file.");
+      }
+    } finally {
+      // Đảm bảo luôn giải phóng trạng thái tải file dù thành công hay thất bại
+      if (isMountedRef.current) {
         setIsUploading(false);
       }
     }
@@ -434,7 +438,7 @@ export function MyDocumentDetailPage({
           <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-4" />
           <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-2">Không thể tải tài liệu</h3>
           <p className="text-[14px] text-[#6B6963] mb-6">{error || "Tài liệu không tồn tại hoặc bạn không có quyền truy cập."}</p>
-          <button 
+          <button
             onClick={onBack}
             className="h-10 px-5 text-[13px] font-medium text-white bg-[#0E0D0B] hover:bg-[#1C1A17] rounded-lg transition-colors border-none cursor-pointer font-action"
           >
@@ -462,7 +466,7 @@ export function MyDocumentDetailPage({
     <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <button 
+        <button
           onClick={onBack}
           disabled={isMutatingActive}
           className="flex items-center gap-1.5 text-[13.5px] font-medium text-[#6B6963] hover:text-[#0E0D0B] transition-colors w-fit border-none bg-transparent cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
@@ -473,7 +477,7 @@ export function MyDocumentDetailPage({
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Secondary Action group (Outlines) */}
           {canReplace && (
-            <button 
+            <button
               onClick={handleReplaceClick}
               disabled={isMutatingActive}
               className="h-8.5 px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
@@ -482,7 +486,7 @@ export function MyDocumentDetailPage({
             </button>
           )}
           {canEdit && (
-            <button 
+            <button
               onClick={handleEditClick}
               disabled={isMutatingActive}
               className="h-8.5 px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
@@ -493,7 +497,7 @@ export function MyDocumentDetailPage({
 
           {/* Primary Action group (Solid dark) */}
           {showRetry && (
-            <button 
+            <button
               onClick={handleRetryProcessingClick}
               disabled={isMutatingActive}
               className="h-8.5 px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
@@ -502,7 +506,7 @@ export function MyDocumentDetailPage({
             </button>
           )}
           {canSubmit && (
-            <button 
+            <button
               onClick={() => setIsConfirmOpen(true)}
               disabled={isMutatingActive}
               className="h-8.5 px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
@@ -529,10 +533,10 @@ export function MyDocumentDetailPage({
 
           {/* Destructive Action */}
           {canDelete && (
-            <button 
+            <button
               onClick={handleDeleteClick}
               disabled={isMutatingActive}
-              className="h-8.5 px-3 flex items-center justify-center bg-white border border-red-200 text-red-655 rounded-xl hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed font-action" 
+              className="h-8.5 px-3 flex items-center justify-center bg-white border border-red-200 text-red-655 rounded-xl hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed font-action"
               title="Xóa tài liệu"
             >
               <Trash2 className="w-4 h-4" />
@@ -589,10 +593,10 @@ export function MyDocumentDetailPage({
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
-        
+
         {/* Left Column: Info & Timeline */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 overflow-y-auto pr-1 scrollbar-hide">
-          
+
           {/* 1. Document Summary */}
           <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 shadow-premium text-left flex-shrink-0">
             <h1 className="text-[24px] font-sans-body font-semibold text-[#0E0D0B] leading-snug mb-3">
@@ -636,14 +640,14 @@ export function MyDocumentDetailPage({
 
               {/* File Information Actions: compact, side by side */}
               <div className="flex gap-3 pt-2">
-                <button 
+                <button
                   onClick={handlePreview}
                   disabled={isPreviewing}
                   className="flex-1 flex items-center justify-center gap-1.5 h-9.5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
                 >
                   {isPreviewing ? "Đang tải..." : "Xem nội dung"}
                 </button>
-                <button 
+                <button
                   onClick={handleDownload}
                   disabled={isMutatingActive}
                   className="flex-1 flex items-center justify-center gap-1.5 h-9.5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action disabled:opacity-50"
@@ -660,7 +664,7 @@ export function MyDocumentDetailPage({
 
           {/* 4. Processing/Publication Timeline */}
           <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
-          
+
           {/* 5. Rejection or Failure Details banners */}
           {isProcessingFailed(aiStatus) && doc.failReason && (
             <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
@@ -672,16 +676,16 @@ export function MyDocumentDetailPage({
 
         {/* Right Column: RAG Chat */}
         <div className="lg:col-span-7 xl:col-span-8 h-[500px] min-h-0 lg:h-[calc(100vh-190px)]">
-          <RagChatPanel 
-            document={doc} 
-            isEligible={ragEligible} 
+          <RagChatPanel
+            document={doc}
+            isEligible={ragEligible}
             isTimeout={pollingTimeoutReached}
             onRetry={handleRetryCheck}
             onBack={onBack}
             isOwner={true}
           />
         </div>
-        
+
       </div>
 
       {/* Spacious Edit Metadata Modal (Option B) */}
@@ -690,8 +694,8 @@ export function MyDocumentDetailPage({
           <div className="bg-white rounded-2xl w-full max-w-[640px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col animate-[fade-in_150ms_ease-out]">
             <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)]">
               <h3 className="text-[16px] font-semibold text-[#0E0D0B] font-sans-body">Chỉnh sửa thông tin học liệu</h3>
-              <button 
-                onClick={() => setIsEditOpen(false)} 
+              <button
+                onClick={() => setIsEditOpen(false)}
                 disabled={isSavingMetadata}
                 className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent focus-visible:outline-none"
               >
@@ -705,7 +709,7 @@ export function MyDocumentDetailPage({
                   {editError}
                 </div>
               )}
-              
+
               <div>
                 <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Tiêu đề học liệu *</label>
                 <input
@@ -808,8 +812,8 @@ export function MyDocumentDetailPage({
           <div className="bg-white rounded-2xl w-full max-w-[450px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col animate-[fade-in_150ms_ease-out]">
             <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)]">
               <h3 className="text-[16px] font-semibold text-[#0E0D0B] font-sans-body">Thay thế file học liệu mới</h3>
-              <button 
-                onClick={() => setIsReplaceOpen(false)} 
+              <button
+                onClick={() => setIsReplaceOpen(false)}
                 disabled={isUploading}
                 className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent focus-visible:outline-none"
               >
@@ -846,7 +850,7 @@ export function MyDocumentDetailPage({
                     {replaceFileSelected ? replaceFileSelected.name : "Nhấp để chọn file mới"}
                   </span>
                   <span className="text-[11.5px] text-[#AAAA9F]">
-                    {replaceFileSelected 
+                    {replaceFileSelected
                       ? `${(replaceFileSelected.size / (1024 * 1024)).toFixed(2)} MB`
                       : "Chấp nhận định dạng .pdf hoặc .txt, tối đa 20MB"}
                   </span>
@@ -864,7 +868,7 @@ export function MyDocumentDetailPage({
                         <span>{uploadPercent}%</span>
                       </div>
                       <div className="w-full bg-[#F4F3F0] h-1.5 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="bg-[#4F63D2] h-full rounded-full transition-all duration-150 ease-out"
                           style={{ width: `${uploadPercent}%` }}
                         />

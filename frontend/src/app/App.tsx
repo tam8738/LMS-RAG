@@ -20,6 +20,13 @@ const GLOBAL_STYLES = `
   .font-serif-display { font-family: 'Instrument Serif', serif; }
   .font-mono-label { font-family: 'JetBrains Mono', monospace; }
   .font-sans-body { font-family: 'Inter', sans-serif; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fadeIn {
+    animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
 `;
 
 export default function App() {
@@ -124,6 +131,7 @@ export default function App() {
         currentScreen={currentScreen}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
+        onUpdateUser={setCurrentUser}
       >
         {PageComponent}
       </AppLayout>

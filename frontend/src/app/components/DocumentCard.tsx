@@ -1,6 +1,6 @@
 import React from "react";
 import { Document } from "../types";
-import { FileText, ArrowRight, Brain } from "lucide-react";
+import { FileText, ArrowRight, Brain, Sparkles } from "lucide-react";
 
 interface DocumentCardProps {
   document: Document;
@@ -23,32 +23,32 @@ export function DocumentCard({
     return (
       <div
         onClick={() => onClick(doc.id)}
-        className="bg-white rounded-xl border border-[#0E0D0B]/[0.06] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:shadow-premium-hover hover:border-[#0E0D0B]/[0.12] transition-all duration-200 group"
+        className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:shadow-premium-hover hover:border-[#0E0D0B]/[0.12] hover:scale-[1.008] transition-all duration-300 group"
       >
-        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+        <div className="flex items-center gap-4 min-w-0 flex-1">
           {/* File Icon, type badge + AI status */}
-          <div className="w-10 h-10 rounded-xl bg-[#F4F3F0] flex items-center justify-center flex-shrink-0 group-hover:bg-[#4F63D2]/10 transition-colors">
-            <FileText className="w-5 h-5 text-[#6B6963] group-hover:text-[#4F63D2] transition-colors" />
+          <div className="w-11 h-11 rounded-2xl bg-[#F4F3F0] flex items-center justify-center flex-shrink-0 group-hover:bg-[#4F63D2]/10 transition-colors duration-300">
+            <FileText className="w-5 h-5 text-[#6B6963] group-hover:text-[#4F63D2] transition-colors duration-300" />
           </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 mb-1 text-[11px]">
-              <span className="font-semibold text-[#6B6963] uppercase tracking-wider font-mono bg-[#F4F3F0] px-1.5 py-0.5 rounded text-[9.5px]">
+          <div className="min-w-0 flex-1 text-left">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5 text-[10.5px]">
+              <span className="font-bold text-[#6B6963] uppercase tracking-wider bg-[#F4F3F0] px-2 py-0.5 rounded-md">
                 {doc.subject}
               </span>
-              <span className="text-[10px] text-[#AAAA9F] font-mono font-semibold bg-[#F8F7F4] border border-[#0E0D0B]/[0.04] px-1.5 py-0.5 rounded">
+              <span className="text-[#AAAA9F] font-semibold bg-[#F8F7F4] border border-[#0E0D0B]/[0.04] px-2 py-0.5 rounded-md">
                 {doc.fileType}
               </span>
               {isAiReady && (
-                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium border border-emerald-100">
+                <span className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold border border-emerald-100">
                   <Brain className="w-3 h-3" /> AI Ready
                 </span>
               )}
             </div>
-            <h3 className="text-[16px] font-semibold text-[#0E0D0B] truncate group-hover:text-[#4F63D2] transition-colors">
+            <h3 className="text-[16px] font-bold text-[#0E0D0B] truncate group-hover:text-[#4F63D2] transition-colors duration-300">
               {doc.title}
             </h3>
-            <p className="text-[12.5px] text-[#6B6963] line-clamp-1 mt-0.5">
+            <p className="text-[13px] text-[#6B6963] line-clamp-1 mt-1 font-sans">
               {doc.description || "Không có mô tả chi tiết."}
             </p>
           </div>
@@ -56,18 +56,18 @@ export function DocumentCard({
 
         {/* Metadata + Actions row */}
         <div className="flex items-center justify-between sm:justify-end gap-6 flex-shrink-0 pt-3 sm:pt-0 border-t border-[#0E0D0B]/[0.04] sm:border-none">
-          <div className="flex items-center gap-4 text-left">
+          <div className="flex items-center gap-5 text-left">
             <div>
-              <p className="text-[9.5px] text-[#AAAA9F] font-mono uppercase tracking-wider">Người đăng</p>
-              <p className="text-[12.5px] text-[#6B6963] font-medium truncate max-w-[120px]">{doc.authorName}</p>
+              <p className="text-[10px] text-[#AAAA9F] uppercase tracking-widest leading-none mb-1 font-semibold">Người đăng</p>
+              <p className="text-[13px] text-[#0E0D0B] font-semibold truncate max-w-[130px]">{doc.authorName}</p>
             </div>
-            <div className="border-l border-[#0E0D0B]/[0.08] pl-4">
-              <p className="text-[9.5px] text-[#AAAA9F] font-mono uppercase tracking-wider">Cập nhật</p>
-              <p className="text-[12.5px] text-[#6B6963] font-medium">{doc.updatedAt}</p>
+            <div className="border-l border-[#0E0D0B]/[0.08] pl-5">
+              <p className="text-[10px] text-[#AAAA9F] uppercase tracking-widest leading-none mb-1 font-semibold">Cập nhật</p>
+              <p className="text-[13px] text-[#6B6963] font-medium font-sans">{doc.updatedAt}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-3.5 flex-shrink-0">
             {showDownloadAction && onDownload && (
               <button
                 type="button"
@@ -75,14 +75,22 @@ export function DocumentCard({
                   e.stopPropagation();
                   onDownload(doc.id, e);
                 }}
-                className="w-8.5 h-8.5 rounded-lg text-[#AAAA9F] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] flex items-center justify-center transition-all cursor-pointer border border-[#0E0D0B]/[0.06] bg-white shadow-xs"
+                className="w-9 h-9 rounded-xl text-[#AAAA9F] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] flex items-center justify-center transition-all cursor-pointer border border-[#0E0D0B]/[0.06] bg-white shadow-xs"
                 title="Tải xuống tài liệu gốc"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="w-4.5 h-4.5" />
               </button>
             )}
-            <div className="w-8.5 h-8.5 rounded-lg bg-white border border-[#0E0D0B]/[0.06] flex items-center justify-center text-[#6B6963] group-hover:bg-[#0E0D0B] group-hover:text-white group-hover:border-[#0E0D0B] transition-all shadow-xs">
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            <div className="flex items-center gap-1 text-[13px] font-bold text-[#6B6963] group-hover:text-[#4F63D2] transition-colors duration-300">
+              {isAiReady ? (
+                <span className="flex items-center gap-1">
+                  Hỏi AI <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  Chi tiết <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -94,53 +102,53 @@ export function DocumentCard({
   return (
     <div
       onClick={() => onClick(doc.id)}
-      className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-5 cursor-pointer flex flex-col justify-between shadow-premium hover:shadow-premium-hover hover:border-[#0E0D0B]/[0.12] transition-all duration-200 group h-[250px] relative overflow-hidden"
+      className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-5 cursor-pointer flex flex-col justify-between shadow-premium hover:shadow-premium-hover hover:border-[#0E0D0B]/[0.12] hover:scale-[1.02] transition-all duration-300 group h-[260px] relative overflow-hidden"
     >
       {/* 1. File icon + type badge + AI readiness */}
       <div className="flex items-center justify-between flex-shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-[#F4F3F0] flex items-center justify-center text-[#6B6963] group-hover:bg-[#4F63D2]/10 group-hover:text-[#4F63D2] transition-colors">
+        <div className="w-9 h-9 rounded-xl bg-[#F4F3F0] flex items-center justify-center text-[#6B6963] group-hover:bg-[#4F63D2]/10 group-hover:text-[#4F63D2] transition-colors duration-300">
           <FileText className="w-4.5 h-4.5" />
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] px-2 py-0.5 bg-white border border-[#0E0D0B]/[0.08] text-[#AAAA9F] rounded-lg font-mono font-semibold">
+          <span className="text-[10px] px-2.5 py-0.5 bg-white border border-[#0E0D0B]/[0.08] text-[#AAAA9F] rounded-lg font-semibold">
             {doc.fileType}
           </span>
           {isAiReady && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">
-              <Brain className="w-3 h-3" /> AI Ready
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg shadow-2xs">
+              <Sparkles className="w-2.5 h-2.5 text-emerald-600" /> AI Ready
             </span>
           )}
         </div>
       </div>
 
       {/* 2. Subject & Title & Description */}
-      <div className="text-left flex-1 flex flex-col justify-center min-h-0 py-3">
-        <span className="text-[#AAAA9F] uppercase tracking-widest font-mono text-[9px] font-semibold block mb-1">
+      <div className="text-left flex-1 flex flex-col justify-center min-h-0 py-3.5">
+        <span className="text-[#AAAA9F] uppercase tracking-widest text-[9px] font-bold block mb-1">
           {doc.subject}
         </span>
-        <h3 className="text-[#0E0D0B] font-semibold text-[15.5px] leading-snug line-clamp-2 group-hover:text-[#4F63D2] transition-colors mb-1">
+        <h3 className="text-[#0E0D0B] font-bold text-[15.5px] leading-snug line-clamp-2 group-hover:text-[#4F63D2] transition-colors duration-300 mb-1.5">
           {doc.title}
         </h3>
-        <p className="text-[12.5px] text-[#6B6963] line-clamp-2 leading-relaxed h-[36px] overflow-hidden">
-          {doc.description || "Không có mô tả chi tiết cho tài liệu này."}
+        <p className="text-[12.5px] text-[#6B6963] line-clamp-2 leading-relaxed h-[36px] overflow-hidden font-sans">
+          {doc.description || "Không có mô tả chi tiết cho học liệu này."}
         </p>
       </div>
 
       {/* 3. Divider */}
       <div className="border-t border-[#0E0D0B]/[0.05] flex-shrink-0" />
 
-      {/* 4. Uploader + date + Open action */}
+      {/* 4. Uploader + date + Primary CTA */}
       <div className="flex items-center justify-between pt-3 flex-shrink-0">
-        <div className="text-left min-w-0">
-          <p className="text-[#0E0D0B] text-[12.5px] font-semibold truncate">
+        <div className="text-left min-w-0 flex-1 pr-3">
+          <p className="text-[#0E0D0B] text-[12.5px] font-bold truncate leading-none mb-1">
             {doc.authorName}
           </p>
-          <p className="text-[#AAAA9F] font-mono text-[9.5px] mt-0.5">
+          <p className="text-[#AAAA9F] text-[9.5px] leading-none font-semibold">
             {doc.updatedAt}
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {showDownloadAction && onDownload && (
             <button
               type="button"
@@ -154,8 +162,16 @@ export function DocumentCard({
               <FileText className="w-3.5 h-3.5" />
             </button>
           )}
-          <div className="w-7.5 h-7.5 rounded-lg bg-white border border-[#0E0D0B]/[0.06] flex items-center justify-center text-[#6B6963] group-hover:bg-[#0E0D0B] group-hover:text-white group-hover:border-[#0E0D0B] transition-all duration-200">
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          <div className="flex items-center gap-1.5 text-[12.5px] font-bold transition-all duration-300">
+            {isAiReady ? (
+              <span className="text-[#4F63D2] flex items-center gap-1">
+                Hỏi AI <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+              </span>
+            ) : (
+              <span className="text-[#6B6963] flex items-center gap-1">
+                Chi tiết <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+              </span>
+            )}
           </div>
         </div>
       </div>
