@@ -26,6 +26,7 @@ export interface RagQuestionRequest {
   language?: string;
   history?: RagChatMessage[];
 }
+
 export interface RagMessageResponse {
   id: number;
   role: "user" | "assistant";

@@ -7,4 +7,9 @@ export interface LibraryQuery {
   size: number;
   q?: string;
   subject?: string;
+  topic?: string;
+  chapter?: string;
+  tags?: string;
+  uploadedBy?: number;
 }
+

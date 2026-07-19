@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Document } from "../types";
-import { MoreHorizontal, Eye, Edit2, Replace, Trash2, Send, Download, RefreshCw } from "lucide-react";
-import { 
+import { MoreHorizontal, Eye, Edit2, Trash2, Send, Download, RefreshCw } from "lucide-react";
+import {
   canEditDocumentMetadata,
-  canReplaceDocumentFile,
   canSubmitDocumentForReview,
   canDeleteDocument,
   canRetryProcessing
@@ -15,7 +14,6 @@ interface ActionMenuProps {
   document: Document;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
-  onReplace: (id: number) => void;
   onDelete: (id: number) => void;
   onSubmitReview: (id: number) => void;
   onDownload: (id: number) => void;
@@ -25,7 +23,7 @@ interface ActionMenuProps {
 
 export function MyDocumentActionMenu({
   document: doc,
-  onView, onEdit, onReplace, onDelete, onSubmitReview, onDownload, onRetryProcessing,
+  onView, onEdit, onDelete, onSubmitReview, onDownload, onRetryProcessing,
   disabled = false
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
@@ -39,7 +37,6 @@ export function MyDocumentActionMenu({
 
   // Use centralized helpers
   const showEdit = canEditDocumentMetadata(doc);
-  const showReplace = canReplaceDocumentFile(doc);
   const showDelete = canDeleteDocument(doc);
   const showSubmit = canSubmitDocumentForReview(doc);
   const showRetry = canRetryProcessing(doc);
@@ -84,7 +81,7 @@ export function MyDocumentActionMenu({
 
   useEffect(() => {
     if (!open) return;
-    
+
     const firstItem = menuRef.current?.querySelector('button[role="menuitem"]:not([disabled])') as HTMLElement;
     firstItem?.focus();
 
@@ -143,11 +140,10 @@ export function MyDocumentActionMenu({
           e.stopPropagation();
           setOpen(!open);
         }}
-        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-          disabled 
-            ? "text-[#C2BFB8]/50 cursor-not-allowed bg-transparent border-none" 
+        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${disabled
+            ? "text-[#C2BFB8]/50 cursor-not-allowed bg-transparent border-none"
             : "text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] cursor-pointer border-none bg-transparent"
-        }`}
+          }`}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label="Menu thao tác"
@@ -211,20 +207,6 @@ export function MyDocumentActionMenu({
             </button>
           )}
 
-          {showReplace && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(false);
-                onReplace(doc.id);
-              }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all cursor-pointer border-none bg-transparent text-left outline-none focus-visible:bg-[#F8F7F4]"
-            >
-              <Replace className="w-3.5 h-3.5 text-[#6B6963]" /> Thay thế file mới
-            </button>
-          )}
 
           {showRetry && (
             <button

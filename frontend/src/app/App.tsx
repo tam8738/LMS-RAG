@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Screen, User } from "./types";
-import { MOCK_USERS } from "./mockData";
 import { getDefaultScreenForRole, isScreenAllowed } from "./navigation";
 import { authService } from "./services/authService";
 import { AppLayout } from "./components/AppLayout";
@@ -61,17 +60,9 @@ export default function App() {
   }, []);
 
   // Authentication Handlers
-  const handleLogin = (userIdOrUser: number | User) => {
-    if (typeof userIdOrUser === "number") {
-      const user = MOCK_USERS[userIdOrUser];
-      if (user && user.status === "ACTIVE") {
-        setCurrentUser(user);
-        setCurrentScreen(getDefaultScreenForRole(user.role));
-      }
-    } else {
-      setCurrentUser(userIdOrUser);
-      setCurrentScreen(getDefaultScreenForRole(userIdOrUser.role));
-    }
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    setCurrentScreen(getDefaultScreenForRole(user.role));
   };
 
   const handleLogout = () => {

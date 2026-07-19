@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Document } from "../types";
-import { MOCK_DOCUMENTS } from "../mockData";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { ConfirmDialog, RejectDialog } from "../components/Dialogs";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle } from "lucide-react";
 import { isAnalysisComplete, mapSubmitReviewError } from "../utils/documentHelpers";
 import { adminReviewService } from "../services/adminReviewService";
-import { documentFileService } from "../services/documentFileService";
+import { teacherDocumentService } from "../services/teacherDocumentService";
 
 export function AdminReviewDetailPage({
   documentId,
@@ -25,10 +24,41 @@ export function AdminReviewDetailPage({
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [approveError, setApproveError] = useState("");
   const [rejectError, setRejectError] = useState("");
-  const [downloadError, setDownloadError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
 
   const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleDownload = async () => {
+    if (!doc || isDownloading) return;
+    setIsDownloading(true);
+    setDownloadError("");
+    try {
+      await teacherDocumentService.downloadDocumentFile(doc.id, doc.originalFilename || "source.pdf");
+    } catch (err: any) {
+      console.error("Failed to download file:", err);
+      setDownloadError(err.message || "Tải xuống thất bại.");
+      setToast({ msg: err.message || "Tải xuống thất bại.", type: "error" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!doc || isPreviewing) return;
+    setIsPreviewing(true);
+    setDownloadError("");
+    try {
+      await teacherDocumentService.previewDocumentFile(doc.id);
+    } catch (err: any) {
+      console.error("Failed to preview file:", err);
+      setDownloadError(err.message || "Không thể xem trước tệp.");
+      setToast({ msg: err.message || "Không thể xem trước tệp.", type: "error" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -63,24 +93,6 @@ export function AdminReviewDetailPage({
     };
   }, [documentId]);
 
-  const handleDownload = async () => {
-    if (!doc || isDownloading) return;
-
-    setDownloadError("");
-    setIsDownloading(true);
-
-    try {
-      await documentFileService.downloadOriginalDocument(
-        doc.id,
-        doc.originalFilename || `${doc.title}.${doc.fileType.toLowerCase()}`
-      );
-    } catch (err: any) {
-      console.error("Failed to download document", err);
-      setDownloadError(err.message || "Không thể tải file gốc. Vui lòng thử lại.");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
   const handleActionComplete = (msg: string) => {
     setToast({ msg, type: 'success' });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -153,12 +165,6 @@ export function AdminReviewDetailPage({
         </div>
       )}
 
-      {downloadError && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>{downloadError}</span>
-        </div>
-      )}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-800 text-[14px] flex items-start gap-2 animate-[fade-in_150ms_ease-out]">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -201,7 +207,7 @@ export function AdminReviewDetailPage({
         </div>
 
         {/* File Info Card */}
-        <div className="bg-[#F8F7F4] border border-[rgba(14,13,11,0.06)] rounded-2xl p-4 flex items-center justify-between mb-8">
+        <div className="bg-[#F8F7F4] border border-[rgba(14,13,11,0.06)] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white border border-[rgba(14,13,11,0.06)] flex items-center justify-center shadow-sm">
               <FileText className="w-4.5 h-4.5 text-[#4F63D2]" />
@@ -211,14 +217,24 @@ export function AdminReviewDetailPage({
               <p className="text-[12.5px] text-[#AAAA9F] font-mono-label">{doc.fileType} · {doc.fileSize} · {doc.pageCount} trang</p>
             </div>
           </div>
-          <button
-            onClick={handleDownload}
-            disabled={isDownloading || isSubmitting}
-            className="h-9 px-4 flex items-center gap-2 bg-white border border-[rgba(14,13,11,0.12)] text-[#0E0D0B] text-[13px] font-medium rounded-xl hover:bg-[#F4F3F0] transition-colors shadow-sm cursor-pointer font-action disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-            {isDownloading ? "Đang tải..." : "Xem / Tải file"}
-          </button>
+          
+          <div className="flex gap-2.5">
+            <button 
+              onClick={handlePreview}
+              disabled={isPreviewing}
+              className="h-9 px-4 flex items-center justify-center gap-1.5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all border-none cursor-pointer font-action disabled:opacity-50"
+            >
+              {isPreviewing ? "Đang tải..." : "Xem nội dung"}
+            </button>
+            <button 
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="h-9 px-4 flex items-center justify-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-colors cursor-pointer font-action disabled:opacity-50"
+            >
+              <Download className="w-3.5 h-3.5 text-[#6B6963]" />
+              {isDownloading ? "Đang tải..." : "Tải file gốc"}
+            </button>
+          </div>
         </div>
 
         {/* Metadata Panel */}
