@@ -71,85 +71,93 @@ export function CitationList({ citations, documentTitle }: CitationListProps) {
   const hiddenCount = citationGroups.length - visibleGroups.length;
 
   return (
-    <div className="mt-4 border-t border-[#0E0D0B]/[0.06] pt-4 text-left">
+    <div className="mt-6 border-t border-[#0E0D0B]/[0.06] pt-5 text-left font-sans">
       <div className="mb-3 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => setIsSectionOpen((open) => !open)}
-          className="flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-left outline-none group/header"
+          className="flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-left outline-none group/header focus-visible:ring-2 focus-visible:ring-[#4F63D2]/30 rounded"
           aria-expanded={isSectionOpen}
           aria-label={isSectionOpen ? "Ẩn nguồn trích dẫn" : "Hiện nguồn trích dẫn"}
         >
           {isSectionOpen ? (
-            <ChevronDown className="h-4 w-4 flex-shrink-0 text-[#8F8C84] transition-colors group-hover/header:text-[#4F63D2]" />
+            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-[#8F8C84] transition-colors group-hover/header:text-[#4F63D2]" />
           ) : (
-            <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#8F8C84] transition-colors group-hover/header:text-[#4F63D2]" />
+            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[#8F8C84] transition-colors group-hover/header:text-[#4F63D2]" />
           )}
-          <h4 className="truncate text-[11.5px] font-bold uppercase tracking-widest text-[#6B6963] transition-colors font-mono-label group-hover/header:text-[#4F63D2]">
+          <h4 className="truncate text-[11px] font-bold uppercase tracking-wider text-[#6B6963] transition-colors font-mono-label group-hover/header:text-[#4F63D2]">
             Nguồn trích dẫn ({citationGroups.length})
           </h4>
         </button>
-        <span className="flex-shrink-0 text-[11px] text-[#AAAA9F] font-mono-label">
+        <span className="flex-shrink-0 text-[10.5px] text-[#AAAA9F] font-mono-label">
           {citations.length} đoạn liên quan
         </span>
       </div>
 
       {isSectionOpen && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {visibleGroups.map((group, idx) => {
               const isExpanded = expandedKey === group.key;
+              const isPrimary = idx === 0;
               const excerpt = getExcerpt(group.citation);
 
               return (
                 <div
                   key={group.key}
-                  className={`group rounded-lg border border-[#0E0D0B]/[0.08] bg-white p-3.5 shadow-xs transition-all duration-200 hover:border-[#4F63D2]/35 ${
-                    isExpanded ? "sm:col-span-2" : ""
-                  }`}
+                  className={`group rounded-xl border p-3 transition-all duration-200 ${
+                    isPrimary
+                      ? "border-[#4F63D2]/35 bg-[#4F63D2]/[0.025] shadow-xs hover:border-[#4F63D2]/50 hover:bg-white"
+                      : "border-[#0E0D0B]/[0.07] bg-[#FDFDFB] hover:border-[#4F63D2]/30 hover:bg-white shadow-xs"
+                  } ${isExpanded ? "sm:col-span-2" : ""}`}
                 >
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex min-w-0 flex-1 items-start gap-2.5">
-                      <div className="flex h-8.5 w-8.5 flex-shrink-0 items-center justify-center rounded-lg bg-[#F4F3F0] transition-colors group-hover:bg-[#4F63D2]/10">
-                        <FileText className="h-4 w-4 text-[#6B6963] transition-colors group-hover:text-[#4F63D2]" />
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
+                        isPrimary ? "bg-[#4F63D2]/15 text-[#4F63D2]" : "bg-[#F4F3F0] text-[#6B6963] group-hover:bg-[#4F63D2]/10 group-hover:text-[#4F63D2]"
+                      }`}>
+                        <FileText className="h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-semibold text-[#0E0D0B]">
+                        <span className="block truncate text-[12.5px] font-semibold text-[#0E0D0B]">
                           {documentTitle}
                         </span>
-                        <span className="mt-0.5 block text-[10.5px] font-semibold uppercase tracking-wide text-[#8F8C84] font-mono-label">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#8F8C84] font-mono-label">
                           {group.label}{group.count > 1 ? ` · ${group.count} đoạn` : ""}
                         </span>
                       </div>
                     </div>
-                    <span className="flex h-5 min-w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#4F63D2]/10 px-2 text-[10px] font-bold text-[#4F63D2] font-mono-label">
-                      Nguồn {idx + 1}
+                    <span className={`flex h-4.5 flex-shrink-0 items-center justify-center rounded-full px-2 text-[9.5px] font-bold font-mono-label ${
+                      isPrimary ? "bg-[#4F63D2] text-white" : "bg-[#4F63D2]/10 text-[#4F63D2]"
+                    }`}>
+                      {isPrimary ? "Nguồn chính" : `Nguồn ${idx + 1}`}
                     </span>
                   </div>
 
-                  <div className="mt-3 rounded-lg border border-[#0E0D0B]/[0.04] bg-[#F8F7F4] p-3">
-                    <div className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[#8F8C84] font-mono-label">
-                      <Quote className="h-3.5 w-3.5 text-[#4F63D2]" />
+                  <div className="mt-2 rounded-lg border border-[#0E0D0B]/[0.04] bg-[#F8F7F4]/70 p-2.5">
+                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8F8C84] font-mono-label">
+                      <Quote className="h-3 w-3 text-[#4F63D2]" />
                       Đoạn trích liên quan
                     </div>
                     <p
-                      className={`select-text text-[12.5px] leading-relaxed text-[#4E4B45] font-sans ${
-                        isExpanded ? "" : "line-clamp-3"
+                      className={`select-text text-[12px] leading-relaxed text-[#4E4B45] font-sans ${
+                        isExpanded ? "" : "line-clamp-2"
                       }`}
                     >
                       {excerpt}
                     </p>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-3.5 border-t border-[#0E0D0B]/[0.04] pt-3">
+                  <div className="mt-2 flex items-center justify-between pt-0.5">
                     <button
                       type="button"
                       onClick={() => setExpandedKey(isExpanded ? null : group.key)}
-                      className="flex cursor-pointer items-center gap-1 border-none bg-transparent text-[11.5px] font-semibold text-[#4F63D2] outline-none hover:underline font-action"
+                      aria-expanded={isExpanded}
+                      className="flex cursor-pointer items-center gap-1 border-none bg-transparent text-[11px] font-semibold text-[#4F63D2] outline-none hover:underline font-action focus-visible:ring-2 focus-visible:ring-[#4F63D2]/30 rounded px-1"
                     >
                       {isExpanded ? (
                         <>
-                          <Minimize2 className="h-3 w-3" /> Thu gọn
+                          <Minimize2 className="h-3 w-3" /> Thu gọn đoạn trích
                         </>
                       ) : (
                         <>
@@ -167,9 +175,10 @@ export function CitationList({ citations, documentTitle }: CitationListProps) {
             <button
               type="button"
               onClick={() => setShowAll(!showAll)}
-              className="mt-3 cursor-pointer border-none bg-transparent text-[12px] font-semibold text-[#4F63D2] outline-none hover:text-[#3D50B8] font-action"
+              aria-expanded={showAll}
+              className="mt-3 cursor-pointer border-none bg-transparent text-[11.5px] font-semibold text-[#4F63D2] outline-none hover:text-[#3D50B8] hover:underline font-action focus-visible:ring-2 focus-visible:ring-[#4F63D2]/30 rounded px-1"
             >
-              {showAll ? "Thu gọn nguồn trích dẫn" : `Xem thêm ${hiddenCount} nguồn trích dẫn khác`}
+              {showAll ? "Thu gọn nguồn trích dẫn" : `Xem thêm ${hiddenCount} nguồn trích dẫn khác...`}
             </button>
           )}
         </>

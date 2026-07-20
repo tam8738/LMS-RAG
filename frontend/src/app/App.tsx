@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Screen, User } from "./types";
-import { getDefaultScreenForRole, isScreenAllowed } from "./navigation";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { User } from "./types";
+import { getDefaultRouteForRole, isRouteAllowedForRole } from "./navigation";
+import { ROUTES } from "./routes";
 import { authService } from "./services/authService";
 import { AppLayout } from "./components/AppLayout";
+import { PageLoading } from "./components/EmptyState";
 import { LoginPage } from "./pages/LoginPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { MyDocumentsPage } from "./pages/MyDocumentsPage";
 import { UploadDocumentPage } from "./pages/UploadDocumentPage";
 import { LibraryDocumentDetailPage } from "./pages/LibraryDocumentDetailPage";
 import { MyDocumentDetailPage } from "./pages/MyDocumentDetailPage";
-
 import { AdminReviewQueuePage } from "./pages/AdminReviewQueuePage";
 import { AdminReviewDetailPage } from "./pages/AdminReviewDetailPage";
+import { AlertTriangle, Home } from "lucide-react";
 
 // Global Styles setup
 const GLOBAL_STYLES = `
@@ -29,27 +32,85 @@ const GLOBAL_STYLES = `
   }
 `;
 
+function ProtectedRoute({
+  user,
+  authLoading,
+  onLogout,
+  onUpdateUser,
+  children
+}: {
+  user: User | null;
+  authLoading: boolean;
+  onLogout: () => void;
+  onUpdateUser: (u: User) => void;
+  children: React.ReactNode;
+}) {
+  const location = useLocation();
+
+  if (authLoading) {
+    return <PageLoading />;
+  }
+
+  if (!user) {
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
+  }
+
+  if (!isRouteAllowedForRole(user.role, location.pathname)) {
+    return <Navigate to={getDefaultRouteForRole(user.role)} replace />;
+  }
+
+  return (
+    <AppLayout user={user} onLogout={onLogout} onUpdateUser={onUpdateUser}>
+      {children}
+    </AppLayout>
+  );
+}
+
+function NotFoundPage({ user }: { user: User | null }) {
+  const navigate = useNavigate();
+  const homePath = user ? getDefaultRouteForRole(user.role) : ROUTES.LOGIN;
+
+  const content = (
+    <div className="py-16 text-center max-w-[420px] mx-auto font-sans">
+      <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+      <h2 className="text-[20px] font-bold text-[#0E0D0B] mb-2 font-sans-body">404 - Trang không tồn tại</h2>
+      <p className="text-[14px] text-[#6B6963] mb-6 leading-relaxed">
+        Đường dẫn bạn truy cập không hợp lệ hoặc đã bị thay đổi.
+      </p>
+      <button
+        onClick={() => navigate(homePath)}
+        className="inline-flex items-center gap-2 h-10 px-5 bg-[#0E0D0B] text-white text-[13.5px] font-medium rounded-xl hover:bg-[#1C1A17] transition-all cursor-pointer border-none font-sans"
+      >
+        <Home className="w-4 h-4" /> Về trang chủ
+      </button>
+    </div>
+  );
+
+  if (user) {
+    return (
+      <AppLayout user={user} onLogout={() => { authService.logout(); window.location.href = ROUTES.LOGIN; }}>
+        {content}
+      </AppLayout>
+    );
+  }
+
+  return <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-6">{content}</div>;
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<Screen>("login");
-
-  const [currentDocId, setCurrentDocId] = useState<number | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     // Restore session from token
     const initAuth = async () => {
       try {
         const user = await authService.restoreUser();
-        if (user) {
-          setCurrentUser(user);
-          setCurrentScreen(getDefaultScreenForRole(user.role));
-        } else {
-          setCurrentUser(null);
-          setCurrentScreen("login");
-        }
+        setCurrentUser(user || null);
       } catch (err) {
         setCurrentUser(null);
-        setCurrentScreen("login");
+      } finally {
+        setAuthLoading(false);
       }
     };
 
@@ -58,7 +119,6 @@ export default function App() {
     // Handle unauthorized redirect
     const handleUnauthorized = () => {
       setCurrentUser(null);
-      setCurrentScreen("login");
     };
     window.addEventListener("auth-unauthorized", handleUnauthorized);
     return () => {
@@ -66,82 +126,116 @@ export default function App() {
     };
   }, []);
 
-  // Authentication Handlers
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    setCurrentScreen(getDefaultScreenForRole(user.role));
   };
 
   const handleLogout = () => {
     authService.logout();
     setCurrentUser(null);
-    setCurrentScreen("login");
   };
 
-  // Navigation Handler with Authorization Check
-  const handleNavigate = (screen: Screen, docId?: number) => {
-    if (!currentUser) return;
-    if (isScreenAllowed(currentUser.role, screen)) {
-      setCurrentDocId(docId || null);
-      setCurrentScreen(screen);
-    } else {
-      console.warn(`Access denied to screen: ${screen} for role: ${currentUser.role}`);
-    }
-  };
-
-  // Render logic
-  const renderScreen = () => {
-    if (!currentUser || currentScreen === "login") {
-      return <LoginPage onLogin={handleLogin} />;
-    }
-
-    let PageComponent = null;
-
-    switch (currentScreen) {
-      case "library":
-        PageComponent = <LibraryPage onNavigateDetail={(id) => handleNavigate("document-detail", id)} />;
-        break;
-      case "document-detail":
-        PageComponent = <LibraryDocumentDetailPage documentId={currentDocId!} user={currentUser} onBack={() => handleNavigate("library")} />; break;
-      case "my-documents":
-        PageComponent = <MyDocumentsPage user={currentUser} onNavigateUpload={() => handleNavigate("upload")} onNavigateDetail={(id) => handleNavigate("my-document-detail", id)} />; break;
-      case "upload":
-        PageComponent = (
-          <UploadDocumentPage 
-            onDone={() => handleNavigate("my-documents")} 
-            onSuccess={(id) => handleNavigate("my-document-detail", id)}
-          />
-        );
-        break;
-      case "my-document-detail":
-        PageComponent = <MyDocumentDetailPage documentId={currentDocId!} user={currentUser} onBack={() => handleNavigate("my-documents")} />; break;
-      case "admin-review-queue":
-        PageComponent = <AdminReviewQueuePage onNavigateDetail={(id) => handleNavigate("admin-review-detail", id)} />; break;
-      case "admin-review-detail":
-        PageComponent = <AdminReviewDetailPage documentId={currentDocId!} onBack={() => handleNavigate("admin-review-queue")} />; break;
-      case "ai-chat":
-        PageComponent = <div>[Placeholder] Standalone Scoped AI Chat</div>; break;
-      default:
-        PageComponent = <div>404: Screen not found</div>;
-    }
-
+  if (authLoading) {
     return (
-      <AppLayout
-        user={currentUser}
-        currentScreen={currentScreen}
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
-        onUpdateUser={setCurrentUser}
-      >
-        {PageComponent}
-      </AppLayout>
+      <>
+        <style>{GLOBAL_STYLES}</style>
+        <PageLoading />
+      </>
     );
-  };
+  }
 
   return (
-    <>
+    <BrowserRouter>
       <style>{GLOBAL_STYLES}</style>
-      {renderScreen()}
-    </>
+      <Routes>
+        {/* Public Login Route */}
+        <Route
+          path={ROUTES.LOGIN}
+          element={
+            currentUser ? (
+              <Navigate to={getDefaultRouteForRole(currentUser.role)} replace />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
+
+        {/* Root Redirect */}
+        <Route
+          path={ROUTES.HOME}
+          element={
+            currentUser ? (
+              <Navigate to={getDefaultRouteForRole(currentUser.role)} replace />
+            ) : (
+              <Navigate to={ROUTES.LOGIN} replace />
+            )
+          }
+        />
+
+        {/* Protected Application Routes */}
+        <Route
+          path={ROUTES.LIBRARY}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <LibraryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.LIBRARY_DETAIL}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <LibraryDocumentDetailPage user={currentUser} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.MY_DOCUMENTS}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <MyDocumentsPage user={currentUser!} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MY_DOCUMENT_DETAIL}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <MyDocumentDetailPage user={currentUser!} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.UPLOAD}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <UploadDocumentPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.ADMIN_REVIEWS}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <AdminReviewQueuePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN_REVIEW_DETAIL}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <AdminReviewDetailPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 404 Fallback Route */}
+        <Route path="*" element={<NotFoundPage user={currentUser} />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

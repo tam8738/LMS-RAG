@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Role, Screen, User } from "../types";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Role, User } from "../types";
 import { getNavForRole } from "../navigation";
+import { ROUTES } from "../routes";
 import { BookOpen, ChevronDown, User as UserIcon, LogOut, Menu, X, Key, Upload, Lock, ShieldCheck } from "lucide-react";
 import { authService } from "../services/authService";
 
 interface AppLayoutProps {
   children: React.ReactNode;
   user: User;
-  currentScreen: Screen;
-  onNavigate: (screen: Screen, docId?: number) => void;
   onLogout: () => void;
   onUpdateUser?: (user: User) => void;
 }
@@ -23,7 +23,10 @@ const LAYOUT_STYLES = `
   }
 `;
 
-export function AppLayout({ children, user, currentScreen, onNavigate, onLogout, onUpdateUser }: AppLayoutProps) {
+export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -227,7 +230,7 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
         <div className="max-w-[1440px] mx-auto px-6 h-full flex items-center gap-5">
           {/* Logo */}
           <button 
-            onClick={() => onNavigate(navItems[0].id)} 
+            onClick={() => navigate(navItems[0].path)} 
             className="flex items-center gap-2 flex-shrink-0 group cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg p-0.5"
           >
             <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center group-hover:bg-indigo-100/60 transition-colors">
@@ -238,19 +241,22 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
 
           {/* Navigation (Desktop) */}
           <nav className="hidden md:flex items-center gap-1.5 ml-4 flex-1">
-            {navItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => onNavigate(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${currentScreen === id
-                    ? "text-[#0E0D0B] bg-[#F4F3F0]"
-                    : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
-                  }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            ))}
+            {navItems.map(({ id, path, label, icon: Icon }) => {
+              const isActive = location.pathname.startsWith(path);
+              return (
+                <button
+                  key={id}
+                  onClick={() => navigate(path)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isActive
+                      ? "text-[#0E0D0B] bg-[#F4F3F0]"
+                      : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                    }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              );
+            })}
           </nav>
 
           {/* User Menu / Right Actions */}
@@ -345,22 +351,25 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
 
             {/* Nav List */}
             <nav className="flex flex-col gap-1.5 flex-1">
-              {navItems.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    onNavigate(id);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${currentScreen === id
-                      ? "text-[#0E0D0B] bg-[#F4F3F0]"
-                      : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
-                    }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
+              {navItems.map(({ id, path, label, icon: Icon }) => {
+                const isActive = location.pathname.startsWith(path);
+                return (
+                  <button
+                    key={id}
+                    onClick={() => {
+                      navigate(path);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${isActive
+                        ? "text-[#0E0D0B] bg-[#F4F3F0]"
+                        : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                      }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                );
+              })}
             </nav>
 
             {/* Profile / Logout Section */}

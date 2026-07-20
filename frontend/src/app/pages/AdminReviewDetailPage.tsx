@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Document } from "../types";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { ConfirmDialog, RejectDialog } from "../components/Dialogs";
@@ -7,14 +8,19 @@ import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle } from 
 import { isAnalysisComplete, mapSubmitReviewError } from "../utils/documentHelpers";
 import { adminReviewService } from "../services/adminReviewService";
 import { teacherDocumentService } from "../services/teacherDocumentService";
+import { ROUTES } from "../routes";
 
 export function AdminReviewDetailPage({
-  documentId,
-  onBack
+  documentId: propDocId,
+  onBack: propOnBack
 }: {
-  documentId: number,
-  onBack: () => void
+  documentId?: number,
+  onBack?: () => void
 }) {
+  const params = useParams<{ documentId: string }>();
+  const navigate = useNavigate();
+  const documentId = propDocId ?? Number(params.documentId);
+  const handleBack = propOnBack ?? (() => navigate(ROUTES.ADMIN_REVIEWS));
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,7 +104,7 @@ export function AdminReviewDetailPage({
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       setToast(null);
-      onBack(); // navigate back to queue after action
+      handleBack(); // navigate back to queue after action
     }, 1500);
   };
 
@@ -144,7 +150,7 @@ export function AdminReviewDetailPage({
         <AlertTriangle className="w-12 h-12 text-red-650 mx-auto mb-4" />
         <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Không thể tải thông tin</h3>
         <p className="text-[14px] text-[#6B6963] mb-6">{error}</p>
-        <button onClick={onBack} className="h-9 px-4 bg-[#0E0D0B] text-white text-[13px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all cursor-pointer">
+        <button onClick={handleBack} className="h-9 px-4 bg-[#0E0D0B] text-white text-[13px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all cursor-pointer">
           Trở về hàng chờ
         </button>
       </div>
@@ -174,7 +180,7 @@ export function AdminReviewDetailPage({
 
       {/* Top Navigation */}
       <button
-        onClick={onBack}
+        onClick={handleBack}
         className="flex items-center gap-1.5 text-[13.5px] font-medium text-[#6B6963] hover:text-[#0E0D0B] transition-colors mb-5 w-fit border-none bg-transparent cursor-pointer font-action"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Trở về hàng chờ

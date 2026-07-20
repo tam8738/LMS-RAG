@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Document, User } from "../types";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { RagChatPanel } from "../components/RagChatPanel";
@@ -8,16 +9,21 @@ import { libraryService } from "../services/libraryService";
 import { adminReviewService } from "../services/adminReviewService";
 import { canUseDocumentRag } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
+import { ROUTES } from "../routes";
 
 export function LibraryDocumentDetailPage({ 
-  documentId,
+  documentId: propDocId,
   user,
-  onBack 
+  onBack: propOnBack
 }: { 
-  documentId: number,
-  user: User | null,
-  onBack: () => void 
+  documentId?: number,
+  user?: User | null,
+  onBack?: () => void 
 }) {
+  const params = useParams<{ documentId: string }>();
+  const navigate = useNavigate();
+  const documentId = propDocId ?? Number(params.documentId);
+  const handleBack = propOnBack ?? (() => navigate(ROUTES.LIBRARY));
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -101,7 +107,7 @@ export function LibraryDocumentDetailPage({
       toastTimerRef.current = setTimeout(() => {
         setToast(null);
         setShowArchive(false);
-        onBack();
+        handleBack();
       }, 1500);
     } catch (err: any) {
       console.error("Failed to archive document", err);
@@ -118,7 +124,7 @@ export function LibraryDocumentDetailPage({
         <AlertTriangle className="w-12 h-12 text-red-650 mx-auto mb-4" />
         <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">Không thể tải thông tin</h3>
         <p className="text-[14px] text-[#6B6963] mb-6">{error}</p>
-        <button onClick={onBack} className="h-9 px-4 bg-[#0E0D0B] text-white text-[13px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all cursor-pointer font-action">
+        <button onClick={handleBack} className="h-9 px-4 bg-[#0E0D0B] text-white text-[13px] font-medium rounded-lg hover:bg-[#1C1A17] transition-all cursor-pointer font-action">
           Trở về thư viện
         </button>
       </div>
@@ -161,7 +167,7 @@ export function LibraryDocumentDetailPage({
 
       {/* Top Navigation */}
       <button 
-        onClick={onBack}
+        onClick={handleBack}
         className="flex items-center gap-1.5 text-[13.5px] font-medium text-slate-500 hover:text-black transition-colors mb-5 w-fit border-none bg-transparent cursor-pointer font-action"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Trở về thư viện
@@ -170,7 +176,7 @@ export function LibraryDocumentDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         
         {/* Left Column: Metadata & Actions - 32-35% equivalent */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 overflow-y-auto pr-1 scrollbar-hide">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4.5 overflow-y-auto pr-1 scrollbar-hide">
           {/* 1. Document summary */}
           <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-6 shadow-premium">
             <div className="w-12 h-12 rounded-xl bg-[#F4F3F0] flex items-center justify-center mb-4">
@@ -243,7 +249,7 @@ export function LibraryDocumentDetailPage({
         </div>
 
         {/* Right Column: Scoped RAG Chat - 65% equivalent */}
-        <div className="lg:col-span-7 xl:col-span-8 h-[500px] min-h-0 lg:h-[calc(100vh-160px)]">
+        <div className="lg:col-span-7 xl:col-span-8 h-[520px] min-h-0 lg:h-full">
           <RagChatPanel document={doc} isEligible={ragEligible} />
         </div>
         

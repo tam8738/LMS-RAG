@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send, Sparkles, AlertCircle, Loader2, Clock, Trash2, XCircle, ArrowRight, BrainCircuit } from "lucide-react";
+import { Send, Sparkles, AlertCircle, Loader2, Clock, Trash2, XCircle, ArrowRight, BrainCircuit, ArrowDown } from "lucide-react";
 import { Document } from "../types";
 import { CitationList } from "./CitationList";
 import { ragService } from "../services/ragService";
@@ -77,14 +77,14 @@ function mapPersistedMessageToLocalMessage(msg: RagMessageResponse): LocalChatMe
   };
 }
 
-export function RagChatPanel({ 
-  document, 
+export function RagChatPanel({
+  document,
   isEligible,
   isTimeout,
   onRetry,
   onBack,
   isOwner
-}: { 
+}: {
   document: Document | null;
   isEligible: boolean;
   isTimeout?: boolean;
@@ -208,6 +208,7 @@ export function RagChatPanel({
     };
 
     setMessages(prev => [...prev, userMsg]);
+    setTimeout(() => scrollToBottom(true), 50);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -457,21 +458,29 @@ export function RagChatPanel({
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#FDFDFB] rounded-3xl border border-[#0E0D0B]/[0.06] overflow-hidden font-sans relative shadow-premium">
-      
+
       {/* Dynamic Header */}
-      <div className="px-6 py-4 bg-white border-b border-[#0E0D0B]/[0.06] flex items-center justify-between flex-shrink-0 text-left">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-[#4F63D2]/10 flex items-center justify-center text-[#4F63D2]">
-            <BrainCircuit className="w-5 h-5 animate-pulse" />
+      <div className="px-6 py-3.5 bg-white border-b border-[#0E0D0B]/[0.06] flex items-center justify-between flex-shrink-0 text-left">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8.5 h-8.5 rounded-xl bg-[#4F63D2]/10 flex items-center justify-center text-[#4F63D2]">
+            <BrainCircuit className="w-4.5 h-4.5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-[15px] font-semibold text-[#0E0D0B] leading-none mb-1 font-sans">Hỏi đáp AI Workspace</h3>
-            <p className="text-[12px] text-[#AAAA9F] font-mono truncate max-w-[280px] sm:max-w-[420px]">
-              Tài liệu: {document.title}
+            <div className="flex items-center gap-2">
+              <h3 className="text-[14.5px] font-bold text-[#0E0D0B] leading-none font-sans">AI Workspace</h3>
+              {isEligible && (
+                <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-250 px-2 py-0.5 rounded-full font-mono-label uppercase">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  AI Ready
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-[#6B6963] font-sans truncate max-w-[280px] sm:max-w-[420px] mt-0.5">
+              {document.title}
             </p>
           </div>
         </div>
-        
+
         {messages.length > 0 && (
           <button
             onClick={openClearConfirm}
@@ -499,7 +508,7 @@ export function RagChatPanel({
       )}
 
       {/* Main Chat Area */}
-      <div 
+      <div
         ref={chatContainerRef}
         onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 flex flex-col gap-6 scroll-smooth"
@@ -529,7 +538,7 @@ export function RagChatPanel({
             <div className="m-auto text-center max-w-lg w-full p-8 bg-white border border-[#0E0D0B]/[0.06] rounded-2xl shadow-premium flex flex-col items-center">
               <Clock className="w-10 h-10 text-[#4F63D2] mb-4 animate-pulse" />
               <h4 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans">Hỏi đáp AI chưa sẵn sàng</h4>
-              
+
               <p className="text-[13.5px] text-[#6B6963] leading-relaxed mb-6 max-w-sm">
                 {getContextualExplanation()}
               </p>
@@ -538,24 +547,22 @@ export function RagChatPanel({
               <div className="w-full flex items-center justify-between mb-6 relative px-2 pt-1">
                 {/* Horizontal line */}
                 <div className="absolute left-[36px] right-[36px] top-[14px] h-[2px] bg-[#0E0D0B]/[0.06] -z-10" />
-                
+
                 {milestones.map((m, idx) => {
                   const status = getMilestoneStatus(m.key);
                   return (
                     <div key={m.key} className="flex flex-col items-center gap-1.5 relative w-12">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 text-[10.5px] font-bold transition-all ${
-                        status === "completed" ? "bg-emerald-500 border-emerald-500 text-white" :
-                        status === "active" ? "bg-white border-[#4F63D2] text-[#4F63D2] animate-pulse" :
-                        status === "failed" ? "bg-red-500 border-red-500 text-white" :
-                        "bg-white border-[#0E0D0B]/[0.12] text-[#AAAA9F]"
-                      }`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 text-[10.5px] font-bold transition-all ${status === "completed" ? "bg-emerald-500 border-emerald-500 text-white" :
+                          status === "active" ? "bg-white border-[#4F63D2] text-[#4F63D2] animate-pulse" :
+                            status === "failed" ? "bg-red-500 border-red-500 text-white" :
+                              "bg-white border-[#0E0D0B]/[0.12] text-[#AAAA9F]"
+                        }`}>
                         {idx + 1}
                       </div>
-                      <span className={`text-[9.5px] font-bold uppercase tracking-tight text-center w-16 block leading-tight ${
-                        status === "active" ? "text-[#4F63D2]" :
-                        status === "failed" ? "text-red-655" :
-                        status === "completed" ? "text-[#0E0D0B]" : "text-[#AAAA9F]"
-                      }`}>
+                      <span className={`text-[9.5px] font-bold uppercase tracking-tight text-center w-16 block leading-tight ${status === "active" ? "text-[#4F63D2]" :
+                          status === "failed" ? "text-red-655" :
+                            status === "completed" ? "text-[#0E0D0B]" : "text-[#AAAA9F]"
+                        }`}>
                         {m.label}
                       </span>
                     </div>
@@ -579,42 +586,40 @@ export function RagChatPanel({
             </div>
           ) : (
             // Concise Empty State with Prompts
-            <div className="m-auto text-left max-w-2xl w-full py-6 flex flex-col gap-6">
+            <div className="m-auto text-left max-w-xl w-full py-4 flex flex-col gap-5">
               <div className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-[#4F63D2]/10 flex items-center justify-center mx-auto mb-3 text-[#4F63D2]">
-                  <Sparkles className="w-6 h-6 animate-pulse" />
+                <div className="w-11 h-11 rounded-xl bg-[#4F63D2]/10 flex items-center justify-center mx-auto mb-2.5 text-[#4F63D2]">
+                  <Sparkles className="w-5.5 h-5.5 animate-pulse" />
                 </div>
-                <h2 className="text-[20px] font-bold text-[#0E0D0B] tracking-tight">Hỏi đáp AI Workspace</h2>
-                <p className="text-[14px] text-[#6B6963] max-w-md mx-auto mt-1.5 leading-relaxed">
+                <h2 className="text-[19px] font-bold text-[#0E0D0B] tracking-tight">Hỏi đáp AI Workspace</h2>
+                <p className="text-[13.5px] text-[#6B6963] max-w-md mx-auto mt-1 leading-relaxed">
                   Hệ thống AI đã sẵn sàng trả lời các câu hỏi dựa trên nội dung tài liệu. Đặt câu hỏi tự do hoặc chọn gợi ý dưới đây:
                 </p>
               </div>
 
               {/* Prompt Recommendation Matrix Cards */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {suggestedPrompts.map((p, i) => (
-                    <div
-                      key={i}
-                      onClick={() => executeQuestion(p.desc)}
-                      className="border border-[#0E0D0B]/[0.06] bg-white hover:border-[#4F63D2]/35 rounded-2xl p-4.5 cursor-pointer hover:shadow-premium-hover transition-all duration-200 text-left group"
-                    >
-                      <h4 className="text-[13.5px] font-semibold text-[#0E0D0B] flex items-center justify-between group-hover:text-[#4F63D2]">
-                        {p.title}
-                        <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                      </h4>
-                      <p className="text-[12.5px] text-[#6B6963] mt-1 leading-relaxed">
-                        {p.desc}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {suggestedPrompts.map((p, i) => (
+                  <div
+                    key={i}
+                    onClick={() => executeQuestion(p.desc)}
+                    className="border border-[#0E0D0B]/[0.07] bg-white hover:border-[#4F63D2]/35 rounded-xl p-3.5 cursor-pointer hover:shadow-xs transition-all duration-200 text-left group"
+                  >
+                    <h4 className="text-[13px] font-semibold text-[#0E0D0B] flex items-center justify-between group-hover:text-[#4F63D2]">
+                      {p.title}
+                      <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                    </h4>
+                    <p className="text-[12px] text-[#6B6963] mt-0.5 leading-relaxed">
+                      {p.desc}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           )
         ) : (
           // Message Thread rendering
-          <div className="space-y-6">
+          <div className="space-y-5 max-w-[800px] w-full mx-auto">
             {messages.map((msg, index) => {
               const isUser = msg.role === "user";
               const isLast = index === messages.length - 1;
@@ -629,31 +634,31 @@ export function RagChatPanel({
 
               return (
                 <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"} animate-fadeIn`}>
-                  <div className={`flex gap-4 ${isUser ? "justify-end" : "justify-start"} w-full`}>
+                  <div className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"} w-full`}>
                     {!isUser && (
-                      <div className="w-8.5 h-8.5 rounded-xl bg-[#4F63D2]/10 text-[#4F63D2] flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-[#4F63D2]/10 text-[#4F63D2] flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Sparkles className="w-4 h-4" />
                       </div>
                     )}
 
-                    <div className="flex flex-col max-w-[80%] text-left">
-                      <div className={`px-5 py-3.5 rounded-2xl text-[14px] leading-relaxed select-text ${isUser
-                          ? "bg-[#0E0D0B] text-white rounded-tr-sm font-medium"
-                          : msg.state === "not_found"
-                            ? "bg-amber-50 text-amber-900 border border-amber-250 rounded-tl-sm font-sans"
-                            : msg.state === "error"
-                              ? "bg-red-50 text-red-955 border border-red-200 rounded-tl-sm font-sans"
-                              : msg.state === "cancelled"
-                                ? "bg-gray-100 text-gray-700 border border-gray-250 rounded-tl-sm font-sans"
-                                : "bg-white text-[#0E0D0B] border border-[#0E0D0B]/[0.08] rounded-tl-sm shadow-xs font-sans"
+                    <div className={`flex flex-col text-left ${isUser ? "max-w-[72%] sm:max-w-[68%]" : "max-w-[85%] sm:max-w-[780px]"}`}>
+                      <div className={`px-4.5 py-3.5 rounded-2xl text-[14px] leading-relaxed select-text font-sans break-words ${isUser
+                        ? "bg-[#4F63D2] text-white rounded-tr-xs font-medium shadow-xs"
+                        : msg.state === "not_found"
+                          ? "bg-amber-50 text-amber-900 border border-amber-250 rounded-tl-xs shadow-xs"
+                          : msg.state === "error"
+                            ? "bg-red-50 text-red-955 border border-red-200 rounded-tl-xs shadow-xs"
+                            : msg.state === "cancelled"
+                              ? "bg-gray-100 text-gray-700 border border-gray-250 rounded-tl-xs shadow-xs"
+                              : "bg-white text-[#0E0D0B] border border-[#0E0D0B]/[0.08] rounded-tl-xs shadow-xs"
                         }`}
                       >
-                        {msg.state === "not_found" && <AlertCircle className="w-4 h-4 text-amber-600 mb-1.5 inline-block mr-1.5 align-text-bottom" />}
-                        {msg.state === "error" && <AlertCircle className="w-4 h-4 text-red-550 mb-1.5 inline-block mr-1.5 align-text-bottom" />}
-                        {msg.state === "cancelled" && <XCircle className="w-4 h-4 text-gray-500 mb-1.5 inline-block mr-1.5 align-text-bottom" />}
-                        
-                        <span className="whitespace-pre-wrap select-text">{displayContent}</span>
-                        
+                        {msg.state === "not_found" && <AlertCircle className="w-4 h-4 text-amber-600 mb-1 inline-block mr-1.5 align-text-bottom flex-shrink-0" />}
+                        {msg.state === "error" && <AlertCircle className="w-4 h-4 text-red-550 mb-1 inline-block mr-1.5 align-text-bottom flex-shrink-0" />}
+                        {msg.state === "cancelled" && <XCircle className="w-4 h-4 text-gray-500 mb-1 inline-block mr-1.5 align-text-bottom flex-shrink-0" />}
+
+                        <div className="whitespace-pre-wrap select-text leading-relaxed font-sans">{displayContent}</div>
+
                         {msg.state === "error" && isLast && index >= 1 && messages[index - 1].role === "user" && (
                           <button
                             onClick={() => handleRetryQuestion(messages[index - 1].content)}
@@ -665,18 +670,18 @@ export function RagChatPanel({
                       </div>
 
                       {displayTime && (
-                        <span className="mt-1 px-1 text-[10.5px] text-[#AAAA9F] font-mono-label">{displayTime}</span>
+                        <span className="mt-1 px-1 text-[10px] text-[#AAAA9F] font-mono-label">{displayTime}</span>
                       )}
-                      
+
                       {shouldShowCitations && (
-                        <div className="w-full mt-2">
+                        <div className="w-full mt-1">
                           <CitationList citations={msg.citations || []} documentTitle={document.title} />
                         </div>
                       )}
                     </div>
 
                     {isUser && (
-                      <div className="w-8.5 h-8.5 rounded-xl bg-[#0E0D0B]/5 text-[#0E0D0B] flex items-center justify-center flex-shrink-0 font-semibold text-[13px]">
+                      <div className="w-8 h-8 rounded-xl bg-[#0E0D0B]/5 text-[#0E0D0B] flex items-center justify-center flex-shrink-0 font-semibold text-[12.5px] mt-0.5">
                         Me
                       </div>
                     )}
@@ -688,11 +693,11 @@ export function RagChatPanel({
         )}
 
         {loading && (
-          <div className="flex gap-4 justify-start animate-pulse">
-            <div className="w-8.5 h-8.5 rounded-xl bg-[#4F63D2]/10 text-[#4F63D2] flex items-center justify-center flex-shrink-0">
+          <div className="flex gap-3.5 justify-start animate-pulse max-w-[800px] w-full mx-auto">
+            <div className="w-8 h-8 rounded-xl bg-[#4F63D2]/10 text-[#4F63D2] flex items-center justify-center flex-shrink-0 mt-0.5">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="bg-white border border-[#0E0D0B]/[0.08] px-5 py-4 rounded-2xl rounded-tl-sm flex flex-col gap-3 shadow-xs">
+            <div className="bg-white border border-[#0E0D0B]/[0.08] px-4.5 py-3.5 rounded-2xl rounded-tl-xs flex flex-col gap-2.5 shadow-xs">
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-[#4F63D2] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <span className="w-1.5 h-1.5 bg-[#4F63D2] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -701,7 +706,7 @@ export function RagChatPanel({
               </div>
               <button
                 onClick={handleCancel}
-                className="text-[12px] text-gray-500 hover:text-red-655 transition-colors border-none bg-transparent cursor-pointer text-left font-semibold outline-none w-fit"
+                className="text-[11.5px] text-gray-500 hover:text-red-655 transition-colors border-none bg-transparent cursor-pointer text-left font-semibold outline-none w-fit"
               >
                 Hủy yêu cầu
               </button>
@@ -714,9 +719,11 @@ export function RagChatPanel({
       {showScrollButton && messages.length > 0 && (
         <button
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-white border border-[#0E0D0B]/[0.1] text-[#0E0D0B] text-[12.5px] font-semibold px-4.5 py-2 rounded-full shadow-md hover:bg-[#F4F3F0] transition-colors cursor-pointer z-10 outline-none"
+          aria-label="Cuộn xuống tin nhắn mới nhất"
+          className="absolute bottom-20 right-5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F4F3F0] text-[12px] font-semibold px-3.5 py-1.5 rounded-full shadow-md transition-all duration-200 cursor-pointer z-10 outline-none flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-[#4F63D2]/40"
         >
-          Cuộn xuống tin mới nhất
+          <ArrowDown className="w-3.5 h-3.5 text-[#4F63D2]" />
+          <span>Tin mới</span>
         </button>
       )}
 

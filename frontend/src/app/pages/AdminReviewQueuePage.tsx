@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Document } from "../types";
 import { AdminReviewTable } from "../components/AdminReviewTable";
 import { EmptyState, LoadingSkeleton } from "../components/EmptyState";
 import { ListChecks, Search, AlertTriangle } from "lucide-react";
 import { adminReviewService } from "../services/adminReviewService";
+import { adminReviewDetailPath } from "../routes";
 
-export function AdminReviewQueuePage({ onNavigateDetail }: { onNavigateDetail: (id: number) => void }) {
+export function AdminReviewQueuePage({ onNavigateDetail: propOnNavigateDetail }: { onNavigateDetail?: (id: number) => void }) {
+  const navigate = useNavigate();
+  const onNavigateDetail = propOnNavigateDetail ?? ((id: number) => navigate(adminReviewDetailPath(id)));
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState<Document[]>([]);
   const [search, setSearch] = useState("");

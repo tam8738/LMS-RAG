@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Upload, FileText, X, ArrowRight, CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react";
 import { UploadProgress, UploadStepper } from "../components/UploadProgress";
 import { uploadService } from "../services/uploadService";
 import { Document } from "../types";
+import { ROUTES, myDocumentDetailPath } from "../routes";
 
 export function UploadDocumentPage({
-  onDone,
-  onSuccess
+  onDone: propOnDone,
+  onSuccess: propOnSuccess
 }: {
-  onDone: () => void;
+  onDone?: () => void;
   onSuccess?: (id: number) => void;
 }) {
+  const navigate = useNavigate();
+  const onDone = propOnDone ?? (() => navigate(ROUTES.MY_DOCUMENTS));
+  const onSuccess = propOnSuccess ?? ((id: number) => navigate(myDocumentDetailPath(id)));
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);

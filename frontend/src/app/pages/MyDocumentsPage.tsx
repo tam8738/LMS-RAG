@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Document, User } from "../types";
+import { ROUTES, myDocumentDetailPath } from "../routes";
 import { MyDocumentActionMenu } from "../components/MyDocumentActionMenu";
 import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
 import { FilterDrawer, AdvancedFilterState } from "../components/FilterDrawer";
@@ -18,13 +20,16 @@ import { ConfirmDialog } from "../components/Dialogs";
 
 export function MyDocumentsPage({
   user,
-  onNavigateUpload,
-  onNavigateDetail
+  onNavigateUpload: propOnNavigateUpload,
+  onNavigateDetail: propOnNavigateDetail
 }: {
   user: User;
-  onNavigateUpload: () => void;
-  onNavigateDetail: (id: number) => void;
+  onNavigateUpload?: () => void;
+  onNavigateDetail?: (id: number) => void;
 }) {
+  const navigate = useNavigate();
+  const onNavigateUpload = propOnNavigateUpload ?? (() => navigate(ROUTES.UPLOAD));
+  const onNavigateDetail = propOnNavigateDetail ?? ((id: number) => navigate(myDocumentDetailPath(id)));
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState<Document[]>([]);
   const [page, setPage] = useState(0);

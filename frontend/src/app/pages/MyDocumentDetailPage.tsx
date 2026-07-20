@@ -6,6 +6,8 @@ import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle, Loader2, CheckCircle2, Clock, X, FileText, RefreshCw } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
+import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "../routes";
 import {
   isAnalysisInProgress,
   isAnalysisComplete,
@@ -23,14 +25,18 @@ import {
 import { ConfirmDialog } from "../components/Dialogs";
 
 export function MyDocumentDetailPage({
-  documentId,
+  documentId: propDocId,
   user,
-  onBack
+  onBack: propOnBack
 }: {
-  documentId: number,
-  user: User,
-  onBack: () => void
+  documentId?: number,
+  user?: User,
+  onBack?: () => void
 }) {
+  const params = useParams<{ documentId: string }>();
+  const navigate = useNavigate();
+  const documentId = propDocId ?? Number(params.documentId);
+  const handleBack = propOnBack ?? (() => navigate(ROUTES.MY_DOCUMENTS));
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -140,7 +146,7 @@ export function MyDocumentDetailPage({
     return () => {
       active = false;
     };
-  }, [documentId, user.id]);
+  }, [documentId, user?.id]);
 
   // Poll for document status updates while the document is processing
   useEffect(() => {
@@ -385,7 +391,7 @@ export function MyDocumentDetailPage({
       if (isMountedRef.current) {
         setIsDeleteOpen(false);
       }
-      onBack();
+      handleBack();
     } catch (err: any) {
       console.error("Failed to delete document", err);
       if (isMountedRef.current) {
@@ -439,7 +445,7 @@ export function MyDocumentDetailPage({
           <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-2">Không thể tải tài liệu</h3>
           <p className="text-[14px] text-[#6B6963] mb-6">{error || "Tài liệu không tồn tại hoặc bạn không có quyền truy cập."}</p>
           <button
-            onClick={onBack}
+            onClick={handleBack}
             className="h-10 px-5 text-[13px] font-medium text-white bg-[#0E0D0B] hover:bg-[#1C1A17] rounded-lg transition-colors border-none cursor-pointer font-action"
           >
             Trở về danh sách
@@ -467,7 +473,7 @@ export function MyDocumentDetailPage({
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <button
-          onClick={onBack}
+          onClick={handleBack}
           disabled={isMutatingActive}
           className="flex items-center gap-1.5 text-[13.5px] font-medium text-[#6B6963] hover:text-[#0E0D0B] transition-colors w-fit border-none bg-transparent cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
         >
@@ -585,7 +591,7 @@ export function MyDocumentDetailPage({
             <button onClick={handleRetryCheck} className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-semibold cursor-pointer border-none font-action">
               Kiểm tra lại
             </button>
-            <button onClick={onBack} className="px-3 py-1.5 bg-white hover:bg-[#F4F3F0] border border-amber-200 text-amber-900 rounded-lg text-xs font-semibold cursor-pointer font-action">
+            <button onClick={handleBack} className="px-3 py-1.5 bg-white hover:bg-[#F4F3F0] border border-amber-200 text-amber-900 rounded-lg text-xs font-semibold cursor-pointer font-action">
               Về danh sách
             </button>
           </div>
@@ -595,7 +601,7 @@ export function MyDocumentDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
 
         {/* Left Column: Info & Timeline */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 overflow-y-auto pr-1 scrollbar-hide">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4.5 overflow-y-auto pr-1 scrollbar-hide">
 
           {/* 1. Document Summary */}
           <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 shadow-premium text-left flex-shrink-0">
@@ -675,13 +681,13 @@ export function MyDocumentDetailPage({
         </div>
 
         {/* Right Column: RAG Chat */}
-        <div className="lg:col-span-7 xl:col-span-8 h-[500px] min-h-0 lg:h-[calc(100vh-190px)]">
+        <div className="lg:col-span-7 xl:col-span-8 h-[520px] min-h-0 lg:h-full">
           <RagChatPanel
             document={doc}
             isEligible={ragEligible}
             isTimeout={pollingTimeoutReached}
             onRetry={handleRetryCheck}
-            onBack={onBack}
+            onBack={handleBack}
             isOwner={true}
           />
         </div>

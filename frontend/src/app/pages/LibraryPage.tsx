@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { libraryDetailPath } from "../routes";
 import { LibraryDocument, LibraryQuery } from "../types";
 import { DocumentCard } from "../components/DocumentCard";
 import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
 import { FilterDrawer, AdvancedFilterState } from "../components/FilterDrawer";
-import { 
-  Search, 
+import {
+  Search,
   Filter,
-  SearchX, 
-  X, 
-  AlertCircle, 
-  Brain, 
-  Sparkles, 
+  SearchX,
+  X,
+  AlertCircle,
+  Brain,
+  Sparkles,
   ArrowRight,
   FileText,
   ChevronLeft,
@@ -30,17 +32,16 @@ interface SubjectLeadCardProps {
 function SubjectLeadCard({ subjectName, docCount, onSelect, isAiReadyRow }: SubjectLeadCardProps) {
   const Icon = isAiReadyRow ? Brain : BookOpen;
   return (
-    <div 
+    <div
       onClick={onSelect}
-      className={`w-[280px] sm:w-[300px] h-[260px] flex-shrink-0 rounded-2xl bg-gradient-to-br ${
-        isAiReadyRow 
-          ? "from-[#4F63D2]/10 to-[#4F63D2]/5 border-[#4F63D2]/20 hover:border-[#4F63D2]/35 text-[#0E0D0B]" 
-          : "from-[#F8F7F4] to-[#F3F2EE] border border-[#0E0D0B]/[0.08] hover:border-[#0E0D0B]/[0.15]"
-      } p-6 flex flex-col justify-between cursor-pointer transition-all duration-300 shadow-premium hover:shadow-premium-hover group relative overflow-hidden text-left select-none`}
+      className={`w-[280px] sm:w-[300px] h-[260px] flex-shrink-0 rounded-2xl bg-gradient-to-br ${isAiReadyRow
+        ? "from-[#4F63D2]/10 to-[#4F63D2]/5 border-[#4F63D2]/20 hover:border-[#4F63D2]/35 text-[#0E0D0B]"
+        : "from-[#F8F7F4] to-[#F3F2EE] border border-[#0E0D0B]/[0.08] hover:border-[#0E0D0B]/[0.15]"
+        } p-6 flex flex-col justify-between cursor-pointer transition-all duration-300 shadow-premium hover:shadow-premium-hover group relative overflow-hidden text-left select-none`}
     >
       {/* Decorative Icon in Background */}
       <Icon className={`absolute -right-8 -bottom-8 w-36 h-36 ${isAiReadyRow ? "text-[#4F63D2]/[0.05]" : "text-[#0E0D0B]/[0.025]"} pointer-events-none transition-transform duration-500 group-hover:scale-110`} />
-      
+
       <div>
         <span className={`text-[10px] font-bold uppercase tracking-widest block mb-2 ${isAiReadyRow ? "text-[#4F63D2]" : "text-[#AAAA9F]"}`}>
           {isAiReadyRow ? "AI Powered" : "Chuyên mục"}
@@ -54,7 +55,7 @@ function SubjectLeadCard({ subjectName, docCount, onSelect, isAiReadyRow }: Subj
       </div>
 
       <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#4F63D2] mt-auto">
-        <span>Xem tất cả</span>
+        <span>{isAiReadyRow ? "Khám phá ngay" : "Xem tất cả"}</span>
         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
       </div>
     </div>
@@ -71,11 +72,11 @@ interface SubjectShowcaseRowProps {
   isAiReadyRow?: boolean;
 }
 
-function SubjectShowcaseRow({ 
-  subjectName, 
-  docs, 
-  onSelectSubject, 
-  onNavigateDetail, 
+function SubjectShowcaseRow({
+  subjectName,
+  docs,
+  onSelectSubject,
+  onNavigateDetail,
   handleDownload,
   isAiReadyRow
 }: SubjectShowcaseRowProps) {
@@ -93,7 +94,7 @@ function SubjectShowcaseRow({
       }
     });
     observer.observe(viewportRef.current);
-    
+
     // Check mobile breakpoint
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
@@ -145,71 +146,64 @@ function SubjectShowcaseRow({
           <h3 className="text-[17px] font-extrabold text-[#0E0D0B] tracking-tight">{subjectName}</h3>
           <span className="text-[11.5px] text-[#AAAA9F] font-bold">({docs.length} tài liệu)</span>
         </div>
-      </div>
 
-      {/* Desktop/Tablet side-by-side versus Mobile stacked layout */}
-      <div className="flex flex-col md:flex-row gap-5 items-stretch relative">
-        
-        {/* Fixed Subject Lead Card */}
-        <SubjectLeadCard 
-          subjectName={subjectName} 
-          docCount={docs.length} 
-          onSelect={handleSelect} 
-          isAiReadyRow={isAiReadyRow}
-        />
-
-        {/* Carousel Area container */}
-        <div className="flex-1 flex items-center gap-3 min-w-0">
-          
-          {/* Previous Arrow Button */}
-          {!isMobile && maxIndex > 0 && (
+        {/* Carousel Navigation Buttons placed in header */}
+        {!isMobile && maxIndex > 0 && (
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handlePrev}
               disabled={currentIndex === 0}
               aria-label={`Trước - ${subjectName}`}
-              className="w-9 h-9 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-sm hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer flex-shrink-0 transition-all duration-200"
+              className="w-8 h-8 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-3xs hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-          )}
-
-          {/* Viewport wrapper */}
-          <div 
-            ref={viewportRef} 
-            className={`flex-1 overflow-hidden py-1 ${isMobile ? "overflow-x-auto snap-x scroll-smooth scrollbar-hide flex gap-5 pb-3 w-full" : ""}`}
-          >
-            <div 
-              className={`flex gap-5 transition-transform duration-300 ease-out`}
-              style={isMobile ? undefined : { transform: `translateX(-${currentIndex * 300}px)` }}
-            >
-              {docs.map(doc => (
-                <div 
-                  key={doc.id} 
-                  className={`w-[280px] flex-shrink-0 ${isMobile ? "snap-start" : ""}`}
-                >
-                  <DocumentCard
-                    document={doc}
-                    viewMode="grid"
-                    onClick={onNavigateDetail}
-                    onDownload={handleDownload}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Next Arrow Button */}
-          {!isMobile && maxIndex > 0 && (
             <button
               onClick={handleNext}
               disabled={currentIndex >= maxIndex}
               aria-label={`Tiếp - ${subjectName}`}
-              className="w-9 h-9 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-sm hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer flex-shrink-0 transition-all duration-200"
+              className="w-8 h-8 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-3xs hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
-          )}
+          </div>
+        )}
+      </div>
 
+      {/* Desktop/Tablet side-by-side versus Mobile stacked layout */}
+      <div className="flex flex-col md:flex-row gap-5 items-stretch relative">
+
+        {/* Fixed Subject Lead Card */}
+        <SubjectLeadCard
+          subjectName={subjectName}
+          docCount={docs.length}
+          onSelect={handleSelect}
+          isAiReadyRow={isAiReadyRow}
+        />
+
+        {/* Viewport wrapper */}
+        <div
+          ref={viewportRef}
+          className={`flex-1 overflow-hidden py-1 ${isMobile ? "overflow-x-auto snap-x scroll-smooth scrollbar-hide flex gap-5 pb-3 w-full" : ""}`}
+        >
+          <div
+            className={`flex gap-5 transition-transform duration-300 ease-out`}
+            style={isMobile ? undefined : { transform: `translateX(-${currentIndex * 300}px)` }}
+          >
+            {docs.map(doc => (
+              <div
+                key={doc.id}
+                className={`w-[280px] flex-shrink-0 ${isMobile ? "snap-start" : ""}`}
+              >
+                <DocumentCard
+                  document={doc}
+                  viewMode="grid"
+                  onClick={onNavigateDetail}
+                  onDownload={handleDownload}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -217,21 +211,24 @@ function SubjectShowcaseRow({
 }
 
 /* Master Library Page Component */
-export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: number) => void }) {
+export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavigateDetail?: (id: number) => void }) {
+  const navigate = useNavigate();
+  const handleNavigateDetail = propOnNavigateDetail ?? ((id: number) => navigate(libraryDetailPath(id)));
+  const onNavigateDetail = handleNavigateDetail;
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [error, setError] = useState<string>("");
-  
+
   // Independent state for unfiltered RAG Recommendation Shelf
   const [aiReadyDocs, setAiReadyDocs] = useState<LibraryDocument[]>([]);
-  
+
   // Spring Page Source of Truth
   const [page, setPage] = useState(0);
   const [size] = useState(100); // Larger default size to gather all items for subject groups
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
-  
+
   // Search and Advanced Filters
   const [searchVal, setSearchVal] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
@@ -317,7 +314,7 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
     setError("");
     try {
       const result = await libraryService.getLibrary(debouncedQuery);
-      
+
       // Clientside filtering for author filter
       let filtered = result.documents;
       if (advancedFilters.author) {
@@ -384,7 +381,7 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
 
   return (
     <div className="w-full text-left font-sans space-y-12 pb-16">
-      
+
       {downloadError && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 animate-[fade-in_150ms_ease-out]">
           <AlertCircle className="w-4 h-4 text-red-650 flex-shrink-0" />
@@ -534,46 +531,17 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
         </div>
       )}
 
-      {/* Subject Chips for Filtering */}
-      <div className="overflow-x-auto scrollbar-hide pb-2 border-b border-[#0E0D0B]/[0.06] mt-4">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleCategorySelect("")}
-            className={`flex-shrink-0 h-9 px-4.5 rounded-xl text-[13px] font-semibold transition-all duration-200 cursor-pointer ${!selectedSubject
-              ? "bg-[#0E0D0B] text-white shadow-sm"
-              : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F4F3F0]"
-              }`}
-          >
-            Tất cả môn học
-          </button>
-          {availableSubjects.map((sub) => {
-            const isSelected = selectedSubject === sub;
-            return (
-              <button
-                key={sub}
-                onClick={() => handleCategorySelect(sub)}
-                className={`flex-shrink-0 h-9 px-4.5 rounded-xl text-[13px] font-semibold transition-all duration-200 cursor-pointer ${isSelected
-                  ? "bg-[#0E0D0B] text-white shadow-sm"
-                  : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F4F3F0]"
-                  }`}
-              >
-                {sub}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {loading ? (
         <LoadingSkeleton viewMode="grid" />
       ) : error ? (
         <ErrorState error={error} onRetry={fetchLibrary} />
       ) : documents.length > 0 ? (
         <div className="space-y-12 animate-fadeIn">
-          
+
           {/* Section: Tất cả tài liệu (Presented as Subject Showcase Rows) */}
-          <div id="all-documents-section" className="space-y-8 text-left pt-4">
-            
+          <div id="all-documents-section" className="space-y-6 text-left pt-4">
+
+            {/* Section Header */}
             <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.06] pb-3.5">
               <div>
                 <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">
@@ -594,6 +562,36 @@ export function LibraryPage({ onNavigateDetail }: { onNavigateDetail: (id: numbe
                   <Filter className="w-3.5 h-3.5" />
                   Lọc nâng cao {activeFiltersCount > 0 && `(${activeFiltersCount})`}
                 </button>
+              </div>
+            </div>
+
+            {/* Subject Chips for Filtering */}
+            <div className="overflow-x-auto scrollbar-hide pb-1">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleCategorySelect("")}
+                  className={`flex-shrink-0 h-8.5 px-4 rounded-xl text-[12.5px] font-semibold transition-all duration-200 cursor-pointer ${!selectedSubject
+                    ? "bg-[#0E0D0B] text-white shadow-sm"
+                    : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F4F3F0]"
+                    }`}
+                >
+                  Tất cả môn học
+                </button>
+                {availableSubjects.map((sub) => {
+                  const isSelected = selectedSubject === sub;
+                  return (
+                    <button
+                      key={sub}
+                      onClick={() => handleCategorySelect(sub)}
+                      className={`flex-shrink-0 h-8.5 px-4 rounded-xl text-[12.5px] font-semibold transition-all duration-200 cursor-pointer ${isSelected
+                        ? "bg-[#0E0D0B] text-white shadow-sm"
+                        : "bg-white border border-[#0E0D0B]/[0.08] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F4F3F0]"
+                        }`}
+                    >
+                      {sub}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
