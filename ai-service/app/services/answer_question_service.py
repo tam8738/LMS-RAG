@@ -1,5 +1,7 @@
 """Application service for document-scoped RAG question answering."""
 
+import re
+
 from app.core.config import settings
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.embeddings.base import EmbeddingProvider
@@ -22,6 +24,8 @@ from app.utils.question_intent import (
 _SUMMARY_TOP_K = 8
 _DEFAULT_RETRIEVAL_TOP_K = 8
 _HISTORY_ANSWER_CONTEXT_LIMIT = 500
+_CITATION_EXCERPT_LIMIT = 240
+_CITATION_SENTENCE_BOUNDARY_RATIO = 0.55
 
 
 class AnswerQuestionService:
@@ -237,14 +241,47 @@ class AnswerQuestionService:
             document_id=chunk.document_id,
             page_number=chunk.page_number,
             chunk_index=chunk.chunk_index,
-            excerpt=AnswerQuestionService._excerpt(chunk.content),
+            excerpt=AnswerQuestionService._excerpt(
+                chunk.content,
+                page_number=chunk.page_number,
+            ),
             score=chunk.score,
         )
 
     @staticmethod
-    def _excerpt(content: str, limit: int = 280) -> str:
-        """Keep citation excerpts short while preserving real source text."""
-        normalized = " ".join(content.split())
-        if len(normalized) <= limit:
-            return normalized
-        return normalized[: limit - 3].rstrip() + "..."
+    def _excerpt(
+        content: str,
+        limit: int = _CITATION_EXCERPT_LIMIT,
+        page_number: int | None = None,
+    ) -> str:
+        """Keep citation excerpts readable while preserving real source text."""
+        normalized = " ".join(content.split()).strip()
+        cleaned = AnswerQuestionService._clean_citation_prefix(normalized, page_number)
+        if len(cleaned) <= limit:
+            return cleaned
+
+        snippet = cleaned[: limit - 3].rstrip()
+        boundary = max(snippet.rfind(". "), snippet.rfind("? "), snippet.rfind("! "), snippet.rfind("; "))
+        if boundary >= int(limit * _CITATION_SENTENCE_BOUNDARY_RATIO):
+            snippet = snippet[: boundary + 1].rstrip()
+        return snippet + "..."
+
+    @staticmethod
+    def _clean_citation_prefix(content: str, page_number: int | None) -> str:
+        """Remove extraction/page markers that are already shown as citation metadata."""
+        cleaned = content.strip(" \"'")
+        if page_number is not None and page_number > 0:
+            page_prefix = re.compile(
+                rf"^(?:trang|page)?\s*{re.escape(str(page_number))}\b[\s:.\-)]*",
+                re.IGNORECASE,
+            )
+            cleaned = page_prefix.sub("", cleaned, count=1).lstrip()
+
+        cleaned = re.sub(
+            r"^(?:chunk|doan)\s+\d+\b[\s:.\-)]*",
+            "",
+            cleaned,
+            count=1,
+            flags=re.IGNORECASE,
+        ).strip(" \"'")
+        return cleaned or content

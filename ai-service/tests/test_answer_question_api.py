@@ -259,6 +259,26 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertTrue(excerpt.endswith("..."))
         self.assertNotIn("  ", excerpt)
 
+    def test_citation_excerpt_removes_duplicate_page_prefix(self) -> None:
+        self.repository.search_similar_chunks.return_value = [
+            retrieved_chunk(
+                page_number=11,
+                content='"11 1.1.2 Lap trinh cau truc Trong lap trinh huong cau truc, chuong trinh chinh duoc chia thanh cac chuong trinh con."',
+            ),
+        ]
+
+        result = self.service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Lap trinh cau truc la gi?",
+                top_k=3,
+            )
+        )
+
+        excerpt = result.citations[0].excerpt
+        self.assertTrue(excerpt.startswith("1.1.2 Lap trinh cau truc"))
+        self.assertNotRegex(excerpt, r'^"?11\s')
+
     def test_rejects_invalid_similarity_threshold(self) -> None:
         with self.assertRaises(ValueError):
             AnswerQuestionService(

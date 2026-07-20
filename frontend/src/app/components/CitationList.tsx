@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, FileText, Maximize2, Minimize2, Quote } from "lucide-react";
 import { RagCitation } from "../types/rag";
-import { FileText, ExternalLink, Minimize2, Maximize2 } from "lucide-react";
 
 interface CitationListProps {
   citations: RagCitation[];
@@ -14,7 +14,7 @@ interface CitationGroup {
   count: number;
 }
 
-const INITIAL_VISIBLE_CITATIONS = 3;
+const INITIAL_VISIBLE_CITATIONS = 2;
 
 function buildCitationLabel(citation: RagCitation, fallbackIndex: number) {
   if (citation.pageNumber !== undefined && citation.pageNumber !== null && citation.pageNumber > 0) {
@@ -30,9 +30,14 @@ function getCitationKey(citation: RagCitation, fallbackIndex: number) {
   return `chunk-${citation.chunkId ?? citation.chunkIndex ?? fallbackIndex}`;
 }
 
+function getExcerpt(citation: RagCitation) {
+  return citation.excerpt?.trim() || "Không có đoạn trích xem trước.";
+}
+
 export function CitationList({ citations, documentTitle }: CitationListProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [isSectionOpen, setIsSectionOpen] = useState(true);
 
   const citationGroups = useMemo(() => {
     const groups = new Map<string, CitationGroup>();
@@ -53,7 +58,7 @@ export function CitationList({ citations, documentTitle }: CitationListProps) {
         key,
         citation,
         label: buildCitationLabel(citation, index),
-        count: 1
+        count: 1,
       });
     });
 
@@ -67,78 +72,107 @@ export function CitationList({ citations, documentTitle }: CitationListProps) {
 
   return (
     <div className="mt-4 border-t border-[#0E0D0B]/[0.06] pt-4 text-left">
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-[11.5px] font-bold text-[#6B6963] uppercase tracking-widest font-mono">
-          Nguồn trích dẫn ({citationGroups.length})
-        </h4>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setIsSectionOpen((open) => !open)}
+          className="flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-left outline-none group/header"
+          aria-expanded={isSectionOpen}
+          aria-label={isSectionOpen ? "Ẩn nguồn trích dẫn" : "Hiện nguồn trích dẫn"}
+        >
+          {isSectionOpen ? (
+            <ChevronDown className="h-4 w-4 flex-shrink-0 text-[#8F8C84] transition-colors group-hover/header:text-[#4F63D2]" />
+          ) : (
+            <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#8F8C84] transition-colors group-hover/header:text-[#4F63D2]" />
+          )}
+          <h4 className="truncate text-[11.5px] font-bold uppercase tracking-widest text-[#6B6963] transition-colors font-mono-label group-hover/header:text-[#4F63D2]">
+            Nguồn trích dẫn ({citationGroups.length})
+          </h4>
+        </button>
+        <span className="flex-shrink-0 text-[11px] text-[#AAAA9F] font-mono-label">
+          {citations.length} đoạn liên quan
+        </span>
       </div>
 
-      {/* Grid of source cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        {visibleGroups.map((group, idx) => {
-          const isExpanded = expandedKey === group.key;
-          return (
-            <div
-              key={group.key}
-              className={`group rounded-xl border border-[#0E0D0B]/[0.06] p-3.5 bg-white hover:border-[#4F63D2]/35 transition-all duration-200 shadow-xs flex flex-col justify-between ${
-                isExpanded ? "sm:col-span-2" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2.5">
-                <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                  <div className="w-8.5 h-8.5 rounded-lg bg-[#F4F3F0] group-hover:bg-[#4F63D2]/10 flex items-center justify-center flex-shrink-0 transition-colors">
-                    <FileText className="w-4 h-4 text-[#6B6963] group-hover:text-[#4F63D2] transition-colors" />
+      {isSectionOpen && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {visibleGroups.map((group, idx) => {
+              const isExpanded = expandedKey === group.key;
+              const excerpt = getExcerpt(group.citation);
+
+              return (
+                <div
+                  key={group.key}
+                  className={`group rounded-lg border border-[#0E0D0B]/[0.08] bg-white p-3.5 shadow-xs transition-all duration-200 hover:border-[#4F63D2]/35 ${
+                    isExpanded ? "sm:col-span-2" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                      <div className="flex h-8.5 w-8.5 flex-shrink-0 items-center justify-center rounded-lg bg-[#F4F3F0] transition-colors group-hover:bg-[#4F63D2]/10">
+                        <FileText className="h-4 w-4 text-[#6B6963] transition-colors group-hover:text-[#4F63D2]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-semibold text-[#0E0D0B]">
+                          {documentTitle}
+                        </span>
+                        <span className="mt-0.5 block text-[10.5px] font-semibold uppercase tracking-wide text-[#8F8C84] font-mono-label">
+                          {group.label}{group.count > 1 ? ` · ${group.count} đoạn` : ""}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="flex h-5 min-w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#4F63D2]/10 px-2 text-[10px] font-bold text-[#4F63D2] font-mono-label">
+                      Nguồn {idx + 1}
+                    </span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[13px] font-semibold text-[#0E0D0B] line-clamp-1 block">
-                      {documentTitle}
-                    </span>
-                    <span className="text-[10px] text-[#AAAA9F] font-mono uppercase font-semibold block mt-0.5">
-                      {group.label} {group.count > 1 && `· ${group.count} đoạn`}
-                    </span>
+
+                  <div className="mt-3 rounded-lg border border-[#0E0D0B]/[0.04] bg-[#F8F7F4] p-3">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[#8F8C84] font-mono-label">
+                      <Quote className="h-3.5 w-3.5 text-[#4F63D2]" />
+                      Đoạn trích liên quan
+                    </div>
+                    <p
+                      className={`select-text text-[12.5px] leading-relaxed text-[#4E4B45] font-sans ${
+                        isExpanded ? "" : "line-clamp-3"
+                      }`}
+                    >
+                      {excerpt}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3.5 border-t border-[#0E0D0B]/[0.04] pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedKey(isExpanded ? null : group.key)}
+                      className="flex cursor-pointer items-center gap-1 border-none bg-transparent text-[11.5px] font-semibold text-[#4F63D2] outline-none hover:underline font-action"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <Minimize2 className="h-3 w-3" /> Thu gọn
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="h-3 w-3" /> Mở rộng đoạn trích
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
-                <span className="w-5 h-5 rounded-full bg-[#4F63D2]/10 text-[#4F63D2] text-[10px] font-bold flex items-center justify-center flex-shrink-0 font-mono">
-                  [{idx + 1}]
-                </span>
-              </div>
+              );
+            })}
+          </div>
 
-              {/* Preview content excerpt */}
-              <p className={`text-[12.5px] text-[#6B6963] leading-relaxed italic bg-[#F8F7F4] p-3 rounded-lg border border-[#0E0D0B]/[0.03] mt-3 font-sans select-text ${
-                isExpanded ? "" : "line-clamp-2"
-              }`}>
-                "{group.citation.excerpt}"
-              </p>
-
-              {/* Action buttons inside source cards */}
-              <div className="flex items-center gap-3.5 mt-3 pt-3 border-t border-[#0E0D0B]/[0.04]">
-                <button
-                  onClick={() => setExpandedKey(isExpanded ? null : group.key)}
-                  className="flex items-center gap-1 text-[11.5px] font-semibold text-[#4F63D2] border-none bg-transparent cursor-pointer hover:underline outline-none"
-                >
-                  {isExpanded ? (
-                    <>
-                      <Minimize2 className="w-3 h-3" /> Thu nhỏ
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2 className="w-3 h-3" /> Xem đầy đủ trích dẫn
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {citationGroups.length > INITIAL_VISIBLE_CITATIONS && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="mt-3 text-[12px] font-semibold text-[#4F63D2] hover:text-[#3D50B8] border-none bg-transparent cursor-pointer font-action outline-none"
-        >
-          {showAll ? "Thu gọn nguồn trích dẫn" : `Xem thêm ${hiddenCount} nguồn trích dẫn khác`}
-        </button>
+          {citationGroups.length > INITIAL_VISIBLE_CITATIONS && (
+            <button
+              type="button"
+              onClick={() => setShowAll(!showAll)}
+              className="mt-3 cursor-pointer border-none bg-transparent text-[12px] font-semibold text-[#4F63D2] outline-none hover:text-[#3D50B8] font-action"
+            >
+              {showAll ? "Thu gọn nguồn trích dẫn" : `Xem thêm ${hiddenCount} nguồn trích dẫn khác`}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
