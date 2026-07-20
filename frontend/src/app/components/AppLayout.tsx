@@ -27,6 +27,7 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [profileTab, setProfileTab] = useState<"profile" | "security">("profile");
 
   // Profile info states (mocked based on user details)
@@ -61,6 +62,17 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+  };
+
+  const requestLogout = () => {
+    setProfileOpen(false);
+    setMobileMenuOpen(false);
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const confirmLogout = () => {
+    setIsLogoutConfirmOpen(false);
+    onLogout();
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,10 +288,7 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
                   </button>
                   <button
                     className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-red-600 hover:bg-red-50 transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-red-50"
-                    onClick={() => {
-                      setProfileOpen(false);
-                      onLogout();
-                    }}
+                    onClick={requestLogout}
                   >
                     <LogOut className="w-3.5 h-3.5 text-red-500" />
                     Đăng xuất
@@ -369,10 +378,7 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
               </div>
 
               <button 
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onLogout();
-                }}
+                onClick={requestLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all border-none bg-transparent cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-red-500 outline-none"
               >
                 <LogOut className="w-4 h-4 text-red-500" />
@@ -387,6 +393,62 @@ export function AppLayout({ children, user, currentScreen, onNavigate, onLogout,
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-8">
         {children}
       </main>
+
+      {/* Logout Confirmation Modal */}
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 animate-fadeIn">
+          <div
+            onClick={() => setIsLogoutConfirmOpen(false)}
+            className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm"
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+            className="relative z-50 w-full max-w-[420px] overflow-hidden rounded-2xl bg-white text-left shadow-[0_12px_40px_rgba(14,13,11,0.16)]"
+          >
+            <div className="flex items-start gap-3 p-5 border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/50">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-50">
+                <LogOut className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 id="logout-confirm-title" className="text-[16px] font-bold text-[#0E0D0B]">
+                  Xác nhận đăng xuất
+                </h3>
+                <p className="mt-1 text-[13.5px] leading-relaxed text-[#6B6963]">
+                  Bạn có chắc muốn rời khỏi phiên làm việc hiện tại không?
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                aria-label="Đóng xác nhận đăng xuất"
+                className="rounded-lg border-none bg-transparent p-1 text-[#AAAA9F] transition-colors hover:bg-[#F4F3F0] hover:text-[#0E0D0B] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2.5 p-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="h-10 rounded-xl border border-[rgba(14,13,11,0.12)] bg-white px-4 text-[13.5px] font-semibold text-[#0E0D0B] transition-colors hover:bg-[#F8F7F4] cursor-pointer font-action outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="h-10 rounded-xl border-none bg-red-600 px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer font-action outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Account Info Modal */}
       {isAccountOpen && (
