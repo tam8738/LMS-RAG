@@ -91,6 +91,7 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
         self.assertEqual(call["model"], "gpt-4o-mini")
         self.assertEqual(call["temperature"], 0.2)
         self.assertEqual(call["timeout"], 5.0)
+        self.assertEqual(call["max_tokens"], 700)
         self.assertIn("Answer only from the supplied document context", call["messages"][0]["content"])
         self.assertIn("Use plain text only", call["messages"][0]["content"])
         user_prompt = call["messages"][1]["content"]
@@ -116,7 +117,7 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
 
         self.assertEqual(result.answer, "A broader summary.")
         call = self.client.chat.completions.create.call_args.kwargs
-        self.assertEqual(call["max_tokens"], 700)
+        self.assertEqual(call["max_tokens"], 1200)
         self.assertIn("cover all major ideas", call["messages"][0]["content"])
 
     def test_retries_timeout_then_succeeds(self) -> None:
@@ -239,6 +240,8 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
             {"max_retries": -1},
             {"retry_base_delay_seconds": -0.1},
             {"request_timeout_seconds": 0},
+            {"default_max_tokens": 0},
+            {"summary_max_tokens": 0},
         )
 
         for options in invalid_options:

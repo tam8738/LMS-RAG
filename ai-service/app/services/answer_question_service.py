@@ -9,13 +9,19 @@ from app.schemas.answer_question import (
     AnswerCitation,
     AnswerQuestionRequest,
     AnswerQuestionResult,
+    ConversationMessage,
 )
 from app.schemas.document import RetrievedDocumentChunk
-from app.utils.question_intent import is_insufficient_answer, is_summary_question
+from app.utils.question_intent import (
+    is_follow_up_question,
+    is_insufficient_answer,
+    is_summary_question,
+)
 
 
 _SUMMARY_TOP_K = 8
 _DEFAULT_RETRIEVAL_TOP_K = 8
+_HISTORY_ANSWER_CONTEXT_LIMIT = 500
 
 
 class AnswerQuestionService:
@@ -38,13 +44,14 @@ class AnswerQuestionService:
             else similarity_threshold
         )
         if not 0.0 <= self.similarity_threshold <= 1.0:
-            raise ValueError("similarity_threshold ph\u1ea3i n\u1eb1m trong kho\u1ea3ng 0.0 \u0111\u1ebfn 1.0")
+            raise ValueError("similarity_threshold phai nam trong khoang 0.0 den 1.0")
 
     def answer(self, request: AnswerQuestionRequest) -> AnswerQuestionResult:
         """Answer only from retrieved chunks inside Backend-authorized documents."""
         retrieval_top_k = self._select_retrieval_top_k(request)
-        vector_chunks = self._retrieve_chunks(request, request.question, retrieval_top_k)
-        keyword_chunks = self._retrieve_keyword_chunks(request, request.question, retrieval_top_k)
+        retrieval_query = self._build_retrieval_query(request.question, request.history)
+        vector_chunks = self._retrieve_chunks(request, retrieval_query, retrieval_top_k)
+        keyword_chunks = self._retrieve_keyword_chunks(request, retrieval_query, retrieval_top_k)
         chunks = self._merge_retrieved_chunks(keyword_chunks, vector_chunks, retrieval_top_k)
 
         if not chunks:
@@ -83,6 +90,45 @@ class AnswerQuestionService:
             citations=[self._to_citation(chunk) for chunk in chunks],
             tokens_used=0,
         )
+
+    @classmethod
+    def _build_retrieval_query(
+        cls,
+        question: str,
+        history: list[ConversationMessage],
+    ) -> str:
+        """Use history for ambiguous follow-ups, but keep standalone questions clean."""
+        current_question = question.strip()
+        if not history or not is_follow_up_question(current_question):
+            return current_question
+
+        previous_user_question = cls._latest_history_content(history, "user")
+        if not previous_user_question:
+            return current_question
+
+        parts = [previous_user_question]
+        previous_answer = cls._latest_history_content(history, "assistant")
+        if previous_answer and not is_insufficient_answer(previous_answer):
+            parts.append(cls._truncate_for_retrieval(previous_answer))
+        parts.append(current_question)
+        return "\n".join(parts)
+
+    @staticmethod
+    def _latest_history_content(
+        history: list[ConversationMessage],
+        role: str,
+    ) -> str | None:
+        for message in reversed(history):
+            if message.role == role:
+                return message.content.strip()
+        return None
+
+    @staticmethod
+    def _truncate_for_retrieval(content: str) -> str:
+        normalized = " ".join(content.split())
+        if len(normalized) <= _HISTORY_ANSWER_CONTEXT_LIMIT:
+            return normalized
+        return normalized[:_HISTORY_ANSWER_CONTEXT_LIMIT].rstrip()
 
     def _retrieve_chunks(
         self,
@@ -129,6 +175,7 @@ class AnswerQuestionService:
             if len(merged) >= limit:
                 break
         return merged
+
     @classmethod
     def _select_retrieval_top_k(cls, request: AnswerQuestionRequest) -> int:
         """Use enough document context to avoid missing adjacent factual chunks."""
@@ -148,17 +195,17 @@ class AnswerQuestionService:
         ]
 
     def _embed_question(self, question: str) -> list[float]:
-        """Embed a single question and validate the provider contract."""
+        """Embed a single retrieval query and validate the provider contract."""
         vectors = self.embedding_provider.embed([question])
         if len(vectors) != 1:
             raise ServiceError(
                 ErrorCode.EMBEDDING_ERROR,
-                "S\u1ed1 l\u01b0\u1ee3ng embedding c\u00e2u h\u1ecfi kh\u00f4ng h\u1ee3p l\u1ec7",
+                "So luong embedding cau hoi khong hop le",
                 status_code=502,
                 details=[
                     ErrorDetail(
                         field="embedding_count",
-                        message=f"C\u1ea7n 1, nh\u1eadn {len(vectors)}",
+                        message=f"Can 1, nhan {len(vectors)}",
                     )
                 ],
             )
@@ -173,14 +220,14 @@ class AnswerQuestionService:
         context = "\n\n".join(chunk.content.strip() for chunk in chunks[:3])
         if language == "en":
             return f"Based on the selected document, the relevant content is:\n\n{context}"
-        return f"D\u1ef1a tr\u00ean t\u00e0i li\u1ec7u \u0111\u00e3 ch\u1ecdn, n\u1ed9i dung li\u00ean quan l\u00e0:\n\n{context}"
+        return f"Dựa trên tài liệu đã chọn, nội dung liên quan là:\n\n{context}"
 
     @staticmethod
     def _not_found_answer(language: str) -> str:
         """Return the standard no-context answer without calling generation."""
         if language == "en":
             return "No relevant information was found in the selected document."
-        return "Kh\u00f4ng t\u00ecm th\u1ea5y th\u00f4ng tin n\u00e0y trong t\u00e0i li\u1ec7u \u0111\u00e3 ch\u1ecdn."
+        return "Không tìm thấy thông tin này trong tài liệu đã chọn."
 
     @staticmethod
     def _to_citation(chunk: RetrievedDocumentChunk) -> AnswerCitation:

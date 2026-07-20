@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.config import settings
 
+_MAX_HISTORY_CONTENT_CHARS = 2000
+
 
 class ConversationMessage(BaseModel):
     """One previous chat turn supplied by Backend/Frontend for stateless multi-turn RAG."""
@@ -13,16 +15,18 @@ class ConversationMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=2000)
+    content: str = Field(min_length=1, max_length=_MAX_HISTORY_CONTENT_CHARS)
 
-    @field_validator("content")
+    @field_validator("content", mode="before")
     @classmethod
-    def content_must_not_be_blank(cls, value: str) -> str:
-        """Normalize outer whitespace and reject visually empty history messages."""
+    def normalize_content(cls, value: str) -> str:
+        """Keep history useful without letting long previous answers reject a new question."""
+        if not isinstance(value, str):
+            return value
         stripped = value.strip()
         if not stripped:
-            raise ValueError("history.content không được để trống")
-        return stripped
+            raise ValueError("history.content must not be blank")
+        return stripped[:_MAX_HISTORY_CONTENT_CHARS].rstrip()
 
 
 class AnswerQuestionRequest(BaseModel):

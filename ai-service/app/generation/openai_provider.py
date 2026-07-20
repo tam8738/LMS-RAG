@@ -20,8 +20,8 @@ from app.schemas.answer_question import ConversationMessage
 from app.schemas.document import RetrievedDocumentChunk
 from app.utils.question_intent import is_summary_question
 
-_SUMMARY_MAX_TOKENS = 700
-_DEFAULT_MAX_TOKENS = 500
+_FALLBACK_SUMMARY_MAX_TOKENS = 1200
+_FALLBACK_DEFAULT_MAX_TOKENS = 700
 _MARKDOWN_EMPHASIS_PATTERN = re.compile(r"(\*\*\*|\*\*|___|__)(.+?)\1")
 _MARKDOWN_HEADING_PATTERN = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
 
@@ -45,6 +45,8 @@ class OpenAIGenerationProvider(GenerationProvider):
         max_retries: int | None = None,
         retry_base_delay_seconds: float | None = None,
         request_timeout_seconds: float | None = None,
+        default_max_tokens: int | None = None,
+        summary_max_tokens: int | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         super().__init__(model_name or settings.generation_model)
@@ -62,6 +64,16 @@ class OpenAIGenerationProvider(GenerationProvider):
             request_timeout_seconds
             if request_timeout_seconds is not None
             else settings.generation_request_timeout_seconds
+        )
+        self.default_max_tokens = (
+            default_max_tokens
+            if default_max_tokens is not None
+            else getattr(settings, "generation_default_max_tokens", _FALLBACK_DEFAULT_MAX_TOKENS)
+        )
+        self.summary_max_tokens = (
+            summary_max_tokens
+            if summary_max_tokens is not None
+            else getattr(settings, "generation_summary_max_tokens", _FALLBACK_SUMMARY_MAX_TOKENS)
         )
         self._validate_configuration()
         self._sleep = sleep
@@ -164,6 +176,8 @@ class OpenAIGenerationProvider(GenerationProvider):
             "headings, code fences, or table formatting. Plain numbered lists are allowed. "
             "For summary or main-points questions, cover all major ideas present "
             "in the supplied context and group related ideas into a coherent outline. "
+            "For short follow-up questions, use the conversation history to infer "
+            "what the user wants elaborated, but still answer only from context. "
             "If the context is insufficient, say that the selected document "
             "does not contain enough information."
         )
@@ -179,11 +193,10 @@ class OpenAIGenerationProvider(GenerationProvider):
             {"role": "user", "content": user_prompt},
         ]
 
-    @classmethod
-    def _select_max_tokens(cls, question: str) -> int:
+    def _select_max_tokens(self, question: str) -> int:
         if is_summary_question(question):
-            return _SUMMARY_MAX_TOKENS
-        return _DEFAULT_MAX_TOKENS
+            return self.summary_max_tokens
+        return self.default_max_tokens
 
     @staticmethod
     def _format_history(history: list[ConversationMessage]) -> str:
@@ -250,3 +263,7 @@ class OpenAIGenerationProvider(GenerationProvider):
             raise ValueError("generation retry delay must not be negative")
         if self.request_timeout_seconds <= 0:
             raise ValueError("generation request timeout must be positive")
+        if self.default_max_tokens <= 0:
+            raise ValueError("generation default max tokens must be positive")
+        if self.summary_max_tokens <= 0:
+            raise ValueError("generation summary max tokens must be positive")

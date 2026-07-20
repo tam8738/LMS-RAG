@@ -408,6 +408,41 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertTrue(result.not_found)
         self.assertEqual(generation_provider.calls, [])
 
+    def test_follow_up_question_uses_previous_turn_for_retrieval(self) -> None:
+        strong_chunk = retrieved_chunk(
+            chunk_id=120,
+            content="Lap trinh tuyen tinh la mot phuong phap toi uu hoa.",
+            score=0.82,
+            distance=0.18,
+        )
+        self.repository.search_similar_chunks.return_value = [strong_chunk]
+        generation_provider = FakeGenerationProvider(
+            answer="Lap trinh tuyen tinh duoc giai thich chi tiet hon."
+        )
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+            similarity_threshold=0.65,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Noi chi tiet hon di",
+                history=[
+                    {"role": "user", "content": "Lap trinh tuyen tinh la gi?"},
+                    {"role": "assistant", "content": "Lap trinh tuyen tinh la mot phuong phap toi uu hoa."},
+                ],
+            )
+        )
+
+        retrieval_query = self.embedding_provider.calls[0][0]
+        self.assertFalse(result.not_found)
+        self.assertIn("Lap trinh tuyen tinh la gi?", retrieval_query)
+        self.assertIn("phuong phap toi uu hoa", retrieval_query)
+        self.assertIn("Noi chi tiet hon di", retrieval_query)
+        self.assertEqual(generation_provider.calls[0]["question"], "Noi chi tiet hon di")
     def test_current_question_retrieval_avoids_history_pollution(self) -> None:
         strong_chunk = retrieved_chunk(chunk_id=120, score=0.80, distance=0.20)
         self.repository.search_similar_chunks.return_value = [strong_chunk]
@@ -538,6 +573,42 @@ class AnswerQuestionApiTest(unittest.TestCase):
         self.assertEqual(request.history[0].role, "user")
         self.assertEqual(request.history[0].content, "Chuáº©n hÃ³a dá»¯ liá»‡u lÃ  gÃ¬?")
         self.assertEqual(request.history[1].role, "assistant")
+
+
+    def test_answer_question_endpoint_truncates_long_history_content(self) -> None:
+        self.service.answer.return_value = AnswerQuestionService(
+            FakeEmbeddingProvider(),
+            MagicMock(search_similar_chunks=MagicMock(return_value=[retrieved_chunk()])),
+        ).answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Noi chi tiet hon di",
+                top_k=5,
+                history=[
+                    {"role": "user", "content": "Tom tat tai lieu nay"},
+                    {"role": "assistant", "content": "A" * 2500},
+                ],
+            )
+        )
+
+        response = self.client.post(
+            "/v1/answer-question",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_ids": [12],
+                "question": "Noi chi tiet hon di",
+                "top_k": 5,
+                "history": [
+                    {"role": "user", "content": "Tom tat tai lieu nay"},
+                    {"role": "assistant", "content": "A" * 2500},
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        request = self.service.answer.call_args.args[0]
+        self.assertEqual(len(request.history[1].content), 2000)
+        self.assertEqual(request.history[1].content, "A" * 2000)
 
 
     def test_answer_question_endpoint_returns_not_found_message(self) -> None:

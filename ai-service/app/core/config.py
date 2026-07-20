@@ -65,6 +65,12 @@ class Settings:
     generation_request_timeout_seconds: float = float(
         os.getenv("GENERATION_REQUEST_TIMEOUT_SECONDS", "30")
     )
+    generation_default_max_tokens: int = int(
+        os.getenv("GENERATION_DEFAULT_MAX_TOKENS", "700")
+    )
+    generation_summary_max_tokens: int = int(
+        os.getenv("GENERATION_SUMMARY_MAX_TOKENS", "1200")
+    )
 
     @property
     def max_file_size_bytes(self) -> int:
