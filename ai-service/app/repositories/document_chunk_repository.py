@@ -18,6 +18,16 @@ class DocumentChunkRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def search_keyword_chunks(
+        self,
+        document_ids: list[int],
+        query: str,
+        top_k: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Find chunks by literal terms inside the authorized document scope."""
+        raise NotImplementedError
+
+    @abstractmethod
     def search_similar_chunks(
         self,
         document_ids: list[int],

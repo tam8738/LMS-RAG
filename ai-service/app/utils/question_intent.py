@@ -28,7 +28,10 @@ _INSUFFICIENT_ANSWER_PHRASES = (
     "insufficient information",
     "insufficient context",
     "khong chua thong tin",
+    "khong chua du thong tin",
     "khong co thong tin",
+    "khong cung cap thong tin",
+    "khong cung cap du thong tin",
     "khong tim thay thong tin",
     "khong du thong tin",
     "khong chua du lieu",
@@ -48,7 +51,8 @@ def is_insufficient_answer(answer: str) -> bool:
 
 
 def _normalize_text(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.casefold())
+    normalized_value = value.casefold().replace("đ", "d")
+    decomposed = unicodedata.normalize("NFD", normalized_value)
     return "".join(
         character
         for character in decomposed

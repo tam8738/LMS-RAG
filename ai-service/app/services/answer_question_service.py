@@ -15,6 +15,7 @@ from app.utils.question_intent import is_insufficient_answer, is_summary_questio
 
 
 _SUMMARY_TOP_K = 8
+_DEFAULT_RETRIEVAL_TOP_K = 8
 
 
 class AnswerQuestionService:
@@ -41,12 +42,10 @@ class AnswerQuestionService:
 
     def answer(self, request: AnswerQuestionRequest) -> AnswerQuestionResult:
         """Answer only from retrieved chunks inside Backend-authorized documents."""
-        retrieval_query = self._build_retrieval_query(request)
         retrieval_top_k = self._select_retrieval_top_k(request)
-        chunks = self._retrieve_chunks(request, retrieval_query, retrieval_top_k)
-
-        if not chunks and request.history:
-            chunks = self._retrieve_chunks(request, request.question, retrieval_top_k)
+        vector_chunks = self._retrieve_chunks(request, request.question, retrieval_top_k)
+        keyword_chunks = self._retrieve_keyword_chunks(request, request.question, retrieval_top_k)
+        chunks = self._merge_retrieved_chunks(keyword_chunks, vector_chunks, retrieval_top_k)
 
         if not chunks:
             return AnswerQuestionResult(
@@ -99,24 +98,43 @@ class AnswerQuestionService:
         )
         return self._filter_by_similarity_threshold(chunks)
 
+    def _retrieve_keyword_chunks(
+        self,
+        request: AnswerQuestionRequest,
+        query: str,
+        top_k: int,
+    ) -> list[RetrievedDocumentChunk]:
+        keyword_search = getattr(type(self.chunk_repository), "search_keyword_chunks", None)
+        if keyword_search is None:
+            return []
+        return self.chunk_repository.search_keyword_chunks(
+            request.document_ids,
+            query,
+            top_k,
+        )
+
+    @staticmethod
+    def _merge_retrieved_chunks(
+        primary_chunks: list[RetrievedDocumentChunk],
+        secondary_chunks: list[RetrievedDocumentChunk],
+        limit: int,
+    ) -> list[RetrievedDocumentChunk]:
+        merged: list[RetrievedDocumentChunk] = []
+        seen: set[int] = set()
+        for chunk in [*primary_chunks, *secondary_chunks]:
+            if chunk.chunk_id in seen:
+                continue
+            seen.add(chunk.chunk_id)
+            merged.append(chunk)
+            if len(merged) >= limit:
+                break
+        return merged
     @classmethod
     def _select_retrieval_top_k(cls, request: AnswerQuestionRequest) -> int:
-        """Use broader context for document summary questions."""
+        """Use enough document context to avoid missing adjacent factual chunks."""
         if is_summary_question(request.question):
             return max(request.top_k, _SUMMARY_TOP_K)
-        return request.top_k
-
-    def _build_retrieval_query(self, request: AnswerQuestionRequest) -> str:
-        """Combine recent chat history with the current question for stateless retrieval."""
-        if not request.history:
-            return request.question
-
-        lines = ["Previous conversation:"]
-        for message in request.history:
-            label = "User" if message.role == "user" else "Assistant"
-            lines.append(f"{label}: {message.content}")
-        lines.append(f"Current question: {request.question}")
-        return "\n".join(lines)
+        return max(request.top_k, _DEFAULT_RETRIEVAL_TOP_K)
 
     def _filter_by_similarity_threshold(
         self,
