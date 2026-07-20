@@ -54,9 +54,34 @@ LIMIT %s
 ConnectionFactory = Callable[[], AbstractContextManager[Any]]
 
 _KEYWORD_STOPWORDS = {
-    "anh", "cac", "cho", "cua", "duoc", "gi", "hay", "la", "nay",
-    "neu", "noi", "tai", "tai lieu", "the", "trong", "ve", "va", "voi",
+    "anh", "cac", "cho", "cua", "define", "dinh", "duoc", "gi", "hay", "is",
+    "khai", "la", "nay", "nghia", "niem", "neu", "noi", "tai", "tai lieu",
+    "the", "trong", "ve", "va", "voi", "what",
 }
+_KEYWORD_CANDIDATE_MULTIPLIER = 8
+_KEYWORD_MIN_CANDIDATES = 24
+_DEFINITION_SIGNAL_PATTERNS = (
+    "%\u0111\u1ecbnh ngh\u0129a%",
+    "%dinh nghia%",
+    "% l\u00e0 vi\u1ec7c %",
+    "% la viec %",
+    "% l\u00e0 m\u1ed9t %",
+    "% la mot %",
+    "% \u0111\u01b0\u1ee3c g\u1ecdi l\u00e0 %",
+    "% duoc goi la %",
+)
+_FRONT_MATTER_PATTERNS = (
+    "%m\u1ee5c l\u1ee5c%",
+    "%muc luc%",
+    "%danh m\u1ee5c%",
+    "%danh muc%",
+    "%table of contents%",
+    "%h\u1ecdc vi\u1ec7n%",
+    "%hoc vien%",
+    "%b\u00e0i gi\u1ea3ng%",
+    "%bai giang%",
+    "%----------%",
+)
 
 
 class PostgresDocumentChunkRepository(DocumentChunkRepository):
@@ -141,32 +166,48 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         query: str,
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Return chunks that contain important literal query terms."""
+        """Return literal matches ranked by phrase, definition and front-matter signals."""
         normalized_document_ids = self._validate_keyword_search_input(
             document_ids,
             query,
             top_k,
         )
         terms = self._extract_keyword_terms(query)
-        if not terms:
+        phrases = self._extract_keyword_phrases(query)
+        if not terms and not phrases:
             return []
 
-        match_sql = " + ".join(
-            "CASE WHEN content ILIKE %s THEN 1 ELSE 0 END"
-            for _ in terms
-        )
-        where_sql = " OR ".join("content ILIKE %s" for _ in terms)
+        phrase_sql = self._weighted_match_sql(phrases, weight=3)
+        term_sql = self._weighted_match_sql(terms, weight=1)
+        match_sql_parts = [part for part in (phrase_sql, term_sql) if part]
+        match_sql = " + ".join(match_sql_parts) if match_sql_parts else "0"
+        phrase_count_sql = self._plain_match_sql(phrases) or "0"
+        definition_boost_sql = self._definition_boost_sql(phrases) or "0"
+        front_matter_sql = self._front_matter_penalty_sql()
+        where_patterns = [*phrases, *terms]
+        where_sql = " OR ".join("content ILIKE %s" for _ in where_patterns)
+        candidate_limit = max(top_k * _KEYWORD_CANDIDATE_MULTIPLIER, _KEYWORD_MIN_CANDIDATES)
+
         sql = f"""
 WITH matched AS (
     SELECT
         id,
         document_id,
         chunk_index,
-        ({match_sql}) AS match_count
+        ({match_sql}) AS match_count,
+        ({phrase_count_sql}) AS phrase_count,
+        ({definition_boost_sql}) AS definition_boost,
+        ({front_matter_sql}) AS front_matter_penalty
     FROM document_chunks
     WHERE document_id = ANY(%s::bigint[])
       AND ({where_sql})
-    ORDER BY match_count DESC, document_id, chunk_index
+    ORDER BY
+        definition_boost DESC,
+        phrase_count DESC,
+        match_count DESC,
+        front_matter_penalty ASC,
+        document_id,
+        chunk_index
     LIMIT %s
 ), expanded AS (
     SELECT
@@ -177,6 +218,9 @@ WITH matched AS (
         dc.content,
         dc.token_count,
         m.match_count,
+        m.phrase_count,
+        m.definition_boost,
+        m.front_matter_penalty,
         ABS(dc.chunk_index - m.chunk_index) AS neighbor_distance,
         m.chunk_index AS matched_chunk_index
     FROM matched m
@@ -192,10 +236,13 @@ WITH matched AS (
         content,
         token_count,
         match_count,
+        phrase_count,
+        definition_boost,
+        front_matter_penalty,
         neighbor_distance,
         matched_chunk_index
     FROM expanded
-    ORDER BY id, neighbor_distance, match_count DESC
+    ORDER BY id, neighbor_distance, definition_boost DESC, phrase_count DESC, match_count DESC
 )
 SELECT
     id,
@@ -204,17 +251,30 @@ SELECT
     chunk_index,
     content,
     token_count,
-    match_count
+    match_count,
+    phrase_count,
+    definition_boost,
+    front_matter_penalty
 FROM deduped
-ORDER BY match_count DESC, matched_chunk_index, neighbor_distance, chunk_index
+ORDER BY
+    definition_boost DESC,
+    phrase_count DESC,
+    match_count DESC,
+    front_matter_penalty ASC,
+    matched_chunk_index,
+    neighbor_distance,
+    chunk_index
 LIMIT %s
 """
-        patterns = [f"%{term}%" for term in terms]
         parameters = [
-            *patterns,
+            *self._patterns(phrases),
+            *self._patterns(terms),
+            *self._patterns(phrases),
+            *self._definition_parameters(phrases),
+            *self._patterns(_FRONT_MATTER_PATTERNS),
             normalized_document_ids,
-            *patterns,
-            top_k,
+            *self._patterns(where_patterns),
+            candidate_limit,
             top_k,
         ]
 
@@ -238,7 +298,7 @@ LIMIT %s
                 ],
             ) from exc
 
-        return [self._to_keyword_chunk(row, len(terms)) for row in rows]
+        return [self._to_keyword_chunk(row, max(len(terms), 1)) for row in rows]
 
     def search_similar_chunks(
         self,
@@ -320,9 +380,96 @@ LIMIT %s
                 normalized_document_ids.append(document_id)
         return normalized_document_ids
 
+    @staticmethod
+    def _patterns(values: list[str] | tuple[str, ...]) -> list[str]:
+        return [value if "%" in value else f"%{value}%" for value in values]
+
+    @staticmethod
+    def _weighted_match_sql(values: list[str], weight: int) -> str:
+        if not values:
+            return ""
+        return " + ".join(
+            f"CASE WHEN content ILIKE %s THEN {weight} ELSE 0 END"
+            for _ in values
+        )
+
+    @staticmethod
+    def _plain_match_sql(values: list[str]) -> str:
+        if not values:
+            return ""
+        return " + ".join(
+            "CASE WHEN content ILIKE %s THEN 1 ELSE 0 END"
+            for _ in values
+        )
+
+    @staticmethod
+    def _definition_boost_sql(phrases: list[str]) -> str:
+        if not phrases:
+            return ""
+        signal_sql = " OR ".join("content ILIKE %s" for _ in _DEFINITION_SIGNAL_PATTERNS)
+        return " + ".join(
+            f"CASE WHEN content ILIKE %s AND ({signal_sql}) THEN 1 ELSE 0 END"
+            for _ in phrases
+        )
+
+    @staticmethod
+    def _definition_parameters(phrases: list[str]) -> list[str]:
+        parameters: list[str] = []
+        signal_patterns = PostgresDocumentChunkRepository._patterns(_DEFINITION_SIGNAL_PATTERNS)
+        for phrase in phrases:
+            parameters.append(f"%{phrase}%")
+            parameters.extend(signal_patterns)
+        return parameters
+
+    @staticmethod
+    def _front_matter_penalty_sql() -> str:
+        checks = " OR ".join("content ILIKE %s" for _ in _FRONT_MATTER_PATTERNS)
+        return f"CASE WHEN {checks} THEN 1 ELSE 0 END"
+
+    @classmethod
+    def _extract_keyword_phrases(cls, query: str) -> list[str]:
+        normalized = " ".join(query.casefold().strip().strip("?.!:;").split())
+        candidates: list[str] = []
+        patterns = (
+            "^(?:hay|h\u00e3y|cho t\u00f4i bi\u1ebft|cho toi biet)?\\s*(.+?)\\s+l\u00e0\\s+g\u00ec$",
+            "^(?:hay|hay|cho toi biet)?\\s*(.+?)\\s+la\\s+gi$",
+            "^kh\u00e1i ni\u1ec7m\\s+(.+?)(?:\\s+l\u00e0\\s+g\u00ec)?$",
+            "^khai niem\\s+(.+?)(?:\\s+la\\s+gi)?$",
+            "^\u0111\u1ecbnh ngh\u0129a\\s+(.+)$",
+            "^dinh nghia\\s+(.+)$",
+            "^what\\s+is\\s+(.+)$",
+            "^define\\s+(.+)$",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, normalized, flags=re.IGNORECASE)
+            if match:
+                candidates.append(match.group(1))
+
+        phrases: list[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            phrase = cls._clean_keyword_phrase(candidate)
+            normalized_phrase = cls._normalize_keyword_term(phrase)
+            if len(normalized_phrase) < 4 or normalized_phrase in seen:
+                continue
+            seen.add(normalized_phrase)
+            phrases.append(phrase)
+        return phrases[:2]
+
+    @classmethod
+    def _clean_keyword_phrase(cls, phrase: str) -> str:
+        words = [word for word in re.findall(r"[\w]+", phrase, flags=re.UNICODE)]
+        cleaned_words: list[str] = []
+        for word in words:
+            normalized_word = cls._normalize_keyword_term(word.casefold())
+            if normalized_word in _KEYWORD_STOPWORDS:
+                continue
+            cleaned_words.append(word)
+        return " ".join(cleaned_words).strip()
+
     @classmethod
     def _extract_keyword_terms(cls, query: str) -> list[str]:
-        raw_terms = re.findall(r"[\wÀ-ỹ]+", query.casefold(), flags=re.UNICODE)
+        raw_terms = re.findall(r"[\w]+", query.casefold(), flags=re.UNICODE)
         terms: list[str] = []
         seen: set[str] = set()
         for term in raw_terms:
@@ -335,7 +482,7 @@ LIMIT %s
 
     @staticmethod
     def _normalize_keyword_term(term: str) -> str:
-        decomposed = unicodedata.normalize("NFD", term.replace("đ", "d"))
+        decomposed = unicodedata.normalize("NFD", term.replace("\u0111", "d"))
         return "".join(
             character
             for character in decomposed

@@ -31,7 +31,7 @@ class FakeCursor:
 
     def execute(self, query: str, parameters: tuple) -> None:
         self.connection.events.append(("execute", query, parameters))
-        if "embedding <=>" in query:
+        if "embedding <=>" in query or "definition_boost" in query:
             if self.connection.fail_search:
                 raise psycopg.DatabaseError("search failed")
             self.connection.last_result = list(self.connection.search_rows)
@@ -460,6 +460,54 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
                 self.assertEqual(context.exception.code, ErrorCode.INVALID_INPUT)
                 self.assertEqual(context.exception.details[0].field, expected_field)
                 self.assertEqual(factory.calls, 0)
+
+    def test_keyword_search_boosts_definition_phrase_matches(self) -> None:
+        connection = FakeConnection(
+            search_rows=[
+                (
+                    311,
+                    8,
+                    13,
+                    17,
+                    "An toan thong tin la viec bao ve thong tin.",
+                    96,
+                    7,
+                    1,
+                    1,
+                    0,
+                ),
+            ]
+        )
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        results = repository.search_keyword_chunks(
+            [8],
+            r"an to\u00e0n th\u00f4ng tin l\u00e0 g\u00ec".encode("ascii").decode("unicode_escape"),
+            8,
+        )
+
+        self.assertEqual([chunk.chunk_id for chunk in results], [311])
+        self.assertEqual(results[0].page_number, 13)
+        self.assertGreaterEqual(results[0].score, 0.95)
+
+        execute_events = [
+            event
+            for event in connection.events
+            if isinstance(event, tuple) and event[0] == "execute"
+        ]
+        query = execute_events[0][1]
+        parameters = execute_events[0][2]
+        self.assertIn("definition_boost", query)
+        self.assertIn("front_matter_penalty", query)
+        self.assertIn(
+            r"%an to\u00e0n th\u00f4ng tin%".encode("ascii").decode("unicode_escape"),
+            parameters,
+        )
+        self.assertGreater(parameters[-2], 8)
+        self.assertEqual(parameters[-1], 8)
 
     def test_search_similar_chunks_wraps_database_error(self) -> None:
         connection = FakeConnection(fail_search=True)
