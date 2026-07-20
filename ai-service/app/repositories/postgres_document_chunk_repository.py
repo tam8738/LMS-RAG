@@ -1,6 +1,8 @@
 """PostgreSQL/pgvector implementation của DocumentChunkRepository."""
 
 import math
+import re
+import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import Any
@@ -50,6 +52,11 @@ LIMIT %s
 
 # Factory trả context manager connection; test thay bằng fake transaction DB.
 ConnectionFactory = Callable[[], AbstractContextManager[Any]]
+
+_KEYWORD_STOPWORDS = {
+    "anh", "cac", "cho", "cua", "duoc", "gi", "hay", "la", "nay",
+    "neu", "noi", "tai", "tai lieu", "the", "trong", "ve", "va", "voi",
+}
 
 
 class PostgresDocumentChunkRepository(DocumentChunkRepository):
@@ -128,6 +135,111 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
 
         return len(rows)
 
+    def search_keyword_chunks(
+        self,
+        document_ids: list[int],
+        query: str,
+        top_k: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Return chunks that contain important literal query terms."""
+        normalized_document_ids = self._validate_keyword_search_input(
+            document_ids,
+            query,
+            top_k,
+        )
+        terms = self._extract_keyword_terms(query)
+        if not terms:
+            return []
+
+        match_sql = " + ".join(
+            "CASE WHEN content ILIKE %s THEN 1 ELSE 0 END"
+            for _ in terms
+        )
+        where_sql = " OR ".join("content ILIKE %s" for _ in terms)
+        sql = f"""
+WITH matched AS (
+    SELECT
+        id,
+        document_id,
+        chunk_index,
+        ({match_sql}) AS match_count
+    FROM document_chunks
+    WHERE document_id = ANY(%s::bigint[])
+      AND ({where_sql})
+    ORDER BY match_count DESC, document_id, chunk_index
+    LIMIT %s
+), expanded AS (
+    SELECT
+        dc.id,
+        dc.document_id,
+        dc.page_number,
+        dc.chunk_index,
+        dc.content,
+        dc.token_count,
+        m.match_count,
+        ABS(dc.chunk_index - m.chunk_index) AS neighbor_distance,
+        m.chunk_index AS matched_chunk_index
+    FROM matched m
+    JOIN document_chunks dc
+      ON dc.document_id = m.document_id
+     AND dc.chunk_index BETWEEN m.chunk_index AND m.chunk_index + 1
+), deduped AS (
+    SELECT DISTINCT ON (id)
+        id,
+        document_id,
+        page_number,
+        chunk_index,
+        content,
+        token_count,
+        match_count,
+        neighbor_distance,
+        matched_chunk_index
+    FROM expanded
+    ORDER BY id, neighbor_distance, match_count DESC
+)
+SELECT
+    id,
+    document_id,
+    page_number,
+    chunk_index,
+    content,
+    token_count,
+    match_count
+FROM deduped
+ORDER BY match_count DESC, matched_chunk_index, neighbor_distance, chunk_index
+LIMIT %s
+"""
+        patterns = [f"%{term}%" for term in terms]
+        parameters = [
+            *patterns,
+            normalized_document_ids,
+            *patterns,
+            top_k,
+            top_k,
+        ]
+
+        try:
+            with self.connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, parameters)
+                    rows = cursor.fetchall()
+        except psycopg.Error as exc:
+            raise ServiceError(
+                ErrorCode.RETRIEVAL_ERROR,
+                "Khong the keyword retrieval document chunks tu PostgreSQL",
+                status_code=503,
+                details=[
+                    ErrorDetail(
+                        field="document_ids",
+                        message=",".join(
+                            str(value) for value in normalized_document_ids
+                        ),
+                    )
+                ],
+            ) from exc
+
+        return [self._to_keyword_chunk(row, len(terms)) for row in rows]
+
     def search_similar_chunks(
         self,
         document_ids: list[int],
@@ -172,6 +284,63 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
 
         return [self._to_retrieved_chunk(row) for row in rows]
 
+    def _validate_keyword_search_input(
+        self,
+        document_ids: list[int],
+        query: str,
+        top_k: int,
+    ) -> list[int]:
+        if not query.strip():
+            raise self._invalid_input("query", "query must not be blank")
+        return self._validate_document_ids_and_top_k(document_ids, top_k)
+
+    def _validate_document_ids_and_top_k(
+        self,
+        document_ids: list[int],
+        top_k: int,
+    ) -> list[int]:
+        if not document_ids:
+            raise self._invalid_input(
+                "document_ids",
+                "document_ids must contain at least one item",
+            )
+        if any(document_id <= 0 for document_id in document_ids):
+            raise self._invalid_input(
+                "document_ids",
+                "all document_ids must be greater than 0",
+            )
+        if top_k <= 0:
+            raise self._invalid_input("top_k", "top_k must be greater than 0")
+
+        normalized_document_ids: list[int] = []
+        seen: set[int] = set()
+        for document_id in document_ids:
+            if document_id not in seen:
+                seen.add(document_id)
+                normalized_document_ids.append(document_id)
+        return normalized_document_ids
+
+    @classmethod
+    def _extract_keyword_terms(cls, query: str) -> list[str]:
+        raw_terms = re.findall(r"[\wÀ-ỹ]+", query.casefold(), flags=re.UNICODE)
+        terms: list[str] = []
+        seen: set[str] = set()
+        for term in raw_terms:
+            normalized_term = cls._normalize_keyword_term(term)
+            if len(normalized_term) < 2 or normalized_term in _KEYWORD_STOPWORDS or normalized_term in seen:
+                continue
+            seen.add(normalized_term)
+            terms.append(term)
+        return terms[:6]
+
+    @staticmethod
+    def _normalize_keyword_term(term: str) -> str:
+        decomposed = unicodedata.normalize("NFD", term.replace("đ", "d"))
+        return "".join(
+            character
+            for character in decomposed
+            if unicodedata.category(character) != "Mn"
+        )
     def _validate_search_input(
         self,
         document_ids: list[int],
@@ -212,6 +381,21 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
                 seen.add(document_id)
                 normalized_document_ids.append(document_id)
         return normalized_document_ids
+
+    @staticmethod
+    def _to_keyword_chunk(row: tuple[Any, ...], term_count: int) -> RetrievedDocumentChunk:
+        match_count = int(row[6])
+        score = min(1.0, 0.70 + (match_count / max(term_count, 1)) * 0.30)
+        return RetrievedDocumentChunk(
+            chunk_id=int(row[0]),
+            document_id=int(row[1]),
+            page_number=row[2],
+            chunk_index=int(row[3]),
+            content=str(row[4]),
+            token_count=int(row[5]),
+            distance=max(0.0, 1.0 - score),
+            score=score,
+        )
 
     @staticmethod
     def _to_retrieved_chunk(row: tuple[Any, ...]) -> RetrievedDocumentChunk:

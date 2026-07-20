@@ -100,10 +100,10 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.repository.search_similar_chunks.assert_called_once_with(
             [12],
             [0.1, 0.2, 0.3],
-            5,
+            8,
         )
 
-    def test_uses_history_to_build_retrieval_query(self) -> None:
+    def test_uses_current_question_for_retrieval_when_history_exists(self) -> None:
         self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
         request = AnswerQuestionRequest(
             document_ids=[12],
@@ -118,19 +118,11 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         result = self.service.answer(request)
 
         self.assertFalse(result.not_found)
-        self.assertEqual(
-            self.embedding_provider.calls,
-            [[
-                "Previous conversation:\n"
-                "User: What is normalization?\n"
-                "Assistant: It reduces data redundancy.\n"
-                "Current question: Any other example?"
-            ]],
-        )
+        self.assertEqual(self.embedding_provider.calls, [["Any other example?"]])
         self.repository.search_similar_chunks.assert_called_once_with(
             [12],
             [0.1, 0.2, 0.3],
-            5,
+            8,
         )
 
 
@@ -355,6 +347,27 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertEqual(result.citations, [])
         self.assertEqual(result.tokens_used, 37)
 
+    def test_generation_insufficient_answer_with_cung_cap_phrase_returns_not_found(self) -> None:
+        self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
+        generation_provider = FakeGenerationProvider(
+            answer="T\u00e0i li\u1ec7u kh\u00f4ng ch\u1ee9a \u0111\u1ee7 th\u00f4ng tin v\u1ec1 kh\u00e1i ni\u1ec7m n\u00e0y."
+        )
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Khai niem nay la gi?",
+            )
+        )
+
+        self.assertTrue(result.not_found)
+        self.assertEqual(result.citations, [])
+        self.assertEqual(result.tokens_used, 37)
     def test_generation_only_receives_chunks_that_pass_threshold(self) -> None:
         strong_chunk = retrieved_chunk(chunk_id=120, score=0.75, distance=0.25)
         weak_chunk = retrieved_chunk(chunk_id=121, score=0.40, distance=0.60)
@@ -395,13 +408,9 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertTrue(result.not_found)
         self.assertEqual(generation_provider.calls, [])
 
-    def test_retries_retrieval_with_current_question_when_history_query_misses(self) -> None:
-        weak_chunk = retrieved_chunk(chunk_id=121, score=0.20, distance=0.80)
+    def test_current_question_retrieval_avoids_history_pollution(self) -> None:
         strong_chunk = retrieved_chunk(chunk_id=120, score=0.80, distance=0.20)
-        self.repository.search_similar_chunks.side_effect = [
-            [weak_chunk],
-            [strong_chunk],
-        ]
+        self.repository.search_similar_chunks.return_value = [strong_chunk]
         generation_provider = FakeGenerationProvider(answer="First normal form removes repeating groups.")
         service = AnswerQuestionService(
             embedding_provider=self.embedding_provider,
@@ -424,11 +433,12 @@ class AnswerQuestionServiceTest(unittest.TestCase):
         self.assertFalse(result.not_found)
         self.assertEqual(result.answer, "First normal form removes repeating groups.")
         self.assertEqual([citation.chunk_id for citation in result.citations], [120])
-        self.assertEqual(self.repository.search_similar_chunks.call_count, 2)
-        self.assertEqual(
-            self.embedding_provider.calls[-1],
-            ["What does the first normal form remove?"],
+        self.repository.search_similar_chunks.assert_called_once_with(
+            [12],
+            [0.1, 0.2, 0.3],
+            8,
         )
+        self.assertEqual(self.embedding_provider.calls, [["What does the first normal form remove?"]])
     def test_propagates_generation_provider_error(self) -> None:
         self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
         service = AnswerQuestionService(
