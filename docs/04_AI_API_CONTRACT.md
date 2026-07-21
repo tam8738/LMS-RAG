@@ -1,7 +1,7 @@
 # AI Service Internal API Contract
 
-**Phiên bản:** 1.5
-**Cập nhật:** 12/07/2026
+**Phiên bản:** 1.6
+**Cập nhật:** 21/07/2026
 **Base URL Docker:** `http://ai-service:8000/v1`
 
 ## 1. Phạm vi core
@@ -17,7 +17,7 @@ POST /v1/answer-question
 `POST /v1/process-document` là endpoint cũ có thể giữ tạm như implementation tương đương `index-document` trong giai đoạn chuyển tiếp.
 
 
-Summary và question generation là Should-have và chưa thuộc core contract.
+Question generation/quiz generation là phần cần làm tiếp và chưa thuộc core contract hiện tại.
 
 ## 2. Quy ước
 
@@ -313,7 +313,7 @@ Không có context phù hợp vẫn trả `200`:
 
 AI does not use outside knowledge to fill missing data. After AI-09, when retrieval finds strong context, AI calls the generation model and returns provider usage in `tokens_used`. If no suitable chunk remains, AI does not call generation and still returns `not_found=true`, `citations=[]`, `tokens_used=0`.
 
-## 8. Error codes
+## 9. Error codes
 
 | Code | HTTP | Ý nghĩa |
 |---|---:|---|
@@ -331,14 +331,14 @@ AI does not use outside knowledge to fill missing data. After AI-09, when retrie
 | `DATABASE_ERROR` | 503 | PostgreSQL/pgvector lỗi |
 | `INTERNAL_ERROR` | 500 | Lỗi không dự kiến |
 
-## 9. Timeout và retry
+## 10. Timeout và retry
 
 - Backend timeout index-document/process-document phải đủ cho tài liệu demo; gọi trong worker.
 - Backend không tự retry vô hạn.
 - OpenAI retry có giới hạn trong AI Service.
 - Reprocess phải idempotent theo document và atomic replace.
 
-## 10. Should-have contract
+## 11. Should-have contract
 
 Các endpoint sau chỉ được thiết kế/implement sau core E2E:
 

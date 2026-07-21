@@ -1,7 +1,7 @@
 # AI pipeline cho Document MVP
 
-**Phiên bản:** 1.5
-**Cập nhật:** 12/07/2026
+**Phiên bản:** 1.6
+**Cập nhật:** 21/07/2026
 **Owner:** AI Service
 
 File này chỉ mô tả thuật toán AI. API payload nằm trong
@@ -20,15 +20,12 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - PostgreSQL repository atomic replace.
 - Retrieval repository đọc `document_chunks` theo `document_ids` bằng pgvector cosine distance.
 - `POST /v1/analyze-document` kiểm tra tài liệu có thể RAG được không, không embedding và không ghi DB.
-- `POST /v1/answer-question` trả extractive answer, `not_found` và citations.
+- `POST /v1/answer-question` retrieval theo `document_ids`, lọc threshold, gọi grounded LLM generation khi có context và trả citations.
 - `POST /v1/index-document` đã có và dùng lại process pipeline để tạo chunks/embedding sau Admin approve.
 - `POST /v1/process-document` vẫn được giữ làm endpoint legacy/tương thích trong giai đoạn chuyển tiếp.
-- Unit/API mock tests.
-
-Chưa có:
-
-- E2E thật Backend -> shared file -> OpenAI -> pgvector.
-- LLM generation/chat provider cho answer tự nhiên hơn.
+- Grounded LLM generation provider cho answer tự nhiên hơn sau retrieval.
+- Stateless history trong request để hỗ trợ câu hỏi nối tiếp.
+- Unit/API mock tests và regression tests cho RAG/history/provider.
 
 ## 2. Analyze pipeline
 
@@ -147,7 +144,7 @@ EMBEDDING_DIMENSIONS=1536
 
 ## 3. Retrieval pipeline
 
-Trạng thái AI-04: đã có repository `search_similar_chunks` và endpoint `/v1/answer-question`. MVP hiện hỗ trợ stateless multi-turn bằng `history` trong request, compose extractive answer từ retrieved chunks; LLM generation có thể bổ sung sau.
+Trạng thái hiện tại: đã có repository `search_similar_chunks` và endpoint `/v1/answer-question`. MVP hiện hỗ trợ stateless multi-turn bằng `history` trong request, retrieval theo document scope, threshold filtering và grounded LLM generation từ retrieved chunks.
 
 ```txt
 question + optional history
@@ -185,9 +182,7 @@ Quy tắc:
 
 ## 4. RAG answer
 
-Status AI-09: `/v1/answer-question` supports stateless multi-turn RAG and grounded LLM generation.
-The service still retrieves context first and only sends retrieved chunks to the generation provider.
-Citations are still built from real `document_chunks` rows, not invented by the model.
+Trạng thái AI-09: `/v1/answer-question` hỗ trợ RAG nhiều lượt ở dạng stateless và grounded LLM generation. Service vẫn retrieval trước, chỉ gửi các chunks đã truy xuất cho generation provider. Citations vẫn lấy từ các row thật trong `document_chunks`, không để model tự tạo nguồn.
 
 ```txt
 question + history
