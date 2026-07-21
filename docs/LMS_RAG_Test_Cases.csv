@@ -1,0 +1,33 @@
+﻿ID Testcase,Nhóm Chức Năng,Tên Testcase,Tiền điều kiện & Các bước,Kết quả kỳ vọng,Mức độ,Trạng thái
+TC_AUTH_01,1. Authentication & Auth,Đăng nhập thành công (Teacher),Nhập Email & Password hợp lệ của tài khoản Teacher,"HTTP 200, nhận JWT Token, tự động điều hướng vào trang /library",High,Not Run
+TC_AUTH_02,1. Authentication & Auth,Đăng nhập sai thông tin,Nhập sai mật khẩu hoặc Email không tồn tại trong hệ thống,"HTTP 401/400, hiển thị thông báo lỗi 'Tài khoản hoặc mật khẩu không đúng'",High,Not Run
+TC_AUTH_03,1. Authentication & Auth,Đăng nhập tài khoản bị khóa,Nhập Email/Password của tài khoản ở trạng thái INACTIVE,"HTTP 403/401, từ chối cấp Token, thông báo 'Tài khoản bị khóa'",High,Not Run
+TC_AUTH_04,1. Authentication & Auth,Phân quyền URL Admin,"Đăng nhập vai trò Teacher, nhập trực tiếp đường dẫn /admin/reviews",HTTP 403 Forbidden hoặc tự động điều hướng về /library,Medium,Not Run
+TC_DOC_01,2. Upload & Metadata,Upload file PDF/TXT hợp lệ,"Tải file PDF < 20MB, điền đủ Subject, Topic, Chapter, Tags","HTTP 201/200. Document: publication_status=DRAFT, processing_status=UPLOADED -> ANALYZING",High,Not Run
+TC_DOC_02,2. Upload & Metadata,Upload file quá dung lượng (>20MB),Chọn file PDF kích thước 25MB để upload,Chặn ngay tại UI hoặc API trả 400 Payload Too Large,High,Not Run
+TC_DOC_03,2. Upload & Metadata,Upload sai định dạng file,"Chọn file .docx, .png hoặc .exe để upload",Chặn ngay tại UI với thông báo 'Chỉ hỗ trợ định dạng .pdf và .txt',Medium,Not Run
+TC_DOC_04,2. Upload & Metadata,Hủy tiến trình upload (Cancel XHR),Bấm nút 'Hủy tải lên' khi file đang truyền % trên màn hình,"Hủy kết nối XHR (abort), khôi phục giao diện, không tạo record rác trên server",Medium,Not Run
+TC_DOC_05,2. Upload & Metadata,Sửa Metadata khi ở DRAFT,"Chỉnh sửa Subject, Tags của Document ở trạng thái DRAFT",HTTP 200. Cập nhật metadata thành công mà không upload lại file,Medium,Not Run
+TC_DOC_06,2. Upload & Metadata,Thay thế file mới (Replace File),Chọn file PDF mới để thay thế cho Document DRAFT/REJECTED,"Thay thế file vật lý, kích hoạt lại ANALYZING, reset trạng thái can_rag",High,Not Run
+TC_AI_01,3. AI Processing Pipeline,Analyze tài liệu đọc được text,File PDF văn bản chuẩn (có trích xuất text),"processing_status -> ANALYZED, can_rag=true, cho phép bấm Submit Review",High,Not Run
+TC_AI_02,3. AI Processing Pipeline,Analyze file scan/rỗng,File PDF dạng ảnh quét không chứa text,"processing_status -> ANALYZED, can_rag=false, hiển thị cảnh báo không hỗ trợ RAG",Medium,Not Run
+TC_AI_03,3. AI Processing Pipeline,Index RAG tự động sau Approve,Admin Approve một Document PENDING_REVIEW,"Backend gọi AI process-document. processing_status: PROCESSING -> PROCESSED, lưu pgvector",High,Not Run
+TC_AI_04,3. AI Processing Pipeline,Reprocess RAG (Lập chỉ mục lại),Teacher sở hữu bấm nút 'Reprocess RAG',"processing_status: PROCESSING -> PROCESSED, cập nhật lại vector an toàn (Atomic Rollback)",High,Not Run
+TC_REV_01,4. Review Workflow,Teacher gửi kiểm duyệt,Owner chọn Document ANALYZED và bấm 'Submit for Review',publication_status: DRAFT -> PENDING_REVIEW. Khóa tính năng sửa file,High,Not Run
+TC_REV_02,4. Review Workflow,Admin Approve tài liệu,Admin xem chi tiết trong Queue và chọn Approve,publication_status: PENDING_REVIEW -> PUBLISHED. Tài liệu xuất hiện trong Library,High,Not Run
+TC_REV_03,4. Review Workflow,Admin Reject tài liệu,Admin chọn Reject và nhập lý do 'Nội dung chưa đạt',"publication_status: PENDING_REVIEW -> REJECTED, lưu rejection_reason",High,Not Run
+TC_REV_04,4. Review Workflow,Teacher sửa & Submit lại,"Owner xem lý do reject, chỉnh sửa file/metadata và submit lại",publication_status: REJECTED -> PENDING_REVIEW,High,Not Run
+TC_REV_05,4. Review Workflow,Admin Archive tài liệu,Admin chọn Archive một tài liệu đang PUBLISHED,publication_status: PUBLISHED -> ARCHIVED. Tài liệu bị ẩn khỏi Library,Medium,Not Run
+TC_LIB_01,5. Library & Filtering,Xem danh sách Thư viện chung,Giảng viên đăng nhập và truy cập trang /library,Chỉ hiển thị các tài liệu có publication_status = PUBLISHED,High,Not Run
+TC_LIB_02,5. Library & Filtering,Lọc theo Subject / Topic / Tags,Chọn bộ lọc Subject 'Lập trình Web' hoặc Tag 'React',Danh sách tài liệu tự động lọc chính xác theo tiêu chí,Medium,Not Run
+TC_LIB_03,5. Library & Filtering,Xem PDF Preview & Download,Bấm xem chi tiết hoặc tải file từ Library,Hiển thị PDF viewer xem trước và tải xuống file gốc thành công,Medium,Not Run
+TC_RAG_01,6. RAG Chat & Citations,Hỏi đáp RAG thành công,"Chọn 1-N tài liệu PUBLISHED & PROCESSED, đặt câu hỏi đúng ngữ cảnh","AI trả về câu trả lời chính xác kèm khối Citation trích dẫn Tên file, Trang số, Đoạn văn",High,Not Run
+TC_RAG_02,6. RAG Chat & Citations,Hỏi câu hỏi ngoài phạm vi tài liệu,Đặt câu hỏi không liên quan đến nội dung tài liệu đã chọn,AI phản hồi không tìm thấy thông tin trong tài liệu đã chọn (not_found),High,Not Run
+TC_RAG_03,6. RAG Chat & Citations,Hỏi trên tài liệu chưa PROCESSED,Truyền document_id chưa index RAG xong vào RAG Chat,Hệ thống từ chối API hoặc thông báo tài liệu đang trong quá trình xử lý AI,Medium,Not Run
+TC_RAG_04,6. RAG Chat & Citations,Duy trì lịch sử hỏi đáp (Multi-turn),Gửi câu hỏi tiếp nối: 'Chi tiết hơn về ý thứ hai',AI nhận đủ mảng history để trả lời chính xác ngữ cảnh hội thoại trước đó,High,Not Run
+TC_ADM_01,7. Admin Teacher Mgmt,Admin tạo tài khoản Teacher,Admin nhập thông tin tạo Teacher mới,"Tạo tài khoản thành công, cấp mật khẩu tạm thời",Medium,Not Run
+TC_ADM_02,7. Admin Teacher Mgmt,Admin khóa / mở khóa Teacher,Admin đổi trạng thái Teacher sang INACTIVE,"Trạng thái đổi thành INACTIVE, vô hiệu hóa Token của Teacher ngay lập tức",High,Not Run
+TC_ADM_03,7. Admin Teacher Mgmt,Admin Reset mật khẩu Teacher,Admin thực hiện Reset password cho Teacher,"Tạo mật khẩu mới thành công, Teacher dùng mật khẩu mới để login",Medium,Not Run
+TC_ERR_01,8. Negative & Edge Cases,Teacher xem DRAFT của người khác,Truy cập đường dẫn /my-documents/:id của giảng viên khác,"HTTP 403/404, hiển thị thông báo 'Bạn không có quyền truy cập'",High,Not Run
+TC_ERR_02,8. Negative & Edge Cases,Mất kết nối mạng khi xử lý,Ngắt kết nối mạng giữa chừng khi Upload / Reprocess,"Hiển thị thông báo lỗi kết nối và nút 'Thử lại' (Retry), không crash UI",Medium,Not Run
+TC_ERR_03,8. Negative & Edge Cases,Upload file trùng tên,Upload file trùng tên với file cũ trong thư mục,"Hệ thống lưu đính kèm timestamp versioning (version/source.pdf), không đè nhầm file",Medium,Not Run
