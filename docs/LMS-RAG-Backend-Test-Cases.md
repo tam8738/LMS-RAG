@@ -1,696 +1,382 @@
-# LMS-RAG Backend API - Test Case Document
+# LMS-RAG Backend API - Smoke Test Cases
 
-**Generated:** 2026-07-03  
-**Version:** 1.0  
-**Scope:** Authentication, Course CRUD, Lecture CRUD, Permission
+**Cập nhật:** 2026-07-21
+**Phiên bản:** 2.0
+**Scope hiện tại:** Authentication, Document MVP, Admin Review, Library, RAG, RAG Chat History
 
----
+> File này đã thay thế bản test-case cũ theo hướng Course/Lecture/Student. Core MVP hiện tại là document-centric: giảng viên upload tài liệu, Admin duyệt, AI index RAG và người dùng hỏi đáp theo tài liệu. Các test Course/Lecture/Student cũ không còn phản ánh source code hiện tại.
 
-## Table of Contents
+## 1. Điều kiện trước khi test
 
-1. [Authentication API](#1-authentication-api)
-2. [Course API](#2-course-api)
-3. [Lecture API](#3-lecture-api)
-4. [Test Execution Checklist](#4-test-execution-checklist)
+Chạy services chính:
 
----
-
-## Prerequisites
-
-### Create Test Users (SQL)
-
-Run this SQL in PostgreSQL before testing:
-
-```sql
--- Teacher (password = "password123")
-INSERT INTO users (email, password, name, role, status)
-VALUES ('teacher@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mqr9tm7Y1R2X7Z5V1F8Q3N.q5U1mK6G', 'Teacher A', 'TEACHER', 'ACTIVE');
-
--- Student (password = "password123")
-INSERT INTO users (email, password, name, role, status)
-VALUES ('student@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mqr9tm7Y1R2X7Z5V1F8Q3N.q5U1mK6G', 'Student A', 'STUDENT', 'ACTIVE');
+```powershell
+docker compose up -d postgres backend ai-service pgadmin
 ```
 
-### Environment Variables
+Kiểm tra container:
 
-| Variable | Description |
-|----------|-------------|
-| `TEACHER_TOKEN` | JWT token from Teacher login |
-| `STUDENT_TOKEN` | JWT token from Student login |
-| `COURSE_ID` | ID of created course |
-| `COURSE_CODE` | Auto-generated join code |
-| `LECTURE_ID` | ID of created lecture |
+```powershell
+docker compose ps
+```
 
----
+Backend local thường expose qua:
 
-## 1. Authentication API
+```txt
+http://localhost:8081
+```
 
-### 1.1 Teacher Login
+AI Service local thường expose qua:
 
-**Purpose:** Teacher dang nhap de lay JWT token.
+```txt
+http://localhost:8000
+```
 
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/auth/login` |
-| **Headers** | `Content-Type: application/json` |
+Tài khoản demo tùy theo seed DB hiện tại. Các tài khoản đã từng dùng trong repo:
 
-**Request Body:**
+```txt
+teacher.a@example.com / 123456
+teacher.b@example.com / 123456
+admin@example.com     / 123456
+```
+
+Nếu seed thay đổi, kiểm tra lại Flyway migration hoặc dữ liệu trong PostgreSQL.
+
+## 2. Authentication
+
+### AUTH-01 - Teacher login
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+```
+
+Request:
+
 ```json
 {
-  "email": "teacher@test.com",
-  "password": "password123"
+  "email": "teacher.a@example.com",
+  "password": "123456"
 }
 ```
 
-**Expected Response (200):**
+Expected:
+
+- HTTP 200.
+- Response có access token/JWT.
+- Response có thông tin user role `TEACHER`.
+
+### AUTH-02 - Admin login
+
+Tương tự AUTH-01 nhưng dùng tài khoản Admin.
+
+Expected:
+
+- HTTP 200.
+- User role là `ADMIN`.
+
+### AUTH-03 - Get current user
+
+```http
+GET /api/v1/auth/me
+Authorization: Bearer <token>
+```
+
+Expected:
+
+- HTTP 200.
+- Trả thông tin user đang đăng nhập.
+
+### AUTH-04 - Logout
+
+```http
+POST /api/v1/auth/logout
+Authorization: Bearer <token>
+```
+
+Expected:
+
+- HTTP 200.
+- Token hiện tại bị vô hiệu hóa theo cơ chế blacklist của Backend.
+
+## 3. Teacher Document Flow
+
+### DOC-01 - Upload PDF/TXT
+
+```http
+POST /api/v1/documents
+Authorization: Bearer <teacher_token>
+Content-Type: multipart/form-data
+```
+
+Multipart cần có:
+
+- `file`: PDF hoặc TXT.
+- `metadata`: JSON gồm `title`, `description`, `subject`, `topic`, `chapter`, `tags`.
+
+Expected:
+
+- HTTP 200/201 tùy implementation.
+- Tạo document mới với owner là Teacher hiện tại.
+- `publicationStatus` ban đầu là `DRAFT`.
+- Backend tạo job analyze và gọi AI Service ở background.
+
+### DOC-02 - List my documents
+
+```http
+GET /api/v1/my/documents?page=0&size=20
+Authorization: Bearer <teacher_token>
+```
+
+Expected:
+
+- Chỉ thấy tài liệu của chính Teacher đang đăng nhập.
+- Có `processingStatus` và `publicationStatus`.
+- Hỗ trợ filter/tìm kiếm nếu truyền `q`, `processingStatus`, `publicationStatus`, `subject`, `topic`, `chapter`, `tags`.
+
+### DOC-03 - Get my document detail
+
+```http
+GET /api/v1/my/documents/{documentId}
+Authorization: Bearer <teacher_token>
+```
+
+Expected:
+
+- Owner xem được detail.
+- Teacher khác không xem được draft/rejected/private document của người khác.
+
+### DOC-04 - Update metadata hoặc thay file
+
+```http
+PATCH /api/v1/my/documents/{documentId}
+Authorization: Bearer <teacher_token>
+Content-Type: multipart/form-data
+```
+
+Expected:
+
+- Owner cập nhật được khi trạng thái cho phép.
+- Nếu thay file, Backend tăng version/storage key và tạo lại analyze job.
+
+### DOC-05 - Submit review
+
+```http
+POST /api/v1/my/documents/{documentId}/submit-review
+Authorization: Bearer <teacher_token>
+```
+
+Expected:
+
+- Chỉ submit khi document đủ điều kiện theo Backend, thường là đã analyze xong.
+- `publicationStatus` chuyển sang `PENDING_REVIEW`.
+
+### DOC-06 - File content/download
+
+```http
+GET /api/v1/documents/{documentId}/content
+GET /api/v1/documents/{documentId}/download
+Authorization: Bearer <token>
+```
+
+Expected:
+
+- Content/download tuân theo permission trong `docs/API_ROLES.md`.
+- Public chỉ xem được nội dung document đã `PUBLISHED` nếu endpoint content cho phép.
+- Download yêu cầu đăng nhập.
+
+## 4. Admin Review Flow
+
+### ADM-01 - Review queue
+
+```http
+GET /api/v1/admin/reviews
+Authorization: Bearer <admin_token>
+```
+
+Expected:
+
+- Admin thấy danh sách tài liệu chờ duyệt.
+- Teacher không truy cập được.
+
+### ADM-02 - Review detail
+
+```http
+GET /api/v1/admin/reviews/{documentId}
+Authorization: Bearer <admin_token>
+```
+
+Expected:
+
+- Admin xem metadata, trạng thái xử lý, thông tin uploader và file.
+
+### ADM-03 - Approve document
+
+```http
+POST /api/v1/admin/reviews/{documentId}/approve
+Authorization: Bearer <admin_token>
+```
+
+Expected:
+
+- `publicationStatus` chuyển sang `PUBLISHED`.
+- Backend kích hoạt AI index RAG ở background.
+- Sau khi index xong, `processingStatus` là `PROCESSED`.
+- Tài liệu xuất hiện trong Library.
+
+### ADM-04 - Reject document
+
+```http
+POST /api/v1/admin/reviews/{documentId}/reject
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+Request:
+
 ```json
 {
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs..."
-  },
-  "message": "Dang nhap thanh cong"
+  "reason": "Lý do từ chối"
 }
 ```
 
-**Note:** Save `token` to `TEACHER_TOKEN` environment variable.
+Expected:
 
----
+- `publicationStatus` chuyển sang `REJECTED`.
+- Teacher owner thấy lý do từ chối.
 
-### 1.2 Student Login
+## 5. Library và RAG
 
-**Purpose:** Student dang nhap de lay JWT token.
+### LIB-01 - List published documents
 
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/auth/login` |
-| **Headers** | `Content-Type: application/json` |
+```http
+GET /api/v1/library?page=0&size=20
+```
 
-**Request Body:**
+Expected:
+
+- Chỉ trả document `PUBLISHED`.
+- Hỗ trợ filter theo metadata.
+
+### LIB-02 - Library detail
+
+```http
+GET /api/v1/library/{documentId}
+```
+
+Expected:
+
+- Public/Teacher/Admin xem được document đã công bố.
+- Không trả draft/rejected/archived.
+
+### RAG-01 - Ask RAG legacy proxy
+
+```http
+POST /api/v1/rag/answer
+Authorization: Bearer <teacher_or_admin_token>
+Content-Type: application/json
+```
+
+Request:
+
 ```json
 {
-  "email": "student@test.com",
-  "password": "password123"
+  "documentIds": [1],
+  "question": "Tóm tắt nội dung chính của tài liệu?",
+  "topK": 5,
+  "language": "vi"
 }
 ```
 
-**Expected Response (200):**
+Expected:
+
+- Backend kiểm tra document đã `PUBLISHED` và `PROCESSED` trước khi gọi AI.
+- Nếu có context phù hợp, trả answer + citations từ chunks thật.
+- Nếu không có context phù hợp, trả `notFound=true` và `citations=[]`.
+
+## 6. RAG Chat History / Resume
+
+### HIST-01 - Get or create conversation by document
+
+```http
+GET /api/v1/rag/conversations/by-document/{documentId}
+Authorization: Bearer <teacher_or_admin_token>
+```
+
+Expected:
+
+- Tạo conversation nếu chưa có.
+- Trả messages đã lưu nếu user từng hỏi trên document này.
+- Conversation scope theo user + document.
+
+### HIST-02 - Send message via conversation
+
+```http
+POST /api/v1/rag/conversations/{conversationId}/messages
+Authorization: Bearer <teacher_or_admin_token>
+Content-Type: application/json
+```
+
+Request:
+
 ```json
 {
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs..."
-  },
-  "message": "Dang nhap thanh cong"
+  "question": "Nói chi tiết hơn về ý vừa rồi",
+  "topK": 5,
+  "language": "vi"
 }
 ```
 
-**Note:** Save `token` to `STUDENT_TOKEN` environment variable.
+Expected:
 
----
+- Backend lưu user message.
+- Backend gửi history gần nhất sang AI Service.
+- Backend lưu assistant message với answer/citations/notFound/tokensUsed.
+- Reload trang vẫn thấy lại cả user và assistant message.
 
-## 2. Course API
+### HIST-03 - Clear conversation messages
 
-### 2.1 Create Course (Teacher)
-
-**Purpose:** Teacher tao course moi. He thong tu dong sinh courseCode duy nhat.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/courses` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-| | `Content-Type: application/json` |
-
-**Request Body:**
-```json
-{
-  "name": "Lap trinh Java nang cao",
-  "description": "Khoa hoc Spring Boot, JPA, Security",
-  "status": "PRIVATE"
-}
+```http
+DELETE /api/v1/rag/conversations/{conversationId}/messages
+Authorization: Bearer <teacher_or_admin_token>
 ```
 
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Lap trinh Java nang cao",
-    "description": "Khoa hoc Spring Boot, JPA, Security",
-    "courseCode": "A1B2C3D4",
-    "status": "PRIVATE",
-    "createdById": 1,
-    "createdByName": "Teacher A",
-    "createdAt": "2026-07-03T12:00:00Z",
-    "updatedAt": "2026-07-03T12:00:00Z"
-  },
-  "message": "Tao khoa hoc thanh cong"
-}
-```
-
-**Note:** Save `id` to `COURSE_ID` and `courseCode` to `COURSE_CODE`.
-
----
-
-### 2.2 Get My Courses (Teacher)
-
-**Purpose:** Teacher xem danh sach course do minh tao.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/courses` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "name": "Lap trinh Java nang cao",
-      "courseCode": "A1B2C3D4",
-      "status": "PRIVATE",
-      "createdById": 1,
-      "createdByName": "Teacher A"
-    }
-  ]
-}
-```
-
----
-
-### 2.3 Get Course By ID (Teacher - Owner)
-
-**Purpose:** Teacher xem chi tiet course do minh tao.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/courses/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Lap trinh Java nang cao",
-    "courseCode": "A1B2C3D4",
-    "status": "PRIVATE",
-    "createdById": 1,
-    "createdByName": "Teacher A",
-    "createdAt": "2026-07-03T12:00:00Z",
-    "updatedAt": "2026-07-03T12:00:00Z"
-  }
-}
-```
-
----
-
-### 2.4 Get Course By ID (Student - Not Joined → 403)
-
-**Purpose:** Student chua join course → bi tu choi truy cap.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/courses/1` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (403):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "COURSE_ACCESS_DENIED",
-    "message": "You do not have permission to access this course"
-  }
-}
-```
-
----
-
-### 2.5 Student Join Course
-
-**Purpose:** Student tham gia course bang ma lop.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/courses/join/A1B2C3D4` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Lap trinh Java nang cao",
-    "courseCode": "A1B2C3D4",
-    "status": "PRIVATE"
-  },
-  "message": "Tham gia khoa hoc thanh cong"
-}
-```
-
----
-
-### 2.6 Get My Courses (Student - After Join)
-
-**Purpose:** Student xem danh sach course da tham gia.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/courses` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "name": "Lap trinh Java nang cao",
-      "courseCode": "A1B2C3D4",
-      "status": "PRIVATE"
-    }
-  ]
-}
-```
-
----
-
-### 2.7 Get Course By ID (Student - Joined)
-
-**Purpose:** Student da join → duoc xem chi tiet course.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/courses/1` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Lap trinh Java nang cao",
-    "courseCode": "A1B2C3D4",
-    "status": "PRIVATE"
-  }
-}
-```
-
----
-
-### 2.8 Student Join Again (Duplicate → 400)
-
-**Purpose:** Student join lai course da tham gia → loi.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/courses/join/A1B2C3D4` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (400):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "COURSE_MEMBER_ALREADY_JOINED",
-    "message": "You have already joined this course"
-  }
-}
-```
-
----
-
-### 2.9 Update Course (Teacher)
-
-**Purpose:** Teacher cap nhat course do minh tao.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `PUT` |
-| **URL** | `http://localhost:8080/api/v1/courses/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-| | `Content-Type: application/json` |
-
-**Request Body:**
-```json
-{
-  "name": "Lap trinh Java nang cao - Da cap nhat",
-  "description": "Them bai hoc ve Docker",
-  "status": "PUBLISH"
-}
-```
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Lap trinh Java nang cao - Da cap nhat",
-    "description": "Them bai hoc ve Docker",
-    "status": "PUBLISH",
-    "courseCode": "A1B2C3D4"
-  },
-  "message": "Cap nhat khoa hoc thanh cong"
-}
-```
-
----
-
-### 2.10 Delete Course (Teacher)
-
-**Purpose:** Teacher xoa course do minh tao.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `DELETE` |
-| **URL** | `http://localhost:8080/api/v1/courses/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": null,
-  "message": "Xoa khoa hoc thanh cong"
-}
-```
-
-**Note:** Course da bi xoa. Can tao lai course truoc khi test Lecture API.
-
----
-
-### 2.11 Create Course (Student → 403)
-
-**Purpose:** Student khong co quyen tao course.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/courses` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-| | `Content-Type: application/json` |
-
-**Request Body:**
-```json
-{
-  "name": "Hack course",
-  "description": "Test"
-}
-```
-
-**Expected Response (403):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Access denied"
-  }
-}
-```
-
----
-
-## 3. Lecture API
-
-**Note:** Tao lai course truoc khi test Lecture (vi course da bi xoa o test 2.10).
-
-### 3.1 Create Lecture (Teacher)
-
-**Purpose:** Teacher tao lecture trong course cua minh.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `POST` |
-| **URL** | `http://localhost:8080/api/v1/lectures` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-| | `Content-Type: application/json` |
-
-**Request Body:**
-```json
-{
-  "title": "Bai 1: Gioi thieu Spring Boot",
-  "content": "Noi dung bai giang chi tiet ve Spring Boot...",
-  "orderIndex": 1,
-  "courseId": 1
-}
-```
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "title": "Bai 1: Gioi thieu Spring Boot",
-    "content": "Noi dung bai giang chi tiet ve Spring Boot...",
-    "orderIndex": 1,
-    "courseId": 1,
-    "courseName": "Lap trinh Java nang cao"
-  },
-  "message": "Tao bai giang thanh cong"
-}
-```
-
-**Note:** Save `id` to `LECTURE_ID`.
-
----
-
-### 3.2 Get Lectures By Course (Teacher)
-
-**Purpose:** Teacher xem danh sach lecture trong course.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/lectures/course/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "title": "Bai 1: Gioi thieu Spring Boot",
-      "orderIndex": 1,
-      "courseId": 1,
-      "courseName": "Lap trinh Java nang cao"
-    }
-  ]
-}
-```
-
----
-
-### 3.3 Get Lectures By Course (Student - Joined)
-
-**Purpose:** Student xem lecture trong course da tham gia.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/lectures/course/1` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "title": "Bai 1: Gioi thieu Spring Boot",
-      "orderIndex": 1,
-      "courseId": 1,
-      "courseName": "Lap trinh Java nang cao"
-    }
-  ]
-}
-```
-
----
-
-### 3.4 Get Lectures By Course (Student - Not Joined → 403)
-
-**Purpose:** Student chua join course → bi tu choi.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/lectures/course/2` |
-| **Headers** | `Authorization: Bearer {STUDENT_TOKEN}` |
-
-**Expected Response (403):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "COURSE_ACCESS_DENIED",
-    "message": "You do not have permission to access this course"
-  }
-}
-```
-
----
-
-### 3.5 Get Lecture By ID
-
-**Purpose:** Xem chi tiet mot lecture.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `GET` |
-| **URL** | `http://localhost:8080/api/v1/lectures/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "title": "Bai 1: Gioi thieu Spring Boot",
-    "content": "Noi dung bai giang chi tiet ve Spring Boot...",
-    "orderIndex": 1,
-    "courseId": 1,
-    "courseName": "Lap trinh Java nang cao"
-  }
-}
-```
-
----
-
-### 3.6 Update Lecture (Teacher)
-
-**Purpose:** Teacher cap nhat lecture.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `PUT` |
-| **URL** | `http://localhost:8080/api/v1/lectures/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-| | `Content-Type: application/json` |
-
-**Request Body:**
-```json
-{
-  "title": "Bai 1: Gioi thieu Spring Boot (Da cap nhat)",
-  "content": "Noi dung moi...",
-  "orderIndex": 1,
-  "courseId": 1
-}
-```
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "title": "Bai 1: Gioi thieu Spring Boot (Da cap nhat)",
-    "content": "Noi dung moi...",
-    "orderIndex": 1,
-    "courseId": 1,
-    "courseName": "Lap trinh Java nang cao"
-  },
-  "message": "Cap nhat bai giang thanh cong"
-}
-```
-
----
-
-### 3.7 Delete Lecture (Teacher)
-
-**Purpose:** Teacher xoa lecture.
-
-| Field | Value |
-|-------|-------|
-| **Method** | `DELETE` |
-| **URL** | `http://localhost:8080/api/v1/lectures/1` |
-| **Headers** | `Authorization: Bearer {TEACHER_TOKEN}` |
-
-**Expected Response (200):**
-```json
-{
-  "success": true,
-  "data": null,
-  "message": "Xoa bai giang thanh cong"
-}
-```
-
----
-
-## 4. Test Execution Checklist
-
-| # | Test Case | Role | Expected | Status |
-|---|-----------|------|----------|--------|
-| 1.1 | Teacher Login | Teacher | 200 + token | [ ] |
-| 1.2 | Student Login | Student | 200 + token | [ ] |
-| 2.1 | Create Course | Teacher | 200 + courseCode | [ ] |
-| 2.2 | Get My Courses | Teacher | 200 + list | [ ] |
-| 2.3 | Get Course By ID | Teacher | 200 | [ ] |
-| 2.4 | Get Course By ID (not joined) | Student | 403 | [ ] |
-| 2.5 | Join Course | Student | 200 | [ ] |
-| 2.6 | Get My Courses (after join) | Student | 200 + has course | [ ] |
-| 2.7 | Get Course By ID (joined) | Student | 200 | [ ] |
-| 2.8 | Join Again | Student | 400 | [ ] |
-| 2.9 | Update Course | Teacher | 200 | [ ] |
-| 2.10 | Delete Course | Teacher | 200 | [ ] |
-| 2.11 | Create Course | Student | 403 | [ ] |
-| 3.1 | Create Lecture | Teacher | 200 | [ ] |
-| 3.2 | Get Lectures By Course | Teacher | 200 | [ ] |
-| 3.3 | Get Lectures By Course | Student | 200 | [ ] |
-| 3.4 | Get Lectures (not joined) | Student | 403 | [ ] |
-| 3.5 | Get Lecture By ID | Teacher | 200 | [ ] |
-| 3.6 | Update Lecture | Teacher | 200 | [ ] |
-| 3.7 | Delete Lecture | Teacher | 200 | [ ] |
-
----
-
-## Notes
-
-- **Chay test theo thu tu** tu tren xuong. Cac request sau dung bien tu request truoc.
-- **Neu test 2.10 (Delete Course) chay truoc**, can tao lai course truoc khi test Lecture API.
-- **Loi 500:** Kiem tra log Spring Boot de xem chi tiet.
-- **N+1 Query:** Da fix bang `@EntityGraph`, chi con 1-2 query cho moi request.
-
----
-
-## Architecture Notes
-
-### Security Flow
-```
-Request → JwtAuthenticationFilter → @PreAuthorize → Service Layer (assertCourseAccess)
-```
-
-### N+1 Prevention
-```
-@EntityGraph(attributePaths = "course")     // LectureRepository
-@EntityGraph(attributePaths = "createdBy")  // CourseRepository
-```
-
-### Mapper Pattern
-```
-Service → Mapper.toResponse(entity) → DTO → Controller → ApiResponse<T>
-```
+Expected:
+
+- Chỉ owner conversation được clear.
+- Reload xong messages rỗng.
+
+## 7. Admin Teacher Management
+
+> Phần này theo assumption/plan hiện tại của nhóm: Admin quản lý giảng viên đã hoặc sẽ được triển khai ở mức cơ bản. Nếu code local chưa có đủ endpoint, ưu tiên kiểm tra `docs/14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md` và `docs/BE09_TEACHER_MANAGEMENT_DESIGN.md`.
+
+Các test tối thiểu nên có:
+
+- Admin xem danh sách Teacher.
+- Admin xem chi tiết Teacher.
+- Mỗi Teacher có số tài liệu đã upload.
+- Admin tạo Teacher mới nếu endpoint được bật.
+- Admin activate/deactivate Teacher nếu endpoint được bật.
+- Teacher thường không truy cập được màn/API quản lý Teacher.
+
+## 8. Manual E2E checklist
+
+- [ ] Teacher A login.
+- [ ] Teacher A upload PDF/TXT không chọn Course/Lecture.
+- [ ] Document được analyze và chuyển trạng thái phù hợp.
+- [ ] Teacher A submit review.
+- [ ] Admin login và approve document.
+- [ ] AI index xong, document là `PUBLISHED + PROCESSED`.
+- [ ] Teacher B thấy document trong Library.
+- [ ] Teacher B hỏi RAG và nhận answer/citation.
+- [ ] Teacher B reload trang và thấy lại lịch sử hỏi đáp.
+- [ ] Teacher B hỏi câu follow-up, AI hiểu ngữ cảnh gần nhất.
+- [ ] Câu hỏi không liên quan trả not-found và không hiển thị citations.
+- [ ] Clear history xong reload không còn messages.
+
+## 9. Ghi chú
+
+- Không dùng các endpoint Course/Lecture/Student cũ để đánh giá MVP hiện tại.
+- Frontend không gọi AI Service trực tiếp; mọi request nghiệp vụ đi qua Backend.
+- AI Service không kiểm JWT/role; Backend chịu trách nhiệm permission.
+- Với lỗi 500/502, kiểm tra log Backend trước, sau đó kiểm tra log AI Service nếu lỗi phát sinh từ RAG/index.

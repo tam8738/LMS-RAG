@@ -1,7 +1,7 @@
 # Kế hoạch triển khai MVP document-centric
 
-**Phiên bản:** 1.7
-**Cập nhật:** 14/07/2026
+**Phiên bản:** 1.8
+**Cập nhật:** 21/07/2026
 **Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI analyze -> Teacher submit review -> Admin approve -> AI index RAG -> Library -> RAG citation
 
 ## 1. Scope đã khóa
@@ -65,43 +65,36 @@ Teacher A login
 
 ### Backend hiện có
 
-- Spring Boot project.
-- JWT login cơ bản.
-- `users` entity/repository/service.
-- `UserRole`, `UserStatus`.
-- `ApiResponse`, exception handler.
-- `Document`, `DocumentProcessingJob` entity/repository/service/controller.
-- Upload API, My Documents API, Admin review API, Library API.
-- `AiServiceClient` gọi AI Service `/v1/analyze-document` bất đồngộ.
-- Flyway migrations V1-V4.
-
-### Backend chưa có
-
-- RAG proxy API (`/api/v1/rag/answer`).
-- Admin Teacher management API (BE-09, should-have).
-- Migration/index RAG sau admin approve (gọi `/v1/index-document`).
+- Spring Boot project với JWT login, logout blacklist và phân quyền Teacher/Admin.
+- Entity/repository/service/controller cho `Document`, `DocumentProcessingJob`, review, Library và RAG.
+- Upload API, My Documents API, Admin review API, Library API, file content/download.
+- Backend RAG proxy `POST /api/v1/rag/answer` và conversation endpoints cho resume chat.
+- `AiServiceClient` gọi AI Service `/v1/analyze-document`, `/v1/index-document` và `/v1/answer-question`.
+- Flyway migrations cho users, documents, jobs, chunks và RAG conversation history.
+- Admin Teacher management được theo dõi là phần P1/should-have; trạng thái triển khai thực tế cần đối chiếu branch/code mới nhất trước khi demo.
 
 ### Frontend hiện có
 
-- Chưa có ứng dụng FE hoàn chỉnh.
+- React + Vite app với route/auth guard/API client.
+- Các màn chính: Login, Library, Library detail/RAG, My Documents, Upload, My Document detail, Admin Review.
+- RAG chat panel đã có load/resume messages, send qua conversation endpoint, clear persisted history, citation UI và not-found state.
+- Một số API hồ sơ người dùng như profile/change password cần đồng bộ Backend nếu tiếp tục giữ trong UI.
 
 ### AI Service hiện có
 
-- FastAPI base.
-- Storage resolver, file validator.
-- PDF/TXT parser.
-- Text cleaning/chunking.
-- Embedding provider.
-- Repository lưu chunks vào pgvector.
+- FastAPI base với internal key dependency.
+- Storage resolver, file validator, PDF/TXT parser, text cleaning/chunking.
+- OpenAI embedding provider và repository lưu chunks vào pgvector.
 - `/v1/analyze-document` để đánh giá khả năng RAG.
-- `/v1/index-document` để tạo chunks/embedding sau khi Admin approve; endpoint này dùng lại `ProcessDocumentService`.
-- `/v1/answer-question` để trả lời câu hỏi dựa trên retrieval.
+- `/v1/index-document` để tạo chunks/embedding sau khi Admin approve.
+- `/v1/answer-question` để retrieval theo `document_ids`, lọc threshold, dùng grounded LLM generation khi có context, trả citations từ chunk thật.
+- Hỗ trợ `history` stateless để trả lời câu hỏi nối tiếp; AI Service không lưu conversation.
 
-### AI Service còn cần chỉnh theo scope mới
+### Phần còn thiếu đáng chú ý
 
-- Chưa có LLM generation/chat provider riêng; MVP answer vẫn là extractive answer.
-- Có thể tối ưu retrieval theo `document_ids` nếu contract BE thay đổi.
-
+- API sinh quiz chuyên biệt từ tài liệu chưa có trong AI Service.
+- Chưa có luồng Teacher review/chỉnh sửa quiz trước khi public và trang Student làm quiz.
+- Cần chạy lại E2E tích hợp đầy đủ sau mỗi lần pull/build để xác nhận Docker, Backend, FE và AI cùng khớp contract.
 ## 4. Task graph tổng quan
 
 ```txt
@@ -156,27 +149,27 @@ Quy ước trạng thái:
 | BE-RAG-HIST-03 - Conversation service + permission checks | Tâm | P0 | BE-RAG-HIST-02 | DONE | `RagConversationService.getOrCreateConversation`, `getMessages`, `clearMessages` với kiểm tra document `PUBLISHED` + `PROCESSED` và ownership conversation |
 | BE-RAG-HIST-04 - Persist send-message flow + AI call | Tâm | P0 | BE-RAG-HIST-03 | DONE | `sendMessage` lưu user message, lấy 6 messages gần nhất làm history, gọi AI `/v1/answer-question`, lưu assistant message + citations + `notFound` + `tokensUsed`; giữ `POST /api/v1/rag/answer` cũ để backward compatibility |
 | BE-RAG-HIST-05 - Clear history + tests | Tâm | P0 | BE-RAG-HIST-04 | DONE | `DELETE /api/v1/rag/conversations/{id}/messages` xóa messages và reset counters; unit test `RagConversationServiceTest` 14 cases pass |
-| BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | SHOULD_HAVE | Không chặn core demo |
+| BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | IN_PROGRESS | Theo dõi qua `14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md` và `BE09_TEACHER_MANAGEMENT_DESIGN.md`; cần đối chiếu code/branch mới nhất trước demo |
 
 ### 6.2. Frontend tasks
 
 | Task | Owner | Priority | Depends on | Trạng thái | Ghi chú tracking |
 |---|---|---:|---|---|---|
-| FE-01 - App shell/route guard/API client | Việt | P0 | Auth contract | TODO | Frontend hiện chưa có app hoàn chỉnh |
-| FE-02 - Login screen | Việt | P0 | FE-01, Auth API | TODO | Cần redirect theo role |
-| FE-03 - Library list/filter | Việt | P0 | FE-01, BE-07 | TODO | Filter theo metadata document |
-| FE-04 - Library detail/RAG UI | Việt | P0 | FE-03, BE-08 | TODO | Hiển thị answer + citations |
+| FE-01 - App shell/route guard/API client | Việt | P0 | Auth contract | DONE | React/Vite app, API client và route guard đã có |
+| FE-02 - Login screen | Việt | P0 | FE-01, Auth API | DONE | Login UI đã nối Backend auth và lưu token/user |
+| FE-03 - Library list/filter | Việt | P0 | FE-01, BE-07 | DONE | Library list/filter đã có trong FE |
+| FE-04 - Library detail/RAG UI | Việt | P0 | FE-03, BE-08 | DONE | RAG chat UI đã có answer, citations, not-found và resume history |
 | FE-RAG-HIST-01 - Conversation API client/types | Việt | P0 | BE-RAG-HIST-03 | DONE | Đã thêm types và `ragService` methods cho get-or-create conversation, send conversation message, clear conversation messages; được dùng bởi FE-RAG-HIST-02/03 |
 | FE-RAG-HIST-02 - Load/resume messages | Việt | P0 | FE-RAG-HIST-01 | DONE | `RagChatPanel` load persisted conversation khi document đủ điều kiện RAG, render lại messages/citations/not_found, có loading/error/retry state; `npm run build` pass |
 | FE-RAG-HIST-03 - Send qua persisted conversation | Việt | P0 | FE-RAG-HIST-02, BE-RAG-HIST-04 | DONE | `RagChatPanel` gửi câu hỏi qua conversation endpoint mới, dùng response persisted user/assistant messages và không tự build `history` cho BE nữa |
 | FE-RAG-HIST-04 - Clear persisted history | Việt | P1 | FE-RAG-HIST-03, BE-RAG-HIST-05 | DONE | Nút clear chat confirm nhẹ, gọi Backend xóa persisted messages, reset UI sau success và giữ messages nếu clear fail |
 | FE-RAG-HIST-05 - UX polish/history states | Việt | P1 | FE-RAG-HIST-03 | DONE | Thêm timestamp nhỏ, placeholder/disabled states khi conversation chưa sẵn sàng/đang clear, force scroll xuống cuối sau resume, giữ not_found không hiện citations |
-| FE-05 - My Documents list | Việt | P0 | FE-01, BE-05 | TODO | Hiển thị processing/publication status |
-| FE-06 - Upload Document screen | Việt | P0 | FE-05, BE-03 | TODO | Form metadata, không có Course/Lecture select |
-| FE-07 - My Document detail | Việt | P0 | FE-05, BE-05 | TODO | Submit/reprocess/edit metadata |
-| FE-08 - Admin review queue | Việt | P0 | FE-01, BE-06 | TODO | Chỉ Admin truy cập |
-| FE-09 - Admin review detail | Việt | P0 | FE-08, BE-06 | TODO | Approve/reject với reason |
-| FE-10 - Admin Teacher management | Việt | P1 | BE-09 | SHOULD_HAVE | Không chặn core demo |
+| FE-05 - My Documents list | Việt | P0 | FE-01, BE-05 | DONE | Danh sách tài liệu của Teacher đã có status/filter/action cơ bản |
+| FE-06 - Upload Document screen | Việt | P0 | FE-05, BE-03 | DONE | Upload PDF/TXT với metadata, không dùng Course/Lecture select |
+| FE-07 - My Document detail | Việt | P0 | FE-05, BE-05 | DONE | Detail tài liệu, action owner, xem/tải file và RAG khi đủ điều kiện |
+| FE-08 - Admin review queue | Việt | P0 | FE-01, BE-06 | DONE | Admin review queue đã có UI |
+| FE-09 - Admin review detail | Việt | P0 | FE-08, BE-06 | DONE | Admin approve/reject document đã có UI |
+| FE-10 - Admin Teacher management | Việt | P1 | BE-09 | IN_PROGRESS | Theo plan quản lý giảng viên; cần đối chiếu branch/code mới nhất trước demo |
 
 ### 6.3. AI tasks
 
@@ -184,7 +177,7 @@ Quy ước trạng thái:
 |---|---|---:|---|---|---|
 | AI-01 - Align process-document contract v1.4 | Khánh | P0 | Schema contract | DONE | Đã bỏ `lecture_id`, thêm optional metadata, repository insert theo schema mới; Docker test thật đã gọi `/v1/process-document` với `document_id=2`, AI đọc `documents/2/v1/source.txt`, trả `PROCESSED`, `page_count=1`, `chunk_count=1` |
 | AI-02 - Retrieval repository theo document_ids | Khánh | P0 | BE-01, AI-01 | DONE | Đã thêm `RetrievedDocumentChunk`, `search_similar_chunks`, query pgvector theo `document_ids`; đã xác nhận `document_chunks` có row thật cho `document_id=2` sau process |
-| AI-03 - Answer question endpoint | Khanh | P0 | AI-02 | DONE | Added `/v1/answer-question`, embedding retrieval, threshold/not_found, citations; original implementation was extractive, later AI-09 adds grounded LLM generation. |
+| AI-03 - Answer question endpoint | Khanh | P0 | AI-02 | DONE | Đã có `/v1/answer-question`, embedding retrieval, threshold/not_found và citations; AI-09 đã bổ sung grounded LLM generation sau retrieval. |
 | AI-04 - Index document endpoint | Khánh | P0 | AI-01 | DONE | Đã thêm `/v1/index-document` dùng chung `ProcessDocumentService` với legacy `/v1/process-document`; phục vụ flow Admin approve -> index RAG -> lưu `document_chunks` |
 | AI-05 - RAG index safety hardening | Khánh | P0 | AI-04 | DONE | Đã map lỗi FK khi document bị xóa trong lúc index thành `DOCUMENT_DELETED_DURING_INDEX`; giữ atomic replace chunks; `pytest tests/test_document_chunk_repository.py` pass 15 tests + 6 subtests |
 | AI-06 - RAG retrieval quality threshold | Khánh | P0 | AI-03 | DONE | Thêm `RAG_SIMILARITY_THRESHOLD=0.65`; lọc chunks dưới threshold trước khi compose answer/citation; regression `answer_question + document_chunk + process_document` pass 42 tests + 12 subtests |
@@ -203,9 +196,9 @@ Quy ước trạng thái:
 | DOCS-01 - Cập nhật docs document-centric | Khánh | P0 | Quyết định scope | DONE | PRD, integration, schema contract, backend DB guide, AI contract, implementation plan đã cập nhật |
 | INFRA-01 - Docker/shared volume | Tâm + Khánh | P0 | BE-03, AI-01 | DONE | `docker-compose.yml` đã có `postgres`, `backend`, `ai-service`, `pgadmin`, volume `uploads`; Backend mount `/storage/uploads` read-write, AI mount read-only; đã test cùng một file tồn tại trong cả hai container |
 | INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
-| INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | IN_PROGRESS | Review -> Library đã test bằng cách set `PROCESSED` thủ công; Backend RAG proxy `POST /api/v1/rag/answer` đã có; RAG đã test trực tiếp qua AI `/v1/answer-question`; còn thiếu Frontend và E2E không can thiệp DB |
-| INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-05 | TODO | Backend API, AI stateless history và FE send/resume/clear/polish đã sẵn sàng; còn chạy E2E ask -> reload -> resume -> follow-up -> clear |
-| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | TODO | Chạy kịch bản Teacher A/Admin/Teacher B |
+| INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | DONE | Backend/AI/FE đã có luồng review, library và RAG chat; cần tiếp tục smoke test sau mỗi pull/build |
+| INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-05 | DONE | Đã có Backend persistence, AI stateless history và FE resume/clear; đã manual test reload/tiếp tục hội thoại ổn |
+| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | IN_PROGRESS | Cần chốt kịch bản demo cuối cùng, đặc biệt phần sinh quiz nếu đưa vào phạm vi trình bày |
 
 ### 6.5. Cách cập nhật bảng tracking
 
@@ -251,8 +244,8 @@ Blocker tại thời điểm snapshot 11/07:
 BE-04 đang cần chốt: Backend upload xong gọi AI `/v1/analyze-document` và cập nhật `ANALYZED/FAILED`.
 BE-05 đang cần chốt: submit review phải yêu cầu `ANALYZED`, không yêu cầu `PROCESSED`.
 BE-06 chưa hoàn chỉnh: Admin approve cần trigger index RAG (`/v1/index-document`) và cập nhật `PROCESSED/FAILED` sau index.
-BE-08 chưa có: Backend chưa có RAG proxy `/api/v1/rag/answer` để kiểm quyền rồi gọi AI.
-Frontend chưa có app để chạy demo UI.
+BE-08 đã có: Backend RAG proxy `/api/v1/rag/answer` kiểm quyền rồi gọi AI Service.
+Frontend đã có app React/Vite để chạy demo UI; cần build/test lại sau mỗi lần pull.
 ```
 
 Ghi chú cập nhật 14/07: các blocker Backend BE-04/05/06/08 ở snapshot này đã được hoàn thành. Trạng thái hiện tại xem bảng tracking mục 6.1 và snapshot 6.8.
@@ -306,12 +299,12 @@ Blocker tại thời điểm snapshot 12/07:
 BE-04 đang adjust: analyze success phải cập nhật ANALYZED thay vì PROCESSED.
 BE-05 đang adjust: submit review yêu cầu ANALYZED thay vì PROCESSED.
 BE-06 đang adjust: approve phải gọi /v1/index-document và cập nhật PROCESSED sau index.
-BE-08 chưa có: Backend chưa có RAG proxy /api/v1/rag/answer.
+BE-08 đã có: Backend RAG proxy `/api/v1/rag/answer` đã được triển khai.
 AI Service đã có `/v1/index-document`; endpoint này reuse logic `/v1/process-document` để index RAG sau Admin approve.
-Frontend chưa có app để chạy demo UI.
+Frontend đã có app React/Vite để chạy demo UI; cần build/test lại sau mỗi lần pull.
 ```
 
-Ghi chú cập nhật 14/07: BE-04/05/06/08 đã DONE; Backend RAG proxy `POST /api/v1/rag/answer` đã có và đã test qua Docker. Phần còn lại cho INT-02 là Frontend nối API thật và E2E không can thiệp DB.
+Ghi chú cập nhật 21/07: BE/AI/FE cho luồng Document -> Review -> Library -> RAG đã có. Phần còn lại là smoke test lại sau mỗi lần pull/build và hoàn thiện tính năng sinh quiz nếu đưa vào demo.
 
 ### 6.8. Snapshot kiểm thử thực tế 14/07/2026
 
@@ -345,8 +338,8 @@ Các bước đã pass:
 Blocker còn lại cho core E2E:
 
 ```txt
-Frontend chưa có app để chạy demo UI.
-BE-09 Admin Teacher management là SHOULD_HAVE, không chặn core demo.
+Frontend đã có app React/Vite để chạy demo UI; cần build/test lại sau mỗi lần pull.
+BE-09 Admin Teacher management là P1/should-have; theo dõi trong plan riêng và cần đối chiếu code mới nhất trước demo.
 ```
 
 Kết luận snapshot:
@@ -373,7 +366,7 @@ Thiếu Frontend để demo E2E hoàn chỉnh.
 - TIP-ID: BE-01
 - Owner: Tâm
 - Priority: P0
-- Depends on: `docs/05_DATABASE_SCHEMA.md`, `docs/07_BACKEND_DATABASE_SCHEMA_GUIDE.md`
+- Depends on: `docs/05_DATABASE_SCHEMA_CONTRACT.md`, `docs/07_BACKEND_DATABASE_SCHEMA_GUIDE.md`
 - Concurrency: EXCLUSIVE
 - Estimate: 0.5-1 ngày
 
@@ -1306,7 +1299,7 @@ Việc đã làm:
 - Thêm route `/v1/answer-question` có `X-Internal-Key` giống các internal API khác.
 - Trả `not_found=true` nếu retrieval không có chunk.
 - Trả citations dựa trên row thật từ `document_chunks`, không tạo citation giả.
-- MVP hiện dùng extractive answer từ retrieved chunks; chưa thêm LLM generation/chat provider.
+- MVP hiện dùng grounded LLM generation sau retrieval; answer chỉ được sinh từ retrieved chunks và citations thật.
 
 Response có:
 
