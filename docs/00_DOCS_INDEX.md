@@ -106,6 +106,16 @@ tạo hàng loạt, cập nhật, activate/deactivate và reset password.
 Tài liệu riêng để bắt đầu implement tính năng resume lại cuộc hội thoại với AI và xem lịch sử hỏi đáp.
 Tài liệu này chia rõ task cho Frontend, Backend và AI Service.
 
+### 12. Kế Hoạch Triển Khai Admin Quản Lý Giảng Viên
+
+```txt
+14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md
+```
+
+Tài liệu riêng để triển khai bản đơn giản của tính năng Admin xem danh sách giảng viên,
+thông tin giảng viên và thống kê tài liệu đã upload. Tài liệu này chia task rõ cho Backend
+và Frontend; AI Service không cần sửa trong phạm vi V1.
+
 ## 3. Quyết định đã khóa
 
 - Document là trung tâm của hệ thống.
