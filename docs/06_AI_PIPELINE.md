@@ -215,7 +215,7 @@ document_ids
 -> gọi generation provider với yêu cầu JSON object
 -> validate số câu, options, đáp án đúng, explanation
 -> map source_chunk_ids về citations thật
--> trả quiz draft cho Backend/Frontend review
+-> trả quiz draft cho Backend validate và lưu
 ```
 
 Input chính:
@@ -240,7 +240,8 @@ Boundary:
 - AI Service không lưu quiz vào database nghiệp vụ.
 - AI Service không public URL quiz.
 - AI Service không tạo attempt/result, không chấm điểm, không xếp hạng sinh viên.
-- Backend/Frontend chịu trách nhiệm Teacher review, chỉnh sửa, submit/public và trang làm quiz.
+- Backend đã chịu trách nhiệm lưu, owner check, chỉnh sửa và publish qua `/api/v1/quiz/**`.
+- Frontend chưa nối UI Teacher review/publish; trang làm quiz/attempt/result vẫn ngoài phạm vi hiện tại.
 ## 6. Citation
 
 Mỗi citation:

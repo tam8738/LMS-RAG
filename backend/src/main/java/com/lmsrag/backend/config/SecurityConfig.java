@@ -77,6 +77,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/library/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/content").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/download").hasAnyRole("TEACHER", "ADMIN")
+                        .requestMatchers("/api/v1/quiz/**").hasRole("TEACHER")
                         .requestMatchers("/api/v1/rag/**").hasAnyRole("TEACHER", "ADMIN")
                         .anyRequest().authenticated()
                 )

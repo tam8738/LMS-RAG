@@ -64,9 +64,9 @@ Teacher A login
 | Thành phần | Công nghệ | Trách nhiệm chính |
 |---|---|---|
 | Frontend | React + Vite | Library, My Documents, Admin Review, RAG UI |
-| Backend | Spring Boot | JWT, Teacher accounts, upload, jobs, review, Library, RAG proxy |
-| AI Service | FastAPI | Parse, chunk, embedding, retrieval, RAG answer |
-| Database | PostgreSQL + pgvector | Nghiệp vụ và vector storage |
+| Backend | Spring Boot | JWT, Teacher accounts, upload, review, Library, RAG proxy/history, quiz lifecycle |
+| AI Service | FastAPI | Parse, chunk, embedding, retrieval, RAG answer, sinh quiz draft |
+| Database | PostgreSQL + pgvector | Nghiệp vụ, quiz, RAG history và vector storage |
 
 ---
 
@@ -111,6 +111,17 @@ Teacher mở Library
   -> trả citations
 ```
 
+### 3.4. Sinh và công bố quiz
+
+```txt
+Teacher chọn document PUBLISHED + PROCESSED
+  -> Backend gọi AI /v1/generate-quiz
+  -> Backend kiểm tra shape/số câu AI trả về
+  -> lưu quizzes + quiz_questions ở trạng thái DRAFT
+  -> Teacher owner xem/chỉnh sửa câu hỏi hiện có
+  -> publish: DRAFT -> PUBLISHED
+```
+
 ---
 
 ## 4. Actor và phân quyền
@@ -126,6 +137,7 @@ Teacher mở Library
 - Gửi tài liệu cho Admin duyệt.
 - Xem lý do từ chối, chỉnh sửa và gửi lại.
 - Dùng RAG trên tài liệu `PUBLISHED` của giảng viên khác.
+- Sinh quiz từ document `PUBLISHED + PROCESSED`; chỉ xem, sửa và publish quiz do chính mình tạo.
 
 ### 4.2. Admin
 
@@ -199,17 +211,28 @@ PUBLISHED --Admin archive--> ARCHIVED
 | `documents` | Tài liệu do Teacher upload, bảng trung tâm nghiệp vụ |
 | `document_processing_jobs` | Theo dõi các lần AI process/reprocess |
 | `document_chunks` | Lưu chunk text và embedding pgvector |
+| `rag_conversations` | Lưu hội thoại RAG theo user + document |
+| `rag_messages` | Lưu user/assistant messages của hội thoại RAG |
+| `quizzes` | Metadata, owner và trạng thái quiz sinh từ document |
+| `quiz_questions` | Câu hỏi, options, đáp án, giải thích và citations của quiz |
 
 ### 7.2. Quan hệ
 
 ```txt
 users.id
   ├── documents.uploaded_by
-  └── documents.reviewed_by
+  ├── documents.reviewed_by
+  ├── rag_conversations.user_id
+  └── quizzes.created_by
 
 documents.id
   ├── document_processing_jobs.document_id
-  └── document_chunks.document_id
+  ├── document_chunks.document_id
+  ├── rag_conversations.document_id
+  └── quizzes.document_id
+
+quizzes.id
+  └── quiz_questions.quiz_id
 ```
 
 | Quan hệ | Ý nghĩa |
@@ -218,6 +241,9 @@ documents.id
 | `users 1 - N reviewed documents` | Một Admin review nhiều Document |
 | `documents 1 - N document_processing_jobs` | Một Document có thể process/reprocess nhiều lần |
 | `documents 1 - N document_chunks` | Một Document có nhiều chunks sau khi AI xử lý |
+| `users 1 - N quizzes` | Một Teacher có thể tạo nhiều quiz |
+| `documents 1 - N quizzes` | Một Document có thể được dùng để sinh nhiều quiz |
+| `quizzes 1 - N quiz_questions` | Một Quiz có nhiều câu hỏi |
 
 ### 7.3. Kiểu dữ liệu chung
 
@@ -370,6 +396,18 @@ POST /api/v1/rag/conversations/{conversationId}/messages
 GET  /api/v1/rag/conversations/{conversationId}/messages
 DELETE /api/v1/rag/conversations/{conversationId}/messages
 ```
+
+#### Quiz
+
+```txt
+POST  /api/v1/quiz/generate
+GET   /api/v1/quiz/{quizId}
+PATCH /api/v1/quiz/{quizId}
+POST  /api/v1/quiz/{quizId}/publish
+```
+
+Các API quiz chỉ dành cho `TEACHER`. Generate yêu cầu document `PUBLISHED + PROCESSED`; xem/sửa/publish
+yêu cầu Teacher là owner, và sửa/publish chỉ áp dụng khi quiz còn `DRAFT`.
 
 ### 8.2. AI internal API
 
@@ -577,6 +615,7 @@ Core MVP **không làm**:
 | `05_DATABASE_SCHEMA_CONTRACT.md` | Contract schema database |
 | `06_AI_PIPELINE.md` | Thuật toán AI |
 | `07_BACKEND_DATABASE_SCHEMA_GUIDE.md` | Hướng dẫn tạo migration |
+| `15_QUIZ_API_BACKEND_SPEC.md` | Contract Backend cho sinh/xem/sửa/publish quiz |
 
 ---
 

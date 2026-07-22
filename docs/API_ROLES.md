@@ -10,8 +10,9 @@
 - Bổ sung API hồ sơ cá nhân và đổi mật khẩu dưới `/api/v1/me`.
 - Bổ sung bộ API Admin quản lý Teacher, gồm tạo đơn lẻ/hàng loạt, cập nhật, kích hoạt,
   vô hiệu hóa và reset mật khẩu.
-- AI Service đã có internal API `POST /v1/generate-quiz`; contract chi tiết nằm tại
-  `04_AI_API_CONTRACT.md`. Frontend không gọi endpoint này trực tiếp.
+- Bổ sung 4 API Teacher cho quiz: sinh từ document, xem, chỉnh sửa draft và công bố.
+- Backend gọi internal API `POST /v1/generate-quiz`, kiểm tra dữ liệu AI trả về và lưu quiz/câu hỏi
+  vào database. Frontend không gọi AI Service trực tiếp.
 
 ## Chú thích
 
@@ -189,7 +190,40 @@ Quy tắc:
 | `department` | `String` | Lọc theo khoa/bộ môn |
 | `page`, `size`, `sortBy`, `sortDirection` | `Pageable` | Phân trang và sắp xếp |
 
-## 8. Swagger / API Docs
+## 8. Quiz (`/api/v1/quiz`)
+
+| Method | Endpoint | Role | Mô tả |
+|--------|----------|------|-------|
+| `POST` | `/api/v1/quiz/generate` | `TEACHER` | Sinh và lưu quiz draft từ một document `PUBLISHED + PROCESSED` |
+| `GET` | `/api/v1/quiz/{quizId}` | `TEACHER` | Xem toàn bộ quiz do chính Teacher tạo |
+| `PATCH` | `/api/v1/quiz/{quizId}` | `TEACHER` | Sửa metadata/câu hỏi hiện có khi quiz còn `DRAFT` |
+| `POST` | `/api/v1/quiz/{quizId}/publish` | `TEACHER` | Chuyển quiz của chính Teacher từ `DRAFT` sang `PUBLISHED` |
+
+Body sinh quiz:
+
+```json
+{
+  "documentId": 12,
+  "questionCount": 5,
+  "language": "vi"
+}
+```
+
+Quy tắc:
+
+- `questionCount` từ 1 đến 10, mặc định 5; `language` nhận `vi` hoặc `en`, mặc định `vi`.
+- Mọi Teacher có thể sinh quiz từ bất kỳ document nào đã `PUBLISHED + PROCESSED`; quiz mới ghi
+  `createdById` là Teacher hiện tại.
+- Chỉ owner được xem, sửa hoặc publish quiz. Chỉ quiz `DRAFT` được sửa/publish.
+- `PATCH` chỉ cập nhật các câu hỏi đã tồn tại theo `questions[].id`; không thêm/xóa câu hỏi và
+  không cho sửa citations. V1 chỉ hỗ trợ `single_choice`, 2-4 options và đúng một đáp án.
+- Response luôn trả full `questions`, gồm cả `correctOptionIds`, `explanation` và `citations` để
+  Teacher review.
+- `POST /generate` trả HTTP `201`; ba API còn lại trả HTTP `200`.
+
+Contract triển khai chi tiết nằm tại `15_QUIZ_API_BACKEND_SPEC.md`.
+
+## 9. Swagger / API Docs
 
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|-------|
@@ -198,7 +232,7 @@ Quy tắc:
 | `GET` | `/v3/api-docs` | `PUBLIC` | OpenAPI docs |
 | `GET` | `/v3/api-docs/**` | `PUBLIC` | OpenAPI docs resources |
 
-## 9. Lưu ý
+## 10. Lưu ý
 
 - Các endpoint không liệt kê trong bảng trên mặc định cần kiểm tra thêm trong `SecurityConfig` và controller tương ứng.
 - JWT token gửi bằng header: `Authorization: Bearer <accessToken>`.

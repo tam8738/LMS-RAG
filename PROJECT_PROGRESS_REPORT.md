@@ -12,7 +12,8 @@ Các đối tượng sử dụng trong phạm vi hiện tại gồm:
 
 - Giảng viên: đăng nhập, tải tài liệu, quản lý tài liệu cá nhân, gửi duyệt, xem thư viện, tải file, hỏi đáp với AI trên tài liệu đã sẵn sàng.
 - Quản trị viên: duyệt, từ chối, lưu trữ tài liệu và theo dõi thông tin giảng viên trong hệ thống.
-- Student hiện chưa có giao diện, API nghiệp vụ hoặc luồng sử dụng trong core MVP. Các tính năng sinh quiz/làm quiz cho sinh viên đang nằm trong kế hoạch mở rộng.
+- Student hiện chưa có giao diện, API nghiệp vụ hoặc luồng làm bài trong core MVP. Phần sinh và quản
+  lý quiz cho Teacher đã có ở AI Service/Backend; phần Student play/attempt/result vẫn là mở rộng.
 
 Hệ thống gồm bốn phần chính: Frontend React/Vite, Backend Spring Boot, AI Service FastAPI và PostgreSQL có pgvector. Frontend chỉ gọi Backend. Backend quản lý xác thực, phân quyền, nghiệp vụ và gọi AI Service bằng khóa nội bộ. AI Service xử lý tài liệu, tạo vector, tìm kiếm ngữ cảnh và sinh câu trả lời. Backend và AI Service dùng chung vùng lưu file khi chạy bằng Docker.
 
@@ -108,6 +109,16 @@ mật khẩu mới và trả `emailSent=false`.
 - Khi gửi câu hỏi mới, Backend gửi một số lượt gần nhất sang AI để hỗ trợ ngữ cảnh.
 - AI Service vẫn stateless, tức không tự lưu conversation trong database.
 
+**Sinh và quản lý quiz từ tài liệu**
+
+- AI Service sinh quiz draft `single_choice` từ chunks thật của document đã index, kèm đáp án,
+  giải thích và citations.
+- Backend kiểm tra document `PUBLISHED + PROCESSED`, gọi AI, validate response và lưu
+  `quizzes`/`quiz_questions`.
+- Backend đã có 4 API dành cho Teacher để sinh, xem, sửa draft và publish quiz; xem/sửa/publish
+  yêu cầu đúng owner, còn sửa/publish chỉ áp dụng khi trạng thái là `DRAFT`.
+- Bộ unit test Backend cho service/request validation đã được bổ sung; toàn bộ 53 test Backend pass.
+
 **Giao diện AI/RAG**
 
 - Frontend có khung hỏi đáp AI trong trang chi tiết tài liệu.
@@ -132,28 +143,30 @@ Luồng AI hiện có thể chạy như sau:
 
 Giảng viên upload tài liệu -> Backend gọi AI phân tích -> Admin duyệt tài liệu -> Backend gọi AI lập chỉ mục -> AI lưu chunks/vector -> người dùng mở tài liệu đã `PUBLISHED + PROCESSED` -> hệ thống tạo/mở conversation -> người dùng hỏi AI -> AI retrieval + generation -> trả câu trả lời kèm citations -> người dùng reload trang và tiếp tục hỏi với lịch sử cũ.
 
+Với quiz, Teacher có thể gửi yêu cầu sinh từ document `PUBLISHED + PROCESSED` -> Backend gọi AI
+sinh draft -> lưu quiz/câu hỏi -> owner xem hoặc chỉnh sửa -> publish quiz.
+
 Các module chính trong luồng đã được nối trong code. Nhóm đã kiểm thử thủ công việc Teacher reload trang và tiếp tục hội thoại ổn.
 
 ## 5. Các phần chưa hoàn thiện
 
-Phần còn thiếu rõ ràng nhất là tính năng sinh quiz từ tài liệu. Hiện AI Service đã có API nội bộ sinh quiz draft từ tài liệu đã index, nhưng đây mới là phần sinh bản nháp có cấu trúc cho Backend/Frontend dùng tiếp, chưa phải một chức năng quiz hoàn chỉnh cho người dùng cuối.
+AI Service và Backend đã hoàn thành phần sinh/lưu/review/publish quiz ở tầng API. Phần quiz chưa
+hoàn thiện cho người dùng cuối gồm:
 
-Tính năng quiz chưa có các phần chính sau:
-
-- Backend chưa có API gọi `/v1/generate-quiz`, lưu quiz/câu hỏi/đáp án hoặc quản lý vòng đời quiz.
 - Giao diện để giảng viên xác nhận sinh quiz, xem lại, chỉnh sửa và công bố.
 - Trang làm quiz qua một URL riêng để người học làm bài và xem kết quả cuối trang.
+- Lưu attempt/result hoặc xếp hạng nếu sau này đưa Student flow vào phạm vi.
 
 Ngoài quiz, báo cáo chỉ ghi nhận một điểm cần đồng bộ nhỏ: nếu tiếp tục giữ màn hồ sơ người dùng, Frontend và Backend cần khớp lại các API cập nhật thông tin/đổi mật khẩu. Phần này không phải trọng tâm của MVP tài liệu và RAG.
 
 ## 6. Kế hoạch thực hiện tiếp theo
 
-Kế hoạch tiếp theo nên tập trung vào tính năng quiz nếu nhóm quyết định đưa vào phạm vi hoàn thiện:
+Kế hoạch tiếp theo nên tập trung vào phần giao diện/tích hợp còn lại nếu nhóm đưa quiz vào demo:
 
-1. Backend bổ sung model/API để lưu quiz, câu hỏi, đáp án và trạng thái công bố dựa trên quiz draft từ AI Service.
-2. Frontend bổ sung luồng giảng viên xác nhận sinh quiz, review/chỉnh sửa và public.
-3. Frontend bổ sung trang làm quiz bằng URL riêng, hiển thị điểm/kết quả ở cuối trang.
-4. Nếu cần điểm số/xếp hạng thật, Backend bổ sung lưu attempt/result hoặc định danh người làm quiz.
+1. Frontend bổ sung luồng giảng viên xác nhận sinh quiz, review/chỉnh sửa và public qua 4 API Backend.
+2. Chạy smoke test tích hợp Backend -> AI -> PostgreSQL với một document thật đã index.
+3. Nếu mở rộng Student flow, bổ sung trang làm quiz và API/data model attempt/result; phần này hiện
+   không nằm trong 4 API vừa triển khai.
 
 Sau khi hoàn thiện hoặc chốt quiz là phần mở rộng sau MVP, nhóm chỉ cần chạy lại một kịch bản demo cuối từ upload tài liệu -> duyệt -> hỏi đáp AI -> resume hội thoại để xác nhận các phần chính hoạt động ổn định.
 
@@ -162,6 +175,8 @@ Sau khi hoàn thiện hoặc chốt quiz là phần mở rộng sau MVP, nhóm c
 Dự án đã có nền tảng MVP khá rõ. Nhóm chức năng non-AI đã bao phủ phần xác thực/phân quyền,
 quản lý tài liệu, kiểm duyệt, thư viện, tải/xem file, hồ sơ cá nhân và API Admin quản lý tài khoản
 Teacher. Nhóm chức năng AI đã bao phủ phân tích tài liệu, lập chỉ mục RAG, hỏi đáp có trích dẫn,
-resume lịch sử hội thoại và sinh quiz draft nội bộ.
+resume lịch sử hội thoại và sinh quiz draft; Backend đã lưu, cho Teacher review và publish quiz qua API.
 
-Phần còn thiếu lớn nhất hiện nay là sinh quiz từ tài liệu. Nếu hoàn thiện quiz hoặc chốt quiz là phần mở rộng sau MVP, hệ thống đã đủ cơ sở để trình bày như một MVP thư viện học liệu có hỗ trợ AI.
+Phần còn thiếu lớn nhất của quiz hiện nay là giao diện người dùng và Student play/attempt/result, không
+còn là API sinh/lưu quiz ở Backend. Core Document/RAG vẫn đủ cơ sở để trình bày như một MVP thư viện
+học liệu có hỗ trợ AI.

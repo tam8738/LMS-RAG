@@ -31,16 +31,17 @@ Không thuộc core MVP hiện tại:
 - Dashboard thống kê phức tạp.
 - RAG toàn thư viện không giới hạn scope.
 
-Tính năng sinh quiz từ tài liệu đang được định hướng là phần cần hoàn thiện tiếp theo sau luồng Document/RAG chính.
+AI Service và Backend đã hỗ trợ sinh, lưu, xem, chỉnh sửa draft và công bố quiz từ tài liệu. Giao diện
+Teacher review/publish cùng luồng Student làm bài/attempt/result chưa được triển khai.
 
 ## Thành phần
 
 | Thành phần | Công nghệ | Trách nhiệm |
 |---|---|---|
 | Frontend | React + Vite | Auth, Library, My Documents, Upload, Admin Review, RAG chat UI, citation UI |
-| Backend | Spring Boot | JWT, phân quyền, upload, review, Library, RAG proxy, chat history, quản lý Teacher |
-| AI Service | FastAPI | Parse, clean, chunk, embedding, retrieval, grounded LLM answer, citation |
-| Database | PostgreSQL + pgvector | Dữ liệu nghiệp vụ, chunks/vector, lịch sử hội thoại RAG |
+| Backend | Spring Boot | JWT, phân quyền, upload, review, Library, RAG, chat history, quiz, quản lý Teacher |
+| AI Service | FastAPI | Parse, clean, chunk, embedding, retrieval, grounded answer/citation, sinh quiz draft |
+| Database | PostgreSQL + pgvector | Dữ liệu nghiệp vụ/quiz, chunks/vector, lịch sử hội thoại RAG |
 | Docker | Docker Compose | Chạy Postgres, Backend, AI Service, pgAdmin và shared upload volume |
 
 ## Tài liệu chính thức
@@ -62,6 +63,7 @@ docs/04_AI_API_CONTRACT.md
 docs/05_DATABASE_SCHEMA_CONTRACT.md
 docs/06_AI_PIPELINE.md
 docs/API_ROLES.md
+docs/15_QUIZ_API_BACKEND_SPEC.md
 ```
 
 Báo cáo tiến độ gửi giáo viên hướng dẫn nằm tại:
@@ -88,6 +90,7 @@ Backend:
 - Đã có API hồ sơ cá nhân, đổi mật khẩu và quản lý Teacher cho Admin.
 - Đã có upload tài liệu, My Documents, Admin review, Library, file content/download.
 - Đã có RAG proxy và persisted RAG conversation history.
+- Đã có 4 API Teacher sinh/xem/sửa/publish quiz, lưu `quizzes`/`quiz_questions` bằng migration V14.
 - Đã có 7 API Admin quản lý Teacher: list, create, batch create, update, activate, deactivate và reset password.
 
 Frontend:
@@ -100,7 +103,8 @@ AI Service:
 
 - Đã có analyze/index document, parse PDF/TXT, chunk/embedding, retrieval theo `document_ids`.
 - Đã có grounded LLM answer generation sau retrieval, hỗ trợ history stateless và citation từ chunk thật.
-- Đã có API nội bộ `/v1/generate-quiz` để sinh quiz draft từ tài liệu đã index; phần lưu/public/làm quiz thuộc BE/FE.
+- Đã có API nội bộ `/v1/generate-quiz` để sinh quiz draft từ tài liệu đã index; Backend đã nối gọi,
+  kiểm tra response, lưu draft và quản lý publish. Phần giao diện/làm quiz vẫn thuộc FE và student flow sau này.
 
 Môi trường:
 

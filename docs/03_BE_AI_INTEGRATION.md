@@ -185,11 +185,21 @@ AI retrieval chỉ query chunks thuộc `document_ids`. Subject/topic/chapter/ta
 
 Không làm RAG toàn Library trong core MVP.
 
+### Quiz scope
+
+Backend gửi một `document_id` dưới dạng `document_ids` tới `POST /v1/generate-quiz` sau khi kiểm tra
+document tồn tại, `PUBLISHED` và `PROCESSED`. Theo contract quiz, không yêu cầu Teacher là owner của
+document nguồn; Backend vẫn ghi `created_by` là Teacher hiện tại.
+
+AI chỉ sinh draft có cấu trúc và citations thật. Backend validate response, lưu `quizzes` cùng
+`quiz_questions`, enforce owner và trạng thái `DRAFT -> PUBLISHED`. AI không ghi các bảng quiz.
+
 ## 11. Database ownership
 
 - Backend quản lý toàn bộ migration.
 - Backend sở hữu tables nghiệp vụ và status.
 - AI ghi/thay thế/truy vấn `document_chunks`.
+- Backend ghi/truy vấn `quizzes` và `quiz_questions`.
 - Backend không tự ghi chunks trong flow bình thường.
 - Hai service dùng chung PostgreSQL trong MVP.
 
@@ -217,6 +227,8 @@ Không làm RAG toàn Library trong core MVP.
 | Ghi/query chunks | Không | Chủ trì |
 | RAG permission | Chủ trì | Tin `document_ids` đã được kiểm |
 | Retrieval/generation/citation | Không | Chủ trì |
+| Sinh nội dung quiz draft/citation | Gọi và validate | Chủ trì |
+| Lưu, owner check, sửa/publish quiz | Chủ trì | Không |
 | Admin review/Library | Chủ trì | Không |
 
 ## 14. Environment

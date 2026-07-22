@@ -1,6 +1,6 @@
 # Bộ tài liệu chính thức của dự án
 
-**Phiên bản:** 1.6
+**Phiên bản:** 1.7
 **Cập nhật:** 23/07/2026
 **Đối tượng đọc:** Frontend, Backend, AI Service
 
@@ -103,7 +103,16 @@ BE09_TEACHER_MANAGEMENT_DESIGN.md
 Teacher. File `14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md` chỉ giữ lại kế hoạch read-only
 ban đầu và không dùng để suy ra endpoint đang tồn tại.
 
-### 12. Báo cáo tiến độ
+### 12. Quiz API Backend
+
+```txt
+15_QUIZ_API_BACKEND_SPEC.md
+```
+
+Contract triển khai cho 4 API Teacher sinh, xem, sửa và công bố quiz; gồm schema V14, quyền owner,
+state `DRAFT -> PUBLISHED`, DTO và error codes.
+
+### 13. Báo cáo tiến độ
 
 ```txt
 ../PROJECT_PROGRESS_REPORT.md
@@ -126,7 +135,8 @@ Báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn. File
 - RAG nhận `document_ids`; AI không tự kiểm quyền và không retrieval toàn thư viện trong MVP.
 - Backend là source of truth cho RAG conversation history; AI Service chỉ nhận `history` stateless.
 - Grounded LLM answer chỉ được sinh sau khi retrieval có context phù hợp.
-- Sinh quiz từ tài liệu là phần cần làm tiếp, chưa phải luồng hoàn thiện trong code hiện tại.
+- AI Service và Backend đã có luồng sinh/lưu/review/publish quiz; giao diện Teacher và Student
+  play/attempt/result vẫn chưa thuộc phần đã hoàn thiện.
 
 ## 4. Thứ tự ưu tiên khi có xung đột
 
@@ -136,8 +146,9 @@ Báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn. File
 4. `03_BE_AI_INTEGRATION.md` quyết định ownership và kiến trúc tích hợp.
 5. `06_AI_PIPELINE.md` quyết định thuật toán AI.
 6. `API_ROLES.md` tổng hợp endpoint và role truy cập Backend.
-7. `02_MVP_IMPLEMENTATION_PLAN.md` quyết định tracking và thứ tự thi công.
-8. Code thực tế là nguồn kiểm chứng cuối cùng khi cần báo cáo tiến độ.
+7. `15_QUIZ_API_BACKEND_SPEC.md` quyết định chi tiết triển khai API Backend cho quiz.
+8. `02_MVP_IMPLEMENTATION_PLAN.md` quyết định tracking và thứ tự thi công.
+9. Code thực tế là nguồn kiểm chứng cuối cùng khi cần báo cáo tiến độ.
 
 ## 5. Tài liệu legacy hoặc không phải contract
 

@@ -70,8 +70,10 @@ Teacher A login
 - Entity/repository/service/controller cho `Document`, `DocumentProcessingJob`, review, Library và RAG.
 - Upload API, My Documents API, Admin review API, Library API, file content/download.
 - Backend RAG proxy `POST /api/v1/rag/answer` và conversation endpoints cho resume chat.
-- `AiServiceClient` gọi AI Service `/v1/analyze-document`, `/v1/index-document` và `/v1/answer-question`.
-- Flyway migrations cho users, documents, jobs, chunks và RAG conversation history.
+- `AiServiceClient` gọi AI Service `/v1/analyze-document`, `/v1/index-document`, `/v1/answer-question`
+  và `/v1/generate-quiz`.
+- Flyway migrations cho users, documents, jobs, chunks, RAG conversation history và quiz.
+- 4 API Teacher sinh/xem/sửa/publish quiz; Backend lưu quiz/câu hỏi và enforce owner + trạng thái DRAFT.
 - Admin Teacher management đã có API list/search/filter, tạo đơn lẻ/hàng loạt, cập nhật,
   activate/deactivate và reset mật khẩu.
 
@@ -95,8 +97,8 @@ Teacher A login
 
 ### Phần còn thiếu đáng chú ý
 
-- AI Service đã có API sinh quiz draft `/v1/generate-quiz`; phần còn thiếu nằm ở Backend/Frontend để lưu quiz, Teacher review/public và trang Student làm quiz.
-- Chưa có luồng Teacher review/chỉnh sửa quiz trước khi public và trang Student làm quiz.
+- AI Service và Backend đã có luồng sinh, lưu, xem, chỉnh sửa draft và publish quiz.
+- Frontend chưa có luồng Teacher review/chỉnh sửa/publish và chưa có trang Student làm quiz.
 - Cần chạy lại E2E tích hợp đầy đủ sau mỗi lần pull/build để xác nhận Docker, Backend, FE và AI cùng khớp contract.
 
 ## 4. Task graph tổng quan
@@ -154,6 +156,7 @@ Quy ước trạng thái:
 | BE-RAG-HIST-04 - Persist send-message flow + AI call | Tâm | P0 | BE-RAG-HIST-03 | DONE | `sendMessage` lưu user message, lấy 6 messages gần nhất làm history, gọi AI `/v1/answer-question`, lưu assistant message + citations + `notFound` + `tokensUsed`; giữ `POST /api/v1/rag/answer` cũ để backward compatibility |
 | BE-RAG-HIST-05 - Clear history + tests | Tâm | P0 | BE-RAG-HIST-04 | DONE | `DELETE /api/v1/rag/conversations/{id}/messages` xóa messages và reset counters; unit test `RagConversationServiceTest` 14 cases pass |
 | BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | DONE | Đã có 7 endpoint dưới `/api/v1/admin/teachers`, phân quyền ADMIN, batch partial success tối đa 200 item và unit test cho service/validation/notification |
+| BE-QUIZ-01 - Quiz generation/lifecycle API | Tâm | P1 | BE-07, AI-QUIZ-01 | DONE | Migration V14 tạo `quizzes`/`quiz_questions`; 4 endpoint `/api/v1/quiz/**` cho TEACHER; validate document `PUBLISHED + PROCESSED`, gọi AI, lưu full draft, enforce owner/DRAFT, test service/request validation; toàn bộ 53 Backend tests pass |
 
 ### 6.2. Frontend tasks
 
@@ -203,7 +206,7 @@ Quy ước trạng thái:
 | INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
 | INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | DONE | Backend/AI/FE đã có luồng review, library và RAG chat; cần tiếp tục smoke test sau mỗi pull/build |
 | INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-05 | DONE | Đã có Backend persistence, AI stateless history và FE resume/clear; đã manual test reload/tiếp tục hội thoại ổn |
-| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | IN_PROGRESS | Cần chốt kịch bản demo cuối cùng; nếu đưa quiz vào phạm vi trình bày thì BE/FE cần nối tiếp API AI-QUIZ-01 để lưu, review, public và làm quiz |
+| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | IN_PROGRESS | Cần chốt kịch bản demo cuối cùng; Backend đã nối AI-QUIZ-01 và lưu/review/publish quiz, Frontend vẫn cần nối UI nếu đưa quiz vào demo |
 
 ### 6.5. Cách cập nhật bảng tracking
 
@@ -309,7 +312,9 @@ AI Service đã có `/v1/index-document`; endpoint này reuse logic `/v1/process
 Frontend đã có app React/Vite để chạy demo UI; cần build/test lại sau mỗi lần pull.
 ```
 
-Ghi chú cập nhật 22/07: BE/AI/FE cho luồng Document -> Review -> Library -> RAG đã có. AI Service đã có `/v1/generate-quiz` để sinh quiz draft; phần còn lại của quiz nằm ở BE/FE gồm lưu quiz, Teacher review/public và trang làm quiz.
+Ghi chú cập nhật 23/07: BE/AI/FE cho luồng Document -> Review -> Library -> RAG đã có. AI Service
+và Backend đã nối luồng `/v1/generate-quiz` -> lưu draft -> Teacher owner xem/sửa/publish. Phần còn
+lại nằm ở Frontend gồm UI Teacher review/public và trang làm quiz.
 
 ### 6.8. Snapshot kiểm thử thực tế 14/07/2026
 
@@ -1571,6 +1576,18 @@ POST /api/v1/rag/conversations/{conversationId}/messages
 GET  /api/v1/rag/conversations/{conversationId}/messages
 DELETE /api/v1/rag/conversations/{conversationId}/messages
 ```
+
+### Quiz
+
+```txt
+POST  /api/v1/quiz/generate
+GET   /api/v1/quiz/{quizId}
+PATCH /api/v1/quiz/{quizId}
+POST  /api/v1/quiz/{quizId}/publish
+```
+
+`/api/v1/quiz/**` chỉ dành cho `TEACHER`. Generate yêu cầu document `PUBLISHED + PROCESSED` và
+trả `201`; xem/sửa/publish chỉ dành cho owner, trong đó sửa/publish yêu cầu quiz còn `DRAFT`.
 
 ### DocumentView DTO
 

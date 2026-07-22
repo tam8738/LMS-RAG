@@ -18,7 +18,10 @@ POST /v1/generate-quiz
 `POST /v1/process-document` là endpoint cũ có thể giữ tạm như implementation tương đương `index-document` trong giai đoạn chuyển tiếp.
 
 
-Quiz generation hiện đã có endpoint nội bộ `/v1/generate-quiz` để sinh quiz draft có cấu trúc từ `document_chunks`. AI Service chỉ sinh bản nháp; Backend/Frontend vẫn chịu trách nhiệm lưu DB, review, public URL, làm quiz, chấm điểm và xếp hạng nếu có.
+Quiz generation hiện đã có endpoint nội bộ `/v1/generate-quiz` để sinh quiz draft có cấu trúc từ
+`document_chunks`. AI Service chỉ sinh bản nháp; Backend đã nối gọi, validate, lưu DB và quản lý
+`DRAFT -> PUBLISHED`. Frontend/Student flow vẫn chịu trách nhiệm UI review, làm quiz, chấm điểm và
+xếp hạng nếu có.
 
 ## 2. Quy ước
 
@@ -316,7 +319,10 @@ AI does not use outside knowledge to fill missing data. After AI-09, when retrie
 
 ## 9. Generate quiz draft
 
-Implementation status AI-QUIZ-01: `/v1/generate-quiz` đã có trong AI Service. Endpoint này dùng cho Backend gọi sau khi đã kiểm tra quyền Teacher và trạng thái tài liệu. AI Service lấy các chunk đại diện từ `document_chunks`, gọi generation provider, validate JSON và trả về quiz draft để Teacher review ở FE.
+Implementation status AI-QUIZ-01: `/v1/generate-quiz` đã có trong AI Service và đã được
+`AiServiceClient` của Backend tích hợp. Backend gọi sau khi kiểm tra Teacher và document
+`PUBLISHED + PROCESSED`; AI Service lấy các chunk đại diện từ `document_chunks`, gọi generation
+provider, validate JSON và trả quiz draft để Backend lưu/Teacher review.
 
 ### `POST /v1/generate-quiz`
 

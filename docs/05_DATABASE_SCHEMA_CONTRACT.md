@@ -1,7 +1,7 @@
 # Database schema contract cho core MVP
 
-**Phiên bản:** 1.6
-**Cập nhật:** 12/07/2026
+**Phiên bản:** 1.7
+**Cập nhật:** 23/07/2026
 **Owner migration:** Backend
 
 File này là contract ngắn gọn về database schema của MVP document-centric. File này chốt bảng nào tồn tại, quan hệ chính, ownership và các rule dữ liệu bắt buộc.
@@ -31,6 +31,8 @@ SQL migration chi tiết, index, seed và checklist triển khai nằm ở:
 | `document_chunks` | Có | AI ghi, Backend tạo migration | Lưu chunk text và embedding pgvector |
 | `rag_conversations` | Có | Backend | Lưu conversation RAG per user per document |
 | `rag_messages` | Có | Backend | Lưu user/assistant messages trong conversation |
+| `quizzes` | Có | Backend | Lưu quiz draft/published do Teacher sinh từ document |
+| `quiz_questions` | Có | Backend | Lưu câu hỏi, options, đáp án, giải thích và citations |
 
 ## 3. Bảng không thuộc core MVP
 
@@ -52,15 +54,20 @@ Nếu code cũ còn entity/table `Course`, `Lecture`, `CourseMember`, chúng là
 users.id
   ├── documents.uploaded_by
   ├── documents.reviewed_by
-  └── rag_conversations.user_id
+  ├── rag_conversations.user_id
+  └── quizzes.created_by
 
 documents.id
   ├── document_processing_jobs.document_id
   ├── document_chunks.document_id
-  └── rag_conversations.document_id
+  ├── rag_conversations.document_id
+  └── quizzes.document_id
 
 rag_conversations.id
   └── rag_messages.conversation_id
+
+quizzes.id
+  └── quiz_questions.quiz_id
 ```
 
 Cardinality:
@@ -74,12 +81,17 @@ Cardinality:
 | `documents 1 - N document_chunks` | Một Document có nhiều chunks sau khi AI xử lý |
 | `documents 1 - N rag_conversations` | Một Document có nhiều conversation (mỗi user một conversation) |
 | `rag_conversations 1 - N rag_messages` | Một Conversation có nhiều messages |
+| `users 1 - N quizzes` | Một Teacher có thể tạo nhiều Quiz |
+| `documents 1 - N quizzes` | Một Document có thể được dùng để sinh nhiều Quiz |
+| `quizzes 1 - N quiz_questions` | Một Quiz có nhiều câu hỏi |
 
 Cascade rule:
 
-- Xóa `documents` thì cascade xóa `document_processing_jobs`, `document_chunks` và `rag_conversations`.
+- Xóa `documents` thì cascade xóa `document_processing_jobs`, `document_chunks`, `rag_conversations`
+  và `quizzes` (sau đó cascade tiếp `quiz_questions`).
 - Xóa `users` thì cascade xóa `rag_conversations`; không cascade xóa `documents`.
 - Xóa `rag_conversations` thì cascade xóa `rag_messages`.
+- Xóa `quizzes` thì cascade xóa `quiz_questions`; FK `quizzes.created_by` không cascade xóa quiz.
 - `documents.reviewed_by` dùng `ON DELETE SET NULL` nếu reviewer bị xóa trong môi trường dev.
 
 ## 5. Quy ước kiểu dữ liệu
@@ -248,6 +260,46 @@ Rule bắt buộc:
 - `not_found` chỉ có ý nghĩa với assistant message.
 - `tokens_used` chỉ có ý nghĩa với assistant message.
 
+## 9.3. Contract bảng quizzes
+
+Field/rule chính:
+
+| Cột | Rule |
+|---|---|
+| `id` | Primary key |
+| `document_id` | FK tới `documents.id`, cascade delete |
+| `created_by` | FK tới `users.id`, không cascade delete |
+| `title` | VARCHAR(500), không null |
+| `description` | TEXT, optional |
+| `status` | `DRAFT` hoặc `PUBLISHED`, mặc định `DRAFT` |
+| `question_count` | INTEGER, không null, >= 0 |
+| `language` | VARCHAR(10), `vi` hoặc `en` theo validation Backend |
+| `tokens_used` | INTEGER, không null, >= 0 |
+| `published_at` | TIMESTAMPTZ, null khi còn draft |
+| `created_at`, `updated_at` | TIMESTAMPTZ, không null |
+
+Index bắt buộc: `(created_by, created_at DESC)` và `document_id`.
+
+## 9.4. Contract bảng quiz_questions
+
+Field/rule chính:
+
+| Cột | Rule |
+|---|---|
+| `id` | Primary key |
+| `quiz_id` | FK tới `quizzes.id`, cascade delete |
+| `question_index` | INTEGER, unique theo `quiz_id` |
+| `question_text` | TEXT, không null |
+| `question_type` | V1 chỉ nhận `single_choice` |
+| `options_json` | JSONB array, 2-4 option theo validation Backend |
+| `correct_option_ids` | JSONB array, đúng một option ID tồn tại trong `options_json` |
+| `explanation` | TEXT, optional ở database, được validate khi AI sinh/Teacher sửa |
+| `citations_json` | JSONB array, mặc định `[]` |
+| `created_at`, `updated_at` | TIMESTAMPTZ, không null |
+
+Backend không khai báo `@OneToMany` từ `Quiz` sang `QuizQuestion`; câu hỏi được truy vấn bằng
+`QuizQuestionRepository` theo `(quiz_id, question_index)`.
+
 ## 10. Retrieval contract
 
 Core RAG chỉ retrieval theo `document_ids` đã được Backend kiểm quyền.
@@ -285,6 +337,14 @@ PENDING_REVIEW -> REJECTED
 PUBLISHED -> ARCHIVED
 ```
 
+Quiz:
+
+```txt
+DRAFT -> PUBLISHED
+```
+
+Quiz `PUBLISHED` không được sửa hoặc publish lại. Backend service enforce owner và transition này.
+
 Database chỉ kiểm enum hợp lệ. Backend service phải enforce transition và permission.
 
 Rule nghiệp vụ bắt buộc:
@@ -301,6 +361,12 @@ File này không lặp lại toàn bộ SQL để tránh mâu thuẫn. Backend t
 
 ```txt
 07_BACKEND_DATABASE_SCHEMA_GUIDE.md
+```
+
+Schema quiz được triển khai tại:
+
+```txt
+backend/src/main/resources/db/migration/V14__create_quiz_tables.sql
 ```
 
 Trong đó có:

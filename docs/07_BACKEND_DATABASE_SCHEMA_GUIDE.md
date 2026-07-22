@@ -1,7 +1,7 @@
 # Hướng dẫn Backend tạo database schema MVP
 
-**Phiên bản:** 1.1
-**Cập nhật:** 12/07/2026
+**Phiên bản:** 1.2
+**Cập nhật:** 23/07/2026
 **Owner:** Backend
 **Mục tiêu:** Tạo đầy đủ schema database cho MVP document-centric
 
@@ -14,11 +14,11 @@ File này dành cho Backend khi tạo migration database. Nội dung ở đây g
 - `subject`, `topic`, `chapter`, `tags` là metadata của `documents`.
 - Backend sở hữu migration và trạng thái nghiệp vụ.
 - AI Service không tự tạo bảng; AI chỉ ghi/truy vấn `document_chunks` theo schema Backend tạo.
-- Không tạo bảng thừa cho Student, quiz, gamification, enrollment hoặc LMS course trong MVP này.
+- Không tạo bảng thừa cho Student attempt/result, gamification, enrollment hoặc LMS course.
 
 ## 2. Danh sách bảng cần có
 
-Core MVP cần 4 bảng chính:
+Các bảng nghiệp vụ hiện có liên quan đến Document/RAG/Quiz:
 
 | Bảng | Owner logic | Mục đích |
 |---|---|---|
@@ -26,6 +26,10 @@ Core MVP cần 4 bảng chính:
 | `documents` | Backend | Tài liệu do Teacher upload, là bảng trung tâm |
 | `document_processing_jobs` | Backend | Theo dõi mỗi lần xử lý AI/reprocess |
 | `document_chunks` | AI ghi, Backend tạo migration | Lưu chunk text và embedding pgvector |
+| `rag_conversations` | Backend | Lưu hội thoại RAG theo user + document |
+| `rag_messages` | Backend | Lưu messages trong hội thoại RAG |
+| `quizzes` | Backend | Lưu quiz draft/published do Teacher tạo |
+| `quiz_questions` | Backend | Lưu câu hỏi, đáp án và citations của quiz |
 
 Không tạo trong MVP:
 
@@ -44,14 +48,21 @@ Không tạo trong MVP:
 ```txt
 users.id
   ├── documents.uploaded_by
-  └── documents.reviewed_by
+  ├── documents.reviewed_by
+  ├── rag_conversations.user_id
+  └── quizzes.created_by
 
 users 1 ─── N documents
 users 1 ─── N reviewed documents
 
 documents.id
   ├── document_processing_jobs.document_id
-  └── document_chunks.document_id
+  ├── document_chunks.document_id
+  ├── rag_conversations.document_id
+  └── quizzes.document_id
+
+quizzes.id
+  └── quiz_questions.quiz_id
 
 documents 1 ─── N document_processing_jobs
 documents 1 ─── N document_chunks
@@ -63,7 +74,8 @@ Giải thích:
 - Một Admin có thể review nhiều Document.
 - Một Document có nhiều processing jobs vì có thể retry/reprocess.
 - Một Document có nhiều chunks sau khi AI xử lý.
-- Xóa Document thì xóa cascade jobs/chunks.
+- Một Teacher có thể tạo nhiều quiz; một quiz có nhiều câu hỏi.
+- Xóa Document thì xóa cascade jobs/chunks/conversations/quizzes; xóa quiz thì cascade câu hỏi.
 - Không xóa cascade từ `users` sang `documents` để tránh mất dữ liệu khi khóa tài khoản Teacher.
 
 ## 4. Thứ tự migration đề xuất
@@ -74,6 +86,10 @@ Nếu dùng Flyway:
 backend/src/main/resources/db/migration/V1__create_users.sql
 backend/src/main/resources/db/migration/V2__create_document_mvp.sql
 backend/src/main/resources/db/migration/V3__seed_demo_users.sql
+...
+backend/src/main/resources/db/migration/V7__create_rag_conversation_history.sql
+...
+backend/src/main/resources/db/migration/V14__create_quiz_tables.sql
 ```
 
 Nếu chưa dùng Flyway thì Backend vẫn nên tách SQL theo thứ tự trên để dễ review. Không nên chỉ dựa vào `spring.jpa.hibernate.ddl-auto=update` cho demo nhóm, vì cách đó khó kiểm soát constraint/index/pgvector.
@@ -417,6 +433,24 @@ ON CONFLICT (email) DO NOTHING;
 
 Không commit password thật hoặc hash không rõ nguồn vào repo public nếu nhóm xem đó là thông tin nhạy cảm. Với demo local, có thể thống nhất mật khẩu tạm như `123456` và ghi rõ chỉ dùng cho môi trường demo.
 
+### Migration V14 - Quiz
+
+Migration triển khai thực tế:
+
+```txt
+backend/src/main/resources/db/migration/V14__create_quiz_tables.sql
+```
+
+Migration tạo:
+
+- `quizzes`: FK `document_id` cascade delete, FK `created_by`, trạng thái `DRAFT|PUBLISHED`,
+  question count, language, tokens và audit timestamps.
+- `quiz_questions`: FK `quiz_id` cascade delete, unique `(quiz_id, question_index)`, nội dung câu hỏi
+  và ba JSONB array `options_json`, `correct_option_ids`, `citations_json`.
+- Index theo owner/thời gian tạo, document và thứ tự câu hỏi trong quiz.
+
+Không tạo `quiz_attempts` hoặc `quiz_results` trong migration này.
+
 ## 12. State transition cần Backend enforce
 
 Database chỉ kiểm enum hợp lệ. Backend service phải kiểm transition hợp lệ.
@@ -443,6 +477,14 @@ PENDING_REVIEW -> PUBLISHED
 PENDING_REVIEW -> REJECTED
 PUBLISHED -> ARCHIVED
 ```
+
+Quiz:
+
+```txt
+DRAFT -> PUBLISHED
+```
+
+Chỉ owner được sửa/publish và chỉ khi quiz còn `DRAFT`.
 
 Rule quan trọng:
 
@@ -524,6 +566,10 @@ users
 documents
 document_processing_jobs
 document_chunks
+rag_conversations
+rag_messages
+quizzes
+quiz_questions
 ```
 
 Kiểm tra pgvector:
@@ -567,13 +613,17 @@ Backend cần báo cho AI khi đã có:
 
 ## 16. Kết luận cho Backend
 
-Backend cần tạo đầy đủ schema nghiệp vụ, không chỉ bảng phục vụ AI. Bộ bảng tối thiểu, hợp lý và không thừa cho MVP mới là:
+Backend cần tạo đầy đủ schema nghiệp vụ, không chỉ bảng phục vụ AI. Các bảng hiện có cho Document/RAG/Quiz là:
 
 ```txt
 users
 documents
 document_processing_jobs
 document_chunks
+rag_conversations
+rag_messages
+quizzes
+quiz_questions
 ```
 
 Trong đó:
@@ -582,5 +632,7 @@ Trong đó:
 - `documents` là trung tâm nghiệp vụ.
 - `document_processing_jobs` theo dõi xử lý AI.
 - `document_chunks` phục vụ retrieval/RAG bằng pgvector.
+- `rag_conversations`/`rag_messages` lưu lịch sử hỏi đáp.
+- `quizzes`/`quiz_questions` lưu vòng đời quiz và dữ liệu Teacher review.
 
 Không cần tạo `courses`, `lectures`, `course_members` cho luồng mới.
