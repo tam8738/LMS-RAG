@@ -2,103 +2,159 @@
 
 ## 1. Tổng quan dự án hiện tại
 
-LMS-RAG là hệ thống thư viện học liệu có hỗ trợ hỏi đáp bằng RAG. RAG là kỹ thuật tìm các đoạn liên quan trong tài liệu trước khi AI trả lời, nhờ đó câu trả lời có thể đi kèm trích dẫn để người dùng kiểm chứng.
+LMS-RAG là hệ thống thư viện học liệu cho giảng viên ngành CNTT, có tích hợp AI để hỗ trợ khai thác nội dung tài liệu. Hướng phát triển hiện tại không phải là một LMS đầy đủ theo kiểu quản lý lớp học, bài giảng, sinh viên và điểm số. Trọng tâm của dự án là quản lý tài liệu PDF/TXT, kiểm duyệt tài liệu trước khi công bố, sau đó cho phép người dùng hỏi đáp trên nội dung tài liệu bằng RAG.
 
-Bài toán của dự án xuất phát từ việc giảng viên lưu bài giảng, giáo trình và tài liệu tham khảo ở nhiều nơi khác nhau. Hệ thống hướng tới việc tập trung tài liệu, kiểm duyệt trước khi dùng chung, hỗ trợ tìm kiếm và khai thác nội dung nhanh phục vụ giảng dạy.
+RAG là kỹ thuật tìm các đoạn liên quan trong tài liệu trước, rồi mới đưa các đoạn đó cho AI sinh câu trả lời. Nhờ vậy câu trả lời có thể gắn với nguồn trích dẫn từ tài liệu thật, giúp giảng viên kiểm chứng nội dung thay vì chỉ nhận một câu trả lời chung chung.
 
-Dự án không phát triển như một LMS đầy đủ. Đơn vị trung tâm là Document, tức tài liệu PDF/TXT. Môn học, chủ đề, chương và nhãn là metadata dùng để phân loại, tìm kiếm và hỗ trợ RAG; không phải Course hoặc Lecture bắt buộc phải tạo trước khi tải lên.
+Đơn vị trung tâm của hệ thống là Document. Các thông tin như môn học, chủ đề, chương và nhãn chỉ là metadata để phân loại, tìm kiếm và hỗ trợ ngữ cảnh; không phải Course hoặc Lecture bắt buộc phải tạo trước khi tải tài liệu lên.
 
-Các đối tượng sử dụng trong phạm vi hiện tại:
+Các đối tượng sử dụng trong phạm vi hiện tại gồm:
 
-- Giảng viên: tải lên, quản lý, gửi duyệt, sử dụng thư viện, tải file và hỏi đáp trên tài liệu đã sẵn sàng.
-- Quản trị viên: duyệt/từ chối/lưu trữ tài liệu và quản lý tài khoản giảng viên.
-- Student chỉ còn trong dữ liệu nền; chưa có giao diện, API hoặc luồng nghiệp vụ. Nội dung này nằm ngoài core MVP.
+- Giảng viên: đăng nhập, tải tài liệu, quản lý tài liệu cá nhân, gửi duyệt, xem thư viện, tải file, hỏi đáp với AI trên tài liệu đã sẵn sàng.
+- Quản trị viên: duyệt, từ chối, lưu trữ tài liệu và theo dõi thông tin giảng viên trong hệ thống.
+- Student hiện chưa có giao diện, API nghiệp vụ hoặc luồng sử dụng trong core MVP. Các tính năng sinh quiz/làm quiz cho sinh viên đang nằm trong kế hoạch mở rộng.
 
-Hệ thống gồm Frontend React/Vite, Backend Spring Boot, AI Service FastAPI và PostgreSQL có pgvector. Frontend giao tiếp với Backend bằng JWT. Backend quản lý nghiệp vụ, quyền truy cập và gọi AI Service bằng khóa nội bộ. Backend và AI Service dùng chung vùng lưu file khi chạy Docker.
+Hệ thống gồm bốn phần chính: Frontend React/Vite, Backend Spring Boot, AI Service FastAPI và PostgreSQL có pgvector. Frontend chỉ gọi Backend. Backend quản lý xác thực, phân quyền, nghiệp vụ và gọi AI Service bằng khóa nội bộ. AI Service xử lý tài liệu, tạo vector, tìm kiếm ngữ cảnh và sinh câu trả lời. Backend và AI Service dùng chung vùng lưu file khi chạy bằng Docker.
 
 ## 2. Những nội dung đã điều chỉnh
 
-Dự án đã chuyển từ hướng Course/Lecture sang document-centric. Giảng viên có thể tải tài liệu trực tiếp và gắn metadata cần thiết. Điều chỉnh này rút gọn luồng demo, phù hợp mục tiêu thư viện học liệu và tránh mở rộng thành hệ thống quản lý lớp học.
+Dự án đã chuyển từ hướng Course/Lecture sang hướng document-centric. Thay vì bắt giảng viên tạo lớp học hoặc bài giảng trước, giảng viên có thể tải tài liệu trực tiếp và gắn metadata cần thiết. Điều chỉnh này giúp phạm vi gọn hơn, phù hợp với mục tiêu thư viện học liệu và giảm rủi ro mở rộng quá mức so với MVP.
 
-Luồng AI được tách thành hai giai đoạn:
+Dự án cũng đã tách rõ phần chức năng non-AI và phần chức năng có AI:
 
-1. Sau tải lên, AI chỉ phân tích xem tài liệu có thể xử lý RAG hay không.
-2. Sau khi Admin duyệt, AI mới đọc nội dung, chia đoạn, tạo embedding và lập chỉ mục RAG.
+- Phần non-AI chịu trách nhiệm cho nghiệp vụ nền: tài khoản, quyền truy cập, upload, kiểm duyệt, thư viện, theo dõi giảng viên, tải/xem file và lưu lịch sử hội thoại.
+- Phần AI chịu trách nhiệm phân tích tài liệu, lập chỉ mục RAG, tìm kiếm đoạn liên quan, sinh câu trả lời, trả trích dẫn và hỗ trợ câu hỏi nối tiếp bằng lịch sử gần nhất.
 
-Cách làm này tránh chi phí xử lý cho tài liệu chưa được duyệt. Trạng thái xử lý AI và trạng thái công bố cũng được lưu riêng để phân biệt tài liệu đang phân tích, chờ duyệt, đang lập chỉ mục hoặc đã sẵn sàng hỏi đáp.
+Luồng AI được chia thành hai giai đoạn. Sau khi giảng viên tải file lên, AI chỉ phân tích xem tài liệu có thể dùng cho RAG hay không. Sau khi Admin duyệt, AI mới lập chỉ mục thật bằng cách đọc nội dung, chia đoạn, tạo embedding và lưu vào pgvector. Cách làm này tránh xử lý tốn chi phí cho tài liệu chưa được công bố.
 
-RAG đã chuyển từ hỏi đáp độc lập sang có lịch sử theo từng người dùng và từng tài liệu. Backend lưu hội thoại; AI Service nhận các lượt gần nhất để hiểu câu hỏi nối tiếp nhưng không tự lưu lịch sử. Một số tài liệu kiểm thử cũ vẫn nói về Course, Lecture và Student; đây là dấu vết của hướng trước, không phản ánh source code hiện tại.
+RAG cũng đã được nâng từ hỏi đáp độc lập sang có lịch sử theo từng người dùng và từng tài liệu. Backend là nơi lưu hội thoại. AI Service không tự lưu lịch sử, mà chỉ nhận một số lượt gần nhất để hiểu các câu hỏi nối tiếp như “nói chi tiết hơn”.
+
+Một số tài liệu/test cũ trong repo từng nói về Course, Lecture và Student. Đây là dấu vết của hướng phát triển cũ, không còn là luồng chính của source code hiện tại.
 
 ## 3. Các chức năng đã thực hiện
 
-### Backend
+### 3.1. Nhóm chức năng non-AI
 
-- Đăng nhập JWT, lấy thông tin người dùng hiện tại và API đăng xuất.
-- Tải PDF/TXT, kiểm tra loại/kích thước file, lưu file trong vùng dùng chung với AI Service.
-- Tạo, xem, cập nhật, thay file hoặc xóa tài liệu của giảng viên.
-- Tự gọi AI phân tích sau tải lên; lưu khả năng RAG, số trang, số token/chunk ước tính và thông tin lỗi.
-- Gửi duyệt, duyệt, từ chối kèm lý do và lưu trữ tài liệu.
-- Thư viện có tìm kiếm/lọc metadata, xem chi tiết/nội dung và tải file gốc theo quyền.
-- API RAG kiểm tra quyền, trạng thái công bố và trạng thái lập chỉ mục trước khi gọi AI.
-- Lưu lịch sử hội thoại: tạo/mở hội thoại theo tài liệu, gửi tin nhắn, tải lại và xóa lịch sử.
-- Quản lý giảng viên của Admin đã hoàn thành theo kế hoạch: xem danh sách/chi tiết, thống kê tài liệu, tạo/cập nhật, kích hoạt/vô hiệu hóa và đặt lại mật khẩu.
+Đây là các chức năng nghiệp vụ nền, không phụ thuộc trực tiếp vào AI để hoạt động.
 
-### Frontend
+**Xác thực và phân quyền**
 
-- Đăng nhập, khôi phục phiên và bảo vệ route theo vai trò.
-- Thư viện: danh sách, tìm kiếm/lọc, chi tiết tài liệu, xem nội dung và tải file.
-- Tài liệu cá nhân: danh sách, tải lên, sửa metadata/thay file, gửi duyệt, xóa và yêu cầu lập chỉ mục lại.
-- Hàng chờ duyệt, trang duyệt chi tiết và quản lý giảng viên cho Admin.
-- Khung hỏi đáp hiển thị trạng thái chờ/lỗi/not-found, câu trả lời, trích dẫn, lịch sử, xác nhận xóa lịch sử và cuộn hội thoại.
-- Đã kiểm thử thủ công với các tài khoản Teacher; tải lại trang vẫn tải được lịch sử và tiếp tục hỏi đáp.
+- Đăng nhập bằng JWT.
+- Lấy thông tin người dùng hiện tại.
+- Có API đăng xuất và cơ chế vô hiệu hóa token ở Backend.
+- Phân quyền theo vai trò Teacher/Admin ở các API chính.
 
-Hồ sơ người dùng hiện gọi API cập nhật tên và đổi mật khẩu nhưng Backend chưa có endpoint tương ứng, nên chưa hoàn chỉnh. Gợi ý “tạo câu hỏi ôn tập” chỉ gửi một câu lệnh vào chat, chưa phải quiz độc lập.
+**Quản lý tài liệu của giảng viên**
 
-### AI Service
+- Giảng viên tải lên PDF/TXT kèm metadata gồm tiêu đề, mô tả, môn học, chủ đề, chương và tags.
+- Giảng viên xem danh sách tài liệu của mình, xem chi tiết, cập nhật metadata, thay file hoặc xóa tài liệu khi trạng thái cho phép.
+- File gốc được lưu trong vùng storage dùng chung để Backend lưu và AI Service có thể đọc.
+- Có API xem nội dung và tải file gốc theo quyền truy cập.
 
-- Kiểm tra file, đọc PDF/TXT, làm sạch nội dung và chia đoạn theo token.
-- Tạo embedding bằng OpenAI, lưu/ghi đè dữ liệu đoạn và vector vào pgvector.
-- Cung cấp API phân tích, lập chỉ mục, hỏi đáp và kiểm tra sức khỏe.
-- Tìm kiếm theo document IDs do Backend kiểm quyền.
-- Kết hợp tìm kiếm vector và từ khóa, lấy đoạn lân cận, loại trùng và lọc theo mức liên quan.
-- Sinh câu trả lời có trích dẫn; hỗ trợ tóm tắt, câu hỏi nối tiếp và làm sạch Markdown cơ bản.
+**Kiểm duyệt và thư viện tài liệu**
 
-Chất lượng trả lời thực tế vẫn phụ thuộc tài liệu đã được lập chỉ mục đúng, PDF có thể đọc được và khóa OpenAI hợp lệ.
+- Giảng viên gửi tài liệu đi duyệt.
+- Admin xem hàng chờ duyệt, xem chi tiết tài liệu, duyệt hoặc từ chối kèm lý do.
+- Tài liệu đã duyệt xuất hiện trong Library.
+- Library hỗ trợ danh sách, chi tiết, tìm kiếm/lọc theo metadata.
+- Admin có thể lưu trữ tài liệu đã công bố.
 
-### Database và môi trường triển khai
+**Quản lý giảng viên của Admin**
 
-- Database đã có migration cho tài khoản, tài liệu, job xử lý, đoạn/vector, hội thoại RAG và tin nhắn RAG.
-- PostgreSQL dùng pgvector; Backend quản lý migration, AI Service ghi/truy vấn đoạn và vector.
-- Docker Compose có Backend, AI Service, PostgreSQL/pgvector, pgAdmin và vùng lưu file dùng chung.
-- Khi kiểm tra, các container cần thiết đang chạy; PostgreSQL và AI Service báo healthy.
-- Frontend build thành công. Backend có 15 kiểm thử qua, trong đó một kiểm thử khởi động được bỏ qua. AI Service có 150 kiểm thử qua.
+Chức năng quản lý giảng viên của Admin đã hoàn thành theo phạm vi V1 trong plan. Phần này bao gồm xem tổng số giảng viên, xem danh sách giảng viên có tìm kiếm/phân trang, xem thông tin cơ bản của từng giảng viên, xem số lượng tài liệu đã upload, xem thống kê tài liệu theo trạng thái xử lý AI/trạng thái công bố và mở danh sách tài liệu của một giảng viên để kiểm tra nhanh.
+
+**Giao diện non-AI**
+
+- Frontend đã có đăng nhập, khôi phục phiên và bảo vệ route theo vai trò.
+- Có màn thư viện, chi tiết tài liệu, tài liệu cá nhân, tải lên, duyệt tài liệu và theo dõi giảng viên cho Admin.
+- Có UX xác nhận cho một số thao tác quan trọng như xóa hội thoại/đăng xuất.
+- Theo kiểm thử thủ công, các tài khoản Teacher hoạt động ổn định; tải lại trang vẫn giữ được trạng thái hội thoại khi dùng chức năng RAG.
+
+### 3.2. Nhóm chức năng có AI
+
+Đây là các chức năng cần AI Service, embedding, pgvector hoặc LLM để hoạt động.
+
+**Phân tích tài liệu sau upload**
+
+- AI Service kiểm tra file, đọc PDF/TXT, làm sạch nội dung và ước tính khả năng xử lý RAG.
+- Backend lưu lại các thông tin như khả năng RAG, số trang, số token/chunk ước tính và lỗi nếu có.
+- Bước này giúp giảng viên/Admin biết tài liệu có đủ điều kiện để hỏi đáp bằng AI hay không.
+
+**Lập chỉ mục RAG sau khi Admin duyệt**
+
+- AI Service đọc nội dung tài liệu đã duyệt.
+- Nội dung được làm sạch và chia thành các đoạn nhỏ theo token.
+- AI tạo embedding bằng OpenAI và lưu các đoạn/vector vào PostgreSQL có pgvector.
+- Quá trình ghi chunks được thiết kế theo hướng thay thế an toàn, tránh mất dữ liệu cũ nếu index lỗi giữa chừng.
+
+**Hỏi đáp AI theo tài liệu**
+
+- Backend kiểm tra quyền, trạng thái công bố và trạng thái xử lý trước khi gọi AI.
+- AI tìm các đoạn liên quan theo document IDs đã được Backend kiểm quyền.
+- Retrieval hiện kết hợp tìm kiếm vector và hỗ trợ từ khóa/ngữ cảnh để cải thiện khả năng tìm đúng đoạn.
+- Nếu có ngữ cảnh phù hợp, AI sinh câu trả lời tự nhiên bằng LLM nhưng vẫn bám vào các đoạn đã tìm được.
+- Câu trả lời có citations lấy từ chunk thật, không tạo nguồn giả.
+- Nếu không có thông tin phù hợp trong tài liệu, hệ thống trả trạng thái not-found và không nên hiển thị nguồn trích dẫn gây hiểu nhầm.
+
+**Lịch sử hỏi đáp và câu hỏi nối tiếp**
+
+- Backend lưu hội thoại theo từng user và từng document.
+- Khi người dùng mở lại trang, Frontend tải lại lịch sử hội thoại.
+- Khi gửi câu hỏi mới, Backend gửi một số lượt gần nhất sang AI để hỗ trợ ngữ cảnh.
+- AI Service vẫn stateless, tức không tự lưu conversation trong database.
+
+**Giao diện AI/RAG**
+
+- Frontend có khung hỏi đáp AI trong trang chi tiết tài liệu.
+- UI hiển thị câu hỏi, câu trả lời, trạng thái loading/error/not-found, nguồn trích dẫn và lịch sử hội thoại.
+- Đã có scroll trong vùng chat, xác nhận xóa lịch sử và cách hiển thị citations gọn hơn.
+
+Chất lượng trả lời AI vẫn phụ thuộc vào file có text layer đọc được, tài liệu đã được index đúng, cấu hình OpenAI hợp lệ và retrieval tìm được đoạn thật sự liên quan.
 
 ## 4. Luồng hệ thống hiện đã thực hiện được
 
-Luồng sử dụng hiện có thể chạy theo chuỗi:
+### 4.1. Luồng non-AI
 
-Giảng viên đăng nhập -> tải PDF/TXT và metadata -> Backend lưu file, tạo Document, gọi AI phân tích -> Giảng viên gửi duyệt -> Admin duyệt -> Backend gọi AI lập chỉ mục -> tài liệu xuất hiện trong thư viện -> người dùng mở tài liệu đã sẵn sàng -> tạo/mở lại hội thoại -> hỏi đáp và nhận câu trả lời kèm trích dẫn.
+Luồng non-AI hiện có thể chạy như sau:
 
-Các module trong luồng đã được nối trong code và môi trường nền đang chạy. Theo kiểm thử thủ công của nhóm, tài khoản Teacher hoạt động ổn định và người dùng có thể tải lại trang để tiếp tục hội thoại. Vẫn cần kiểm thử đầy đủ luồng bằng dữ liệu thật và kịch bản thống nhất trước khi nghiệm thu MVP.
+Giảng viên đăng nhập -> tải PDF/TXT kèm metadata -> xem tài liệu trong danh sách cá nhân -> chỉnh sửa/gửi duyệt -> Admin đăng nhập -> Admin xem hàng chờ duyệt -> duyệt hoặc từ chối -> tài liệu được công bố xuất hiện trong Library -> người dùng xem chi tiết, xem nội dung hoặc tải file theo quyền.
+
+Ngoài ra, Admin đã có thể xem danh sách, thông tin chi tiết và thống kê tài liệu của từng giảng viên trong hệ thống.
+
+### 4.2. Luồng có AI
+
+Luồng AI hiện có thể chạy như sau:
+
+Giảng viên upload tài liệu -> Backend gọi AI phân tích -> Admin duyệt tài liệu -> Backend gọi AI lập chỉ mục -> AI lưu chunks/vector -> người dùng mở tài liệu đã `PUBLISHED + PROCESSED` -> hệ thống tạo/mở conversation -> người dùng hỏi AI -> AI retrieval + generation -> trả câu trả lời kèm citations -> người dùng reload trang và tiếp tục hỏi với lịch sử cũ.
+
+Các module chính trong luồng đã được nối trong code. Nhóm đã kiểm thử thủ công việc Teacher reload trang và tiếp tục hội thoại ổn.
 
 ## 5. Các phần chưa hoàn thiện
 
-- Sinh quiz chuyên biệt chưa có API AI, dữ liệu lưu quiz, bước giảng viên xem lại/chỉnh sửa/công bố hay trang làm bài.
-- Cần kiểm thử liên thông toàn bộ luồng với dữ liệu thật, gồm lỗi AI, tài liệu không hỗ trợ RAG và các quyền truy cập khác nhau.
-- Cần hoàn thiện API hồ sơ người dùng hoặc gỡ các lời gọi chưa tồn tại ở Frontend. Đăng xuất trên giao diện chủ yếu xóa token cục bộ, chưa dùng API Backend để blacklist token.
-- README và một số snapshot cũ chưa khớp code hiện tại. Code cho phép truy cập công khai thư viện, trong khi PRD mô tả thư viện sau đăng nhập; cần chốt lại quyền truy cập và cập nhật tài liệu.
+Phần còn thiếu rõ ràng nhất là tính năng sinh quiz từ tài liệu. Hiện hệ thống mới có gợi ý “tạo câu hỏi ôn tập” trong khung chat AI, nhưng đây chỉ là một câu lệnh hỏi đáp, chưa phải một chức năng quiz độc lập.
+
+Tính năng quiz chưa có các phần chính sau:
+
+- API AI chuyên biệt để sinh danh sách câu hỏi, lựa chọn, đáp án đúng và giải thích dựa trên tài liệu đã lập chỉ mục.
+- Backend lưu quiz, câu hỏi, đáp án, trạng thái công bố và liên kết với tài liệu/giảng viên.
+- Giao diện để giảng viên xác nhận sinh quiz, xem lại, chỉnh sửa và công bố.
+- Trang làm quiz qua một URL riêng để người học làm bài và xem kết quả cuối trang.
+
+Ngoài quiz, báo cáo chỉ ghi nhận một điểm cần đồng bộ nhỏ: nếu tiếp tục giữ màn hồ sơ người dùng, Frontend và Backend cần khớp lại các API cập nhật thông tin/đổi mật khẩu. Phần này không phải trọng tâm của MVP tài liệu và RAG.
 
 ## 6. Kế hoạch thực hiện tiếp theo
 
-1. Hoàn thiện API sinh quiz từ tài liệu đã lập chỉ mục, với câu hỏi/đáp án rõ ràng và chỉ dùng nội dung tài liệu.
-2. Tích hợp luồng Giảng viên xác nhận sinh quiz, xem lại/chỉnh sửa trước khi công bố và chuẩn bị trang làm quiz.
-3. Chạy kiểm thử end-to-end cho Teacher A, Admin và Teacher B; giữ regression test cho resume chat.
-4. Kiểm thử các tình huống lỗi: file không đọc được, index lỗi, AI không phản hồi, tài liệu chưa sẵn sàng và tài khoản bị vô hiệu hóa.
-5. Hoàn thiện hồ sơ, đăng xuất, quyền thư viện và cập nhật tài liệu theo trạng thái đã chốt.
-6. Chuẩn bị tài liệu PDF/TXT, tài khoản demo và kịch bản từ tải lên đến hỏi đáp, sau đó đến sinh quiz.
+Kế hoạch tiếp theo nên tập trung vào tính năng quiz nếu nhóm quyết định đưa vào phạm vi hoàn thiện:
+
+1. AI Service bổ sung API sinh quiz từ tài liệu đã index, chỉ dùng nội dung tài liệu làm nguồn.
+2. Backend bổ sung model/API để lưu quiz, câu hỏi, đáp án và trạng thái công bố.
+3. Frontend bổ sung luồng giảng viên xác nhận sinh quiz, review/chỉnh sửa và public.
+4. Frontend bổ sung trang làm quiz bằng URL riêng, hiển thị điểm/kết quả ở cuối trang.
+
+Sau khi hoàn thiện hoặc chốt quiz là phần mở rộng sau MVP, nhóm chỉ cần chạy lại một kịch bản demo cuối từ upload tài liệu -> duyệt -> hỏi đáp AI -> resume hội thoại để xác nhận các phần chính hoạt động ổn định.
 
 ## 7. Kết luận
 
-Dự án đã có nền tảng MVP rõ ràng: kiến trúc bốn thành phần đang chạy; quản lý tài liệu, kiểm duyệt, quản lý giảng viên, lập chỉ mục RAG, hỏi đáp có trích dẫn và lịch sử hội thoại đều đã có API hoặc giao diện tương ứng.
+Dự án đã có nền tảng MVP khá rõ. Nhóm chức năng non-AI đã bao phủ phần xác thực/phân quyền, quản lý tài liệu, kiểm duyệt, thư viện, tải/xem file và phần Admin theo dõi giảng viên theo phạm vi V1. Nhóm chức năng AI đã bao phủ phân tích tài liệu, lập chỉ mục RAG, hỏi đáp có trích dẫn và resume lịch sử hội thoại.
 
-Phần trọng tâm chưa hoàn thiện là sinh quiz và kiểm thử liên thông toàn bộ luồng bằng dữ liệu thật. Sau khi hoàn thiện quiz, xử lý các chênh lệch nhỏ giữa API, giao diện và tài liệu, hệ thống sẽ đủ cơ sở để trình bày như một MVP hoàn chỉnh.
+Phần còn thiếu lớn nhất hiện nay là sinh quiz từ tài liệu. Nếu hoàn thiện quiz hoặc chốt quiz là phần mở rộng sau MVP, hệ thống đã đủ cơ sở để trình bày như một MVP thư viện học liệu có hỗ trợ AI.
