@@ -244,7 +244,15 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
     processingStatus: "",
   });
 
+  const activeFiltersCount = Object.entries(advancedFilters).filter(([key, val]) => {
+    if (key === "publicationStatus" || key === "fileType" || key === "processingStatus") return false;
+    return val !== "";
+  }).length;
+
+  const isFilteringOrSearching = !!searchVal || !!selectedSubject || activeFiltersCount > 0;
+
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const shouldRestoreSearchFocusRef = useRef(false);
 
   // Global Ctrl+K listener to focus search bar
   useEffect(() => {
@@ -257,6 +265,18 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!shouldRestoreSearchFocusRef.current) return;
+    shouldRestoreSearchFocusRef.current = false;
+    searchInputRef.current?.focus();
+  }, [isFilteringOrSearching]);
+
+  const handleSearchChange = (value: string) => {
+    shouldRestoreSearchFocusRef.current = true;
+    setSearchVal(value);
+    setPage(0);
+  };
 
   // Sync advanced filter subject with selectedSubject category chip
   useEffect(() => {
@@ -357,13 +377,6 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
     }
   };
 
-  const activeFiltersCount = Object.entries(advancedFilters).filter(([key, val]) => {
-    if (key === "publicationStatus" || key === "fileType" || key === "processingStatus") return false;
-    return val !== "";
-  }).length;
-
-  const isFilteringOrSearching = !!searchVal || !!selectedSubject || activeFiltersCount > 0;
-
   // Group visible documents by subject
   const subjectGroups = documents.reduce((acc, doc) => {
     const sub = doc.subject || "Khác";
@@ -415,10 +428,7 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
                 ref={searchInputRef}
                 type="text"
                 value={searchVal}
-                onChange={e => {
-                  setSearchVal(e.target.value);
-                  setPage(0);
-                }}
+                onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Đặt câu hỏi hoặc tìm kiếm tài liệu, môn học, chủ đề..."
                 className="w-full h-14 pl-12 pr-24 bg-white border border-[#0E0D0B]/[0.1] rounded-2xl text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/8 focus:border-[#4F63D2] transition-all"
               />
@@ -492,10 +502,7 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
               ref={searchInputRef}
               type="text"
               value={searchVal}
-              onChange={e => {
-                setSearchVal(e.target.value);
-                setPage(0);
-              }}
+              onChange={e => handleSearchChange(e.target.value)}
               placeholder="Tìm kiếm theo tên tài liệu, môn học, chủ đề..."
               className="w-full h-11 pl-11 pr-20 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all shadow-xs"
             />
