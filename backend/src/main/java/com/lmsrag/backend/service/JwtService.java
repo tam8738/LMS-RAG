@@ -54,6 +54,10 @@ public class JwtService {
         return extractAllClaims(token).getExpiration().getTime() - System.currentTimeMillis();
     }
 
+    public long getExpirationSeconds() {
+        return expirationMs / 1000;
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSignKey())

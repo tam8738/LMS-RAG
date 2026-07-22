@@ -1,7 +1,7 @@
 # System Design - LMS-RAG Document-Centric MVP
 
-**Phiên bản:** 1.1
-**Cập nhật:** 12/07/2026
+**Phiên bản:** 1.2
+**Cập nhật:** 23/07/2026
 **Mục tiêu:** Tổng hợp thiết kế hệ thống từ các contract docs đã chốt
 
 ---
@@ -319,7 +319,13 @@ Tags: JSONB array
 
 ```txt
 POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/refresh/revoke
 GET  /api/v1/auth/me
+POST /api/v1/auth/logout
+GET  /api/v1/me/profile
+PATCH /api/v1/me/profile
+POST /api/v1/me/change-password
 ```
 
 #### Documents
@@ -330,8 +336,10 @@ GET    /api/v1/my/documents
 GET    /api/v1/my/documents/{documentId}
 PATCH  /api/v1/my/documents/{documentId}
 DELETE /api/v1/my/documents/{documentId}
-POST   /api/v1/my/documents/{documentId}/reprocess
+POST   /api/v1/my/documents/{documentId}/reprocess-rag
 POST   /api/v1/my/documents/{documentId}/submit-review
+GET    /api/v1/documents/{documentId}/content
+GET    /api/v1/documents/{documentId}/download
 ```
 
 #### Admin
@@ -342,6 +350,13 @@ GET  /api/v1/admin/reviews/{documentId}
 POST /api/v1/admin/reviews/{documentId}/approve
 POST /api/v1/admin/reviews/{documentId}/reject
 POST /api/v1/admin/documents/{documentId}/archive
+GET  /api/v1/admin/teachers
+POST /api/v1/admin/teachers
+POST /api/v1/admin/teachers/batch
+PATCH /api/v1/admin/teachers/{teacherId}
+POST /api/v1/admin/teachers/{teacherId}/activate
+POST /api/v1/admin/teachers/{teacherId}/deactivate
+POST /api/v1/admin/teachers/{teacherId}/reset-password
 ```
 
 #### Library/RAG
@@ -350,6 +365,10 @@ POST /api/v1/admin/documents/{documentId}/archive
 GET  /api/v1/library
 GET  /api/v1/library/{documentId}
 POST /api/v1/rag/answer
+GET  /api/v1/rag/conversations/by-document/{documentId}
+POST /api/v1/rag/conversations/{conversationId}/messages
+GET  /api/v1/rag/conversations/{conversationId}/messages
+DELETE /api/v1/rag/conversations/{conversationId}/messages
 ```
 
 ### 8.2. AI internal API
@@ -360,6 +379,7 @@ GET  /v1/health/pgvector
 POST /v1/analyze-document
 POST /v1/index-document
 POST /v1/answer-question
+POST /v1/generate-quiz
 ```
 
 `/v1/process-document` là endpoint cũ có thể được giữ làm implementation tương đương index trong giai đoạn chuyển tiếp.

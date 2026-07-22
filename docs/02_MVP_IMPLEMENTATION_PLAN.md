@@ -1,7 +1,7 @@
 ﻿# Kế hoạch triển khai MVP document-centric
 
-**Phiên bản:** 1.8
-**Cập nhật:** 21/07/2026
+**Phiên bản:** 1.9
+**Cập nhật:** 23/07/2026
 **Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI analyze -> Teacher submit review -> Admin approve -> AI index RAG -> Library -> RAG citation
 
 ## 1. Scope đã khóa
@@ -65,13 +65,15 @@ Teacher A login
 
 ### Backend hiện có
 
-- Spring Boot project với JWT login, logout blacklist và phân quyền Teacher/Admin.
+- Spring Boot project với JWT access token, refresh-token rotation/revoke, logout blacklist và phân quyền Teacher/Admin.
+- API hồ sơ cá nhân `GET/PATCH /api/v1/me/profile` và đổi mật khẩu `POST /api/v1/me/change-password`.
 - Entity/repository/service/controller cho `Document`, `DocumentProcessingJob`, review, Library và RAG.
 - Upload API, My Documents API, Admin review API, Library API, file content/download.
 - Backend RAG proxy `POST /api/v1/rag/answer` và conversation endpoints cho resume chat.
 - `AiServiceClient` gọi AI Service `/v1/analyze-document`, `/v1/index-document` và `/v1/answer-question`.
 - Flyway migrations cho users, documents, jobs, chunks và RAG conversation history.
-- Admin Teacher management được theo dõi là phần P1/should-have; trạng thái triển khai thực tế cần đối chiếu branch/code mới nhất trước khi demo.
+- Admin Teacher management đã có API list/search/filter, tạo đơn lẻ/hàng loạt, cập nhật,
+  activate/deactivate và reset mật khẩu.
 
 ### Frontend hiện có
 
@@ -143,7 +145,7 @@ Quy ước trạng thái:
 | BE-03 - Upload Document/shared storage | Tâm | P0 | BE-02 | DONE | Upload API `POST /api/v1/documents` dùng multipart file + JSON metadata; validate file type/size/20MB, TEACHER only, lưu file vào `UPLOAD_ROOT/documents/{id}/v1/source.{ext}`, tạo processing job; đã test Docker upload TXT thành công và AI container đọc được file qua shared volume |
 | BE-04 - Auto-processing worker/AI client | Tâm | P0 | BE-03, AI-01 | DONE | Upload xong tự động tạo analyze job, gọi AI Service `POST /v1/analyze-document` bất đồng bộ qua `WebClient`; analyze success -> `processing_status=ANALYZED`; cập nhật `rag_eligible`, `page_count`, `estimated_token_count`, `estimated_chunk_count`, `unsupported_reason`, `analyzed_at`; failure -> `FAILED`; compile + test pass |
 | BE-05 - My Documents API | Tâm | P0 | BE-04 | DONE | Đã có list/detail/update/delete/submit-review cho owner; `PATCH /my/documents/{id}` hỗ trợ cập nhật cả metadata và file mới; submit review yêu cầu `processing_status=ANALYZED`; compile + test pass |
-| BE-06 - Admin review API | Tâm | P0 | BE-05 | DONE | Review queue/detail/approve/reject/archive; approve -> `publication_status=PUBLISHED` + `processing_status=PROCESSING`, document xuất hiện trong Library ngay lập tức (song song), fire-and-forget gọi AI Service `/v1/index-document`; index xong -> `processing_status=PROCESSED`; thêm `POST /api/v1/admin/documents/{id}/reprocess-rag`; compile + test pass |
+| BE-06 - Admin review API | Tâm | P0 | BE-05 | DONE | Review queue/detail/approve/reject/archive; approve -> `publication_status=PUBLISHED` + `processing_status=PROCESSING`, document xuất hiện trong Library ngay lập tức (song song), fire-and-forget gọi AI Service `/v1/index-document`; index xong -> `processing_status=PROCESSED`; Teacher reprocess qua `POST /api/v1/my/documents/{id}/reprocess-rag`; compile + test pass |
 | BE-07 - Library API | Tâm | P0 | BE-06 | DONE | Đã có list/detail chỉ trả `PUBLISHED`; hỗ trợ filter `q` (search title/description/subject/topic/chapter), `subject`, `topic`, `chapter`, `tags` (comma-separated, JSONB contains), `uploadedBy`; đã test Teacher B mở `/api/v1/library` và `/api/v1/library/{id}` thành công |
 | BE-08 - RAG proxy API | Tâm | P0 | BE-07, AI-03 | DONE | `POST /api/v1/rag/answer` kiểm tra document tồn tại + `processing_status=PROCESSED` + `publication_status=PUBLISHED`, sau đó gọi đồng bộ AI `/v1/answer-question` qua `AiServiceClient`; hỗ trợ `topK`, `language`, `history`; compile + test pass |
 | BE-RAG-HIST-01 - Migration cho RAG conversation history | Tâm | P0 | BE-08 | DONE | Flyway migration V7 tạo bảng `rag_conversations` và `rag_messages` với unique constraint `(user_id, document_id)`, index query theo conversation/time; migration chạy được |
@@ -151,7 +153,7 @@ Quy ước trạng thái:
 | BE-RAG-HIST-03 - Conversation service + permission checks | Tâm | P0 | BE-RAG-HIST-02 | DONE | `RagConversationService.getOrCreateConversation`, `getMessages`, `clearMessages` với kiểm tra document `PUBLISHED` + `PROCESSED` và ownership conversation |
 | BE-RAG-HIST-04 - Persist send-message flow + AI call | Tâm | P0 | BE-RAG-HIST-03 | DONE | `sendMessage` lưu user message, lấy 6 messages gần nhất làm history, gọi AI `/v1/answer-question`, lưu assistant message + citations + `notFound` + `tokensUsed`; giữ `POST /api/v1/rag/answer` cũ để backward compatibility |
 | BE-RAG-HIST-05 - Clear history + tests | Tâm | P0 | BE-RAG-HIST-04 | DONE | `DELETE /api/v1/rag/conversations/{id}/messages` xóa messages và reset counters; unit test `RagConversationServiceTest` 14 cases pass |
-| BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | IN_PROGRESS | Theo dõi qua `14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md` và `BE09_TEACHER_MANAGEMENT_DESIGN.md`; cần đối chiếu code/branch mới nhất trước demo |
+| BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | DONE | Đã có 7 endpoint dưới `/api/v1/admin/teachers`, phân quyền ADMIN, batch partial success tối đa 200 item và unit test cho service/validation/notification |
 
 ### 6.2. Frontend tasks
 
@@ -864,6 +866,7 @@ Endpoints:
 ```txt
 GET  /api/v1/admin/teachers
 POST /api/v1/admin/teachers
+POST /api/v1/admin/teachers/batch
 PATCH /api/v1/admin/teachers/{teacherId}
 POST /api/v1/admin/teachers/{teacherId}/activate
 POST /api/v1/admin/teachers/{teacherId}/deactivate
@@ -876,7 +879,8 @@ Rules:
 - Không tạo thêm Admin.
 - Không đổi role qua UI.
 - Deactivate Teacher không xóa documents.
-- Reset password tạo password tạm hoặc nhận password mới theo policy nhóm.
+- Create/reset password đều do hệ thống tự sinh mật khẩu tạm; API không nhận hoặc trả plaintext password.
+- Create gửi email bất đồng bộ sau commit. Reset hiện trả `emailSent=false` cho đến khi nối luồng gửi email reset.
 
 Acceptance criteria:
 
@@ -1494,7 +1498,13 @@ Acceptance criteria:
 
 ```txt
 POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/refresh/revoke
 GET  /api/v1/auth/me
+POST /api/v1/auth/logout
+GET  /api/v1/me/profile
+PATCH /api/v1/me/profile
+POST /api/v1/me/change-password
 ```
 
 Login response nên có:
@@ -1503,8 +1513,11 @@ Login response nên có:
 {
   "success": true,
   "data": {
-    "access_token": "...",
-    "token_type": "Bearer",
+    "accessToken": "...",
+    "refreshToken": "...",
+    "tokenType": "Bearer",
+    "accessTokenExpiresInSeconds": 3600,
+    "refreshTokenExpiresAt": "2026-08-22T10:00:00Z",
     "user": {
       "id": 2,
       "email": "teacher.a@example.com",
@@ -1525,6 +1538,9 @@ GET    /api/v1/my/documents/{documentId}
 PATCH  /api/v1/my/documents/{documentId}   (multipart: metadata + optional file)
 DELETE /api/v1/my/documents/{documentId}
 POST   /api/v1/my/documents/{documentId}/submit-review
+POST   /api/v1/my/documents/{documentId}/reprocess-rag
+GET    /api/v1/documents/{documentId}/content
+GET    /api/v1/documents/{documentId}/download
 ```
 
 ### Admin
@@ -1535,6 +1551,13 @@ GET  /api/v1/admin/reviews/{documentId}
 POST /api/v1/admin/reviews/{documentId}/approve
 POST /api/v1/admin/reviews/{documentId}/reject
 POST /api/v1/admin/documents/{documentId}/archive
+GET  /api/v1/admin/teachers
+POST /api/v1/admin/teachers
+POST /api/v1/admin/teachers/batch
+PATCH /api/v1/admin/teachers/{teacherId}
+POST /api/v1/admin/teachers/{teacherId}/activate
+POST /api/v1/admin/teachers/{teacherId}/deactivate
+POST /api/v1/admin/teachers/{teacherId}/reset-password
 ```
 
 ### Library/RAG
@@ -1543,6 +1566,10 @@ POST /api/v1/admin/documents/{documentId}/archive
 GET  /api/v1/library
 GET  /api/v1/library/{documentId}
 POST /api/v1/rag/answer
+GET  /api/v1/rag/conversations/by-document/{documentId}
+POST /api/v1/rag/conversations/{conversationId}/messages
+GET  /api/v1/rag/conversations/{conversationId}/messages
+DELETE /api/v1/rag/conversations/{conversationId}/messages
 ```
 
 ### DocumentView DTO

@@ -1,5 +1,6 @@
 package com.lmsrag.backend.entity;
 
+import com.lmsrag.backend.enums.Gender;
 import com.lmsrag.backend.enums.UserRole;
 import com.lmsrag.backend.enums.UserStatus;
 import jakarta.persistence.*;
@@ -8,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
@@ -39,6 +41,25 @@ public class User {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
+
+    @Column(name = "citizen_id", unique = true, length = 12)
+    private String citizenId;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Gender gender;
+
+    @Column(length = 255)
+    private String department;
+
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Column(name = "hire_date")
+    private LocalDate hireDate;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

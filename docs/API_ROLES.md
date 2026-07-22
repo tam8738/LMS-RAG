@@ -1,7 +1,17 @@
 # Danh sách API Backend & Phân quyền
 
 > Tài liệu này tổng hợp các endpoint Backend (`/api/v1/**`) đang có trong source code hiện tại và role được phép truy cập.
-> Cập nhật lần cuối: **2026-07-21**.
+> Cập nhật lần cuối: **2026-07-23**.
+
+## Thay đổi API gần nhất
+
+- Auth chuyển sang đăng nhập bằng email và trả cả access token/refresh token.
+- Bổ sung rotate/revoke refresh token tại `/api/v1/auth/refresh` và `/api/v1/auth/refresh/revoke`.
+- Bổ sung API hồ sơ cá nhân và đổi mật khẩu dưới `/api/v1/me`.
+- Bổ sung bộ API Admin quản lý Teacher, gồm tạo đơn lẻ/hàng loạt, cập nhật, kích hoạt,
+  vô hiệu hóa và reset mật khẩu.
+- AI Service đã có internal API `POST /v1/generate-quiz`; contract chi tiết nằm tại
+  `04_AI_API_CONTRACT.md`. Frontend không gọi endpoint này trực tiếp.
 
 ## Chú thích
 
@@ -17,9 +27,44 @@
 
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|-------|
-| `POST` | `/api/v1/auth/login` | `PUBLIC` | Đăng nhập, nhận JWT token |
+| `POST` | `/api/v1/auth/login` | `PUBLIC` | Đăng nhập, nhận access token và refresh token |
+| `POST` | `/api/v1/auth/refresh` | `PUBLIC` | Dùng refresh token để nhận cặp token mới; token cũ bị thu hồi |
+| `POST` | `/api/v1/auth/refresh/revoke` | `PUBLIC` | Thu hồi refresh token; xử lý idempotent |
 | `GET` | `/api/v1/auth/me` | `AUTHENTICATED` | Lấy thông tin user đang đăng nhập |
 | `POST` | `/api/v1/auth/logout` | `AUTHENTICATED` | Đăng xuất, vô hiệu hóa JWT token hiện tại |
+
+### Hồ sơ cá nhân (`/api/v1/me`)
+
+| Method | Endpoint | Role | Mô tả |
+|--------|----------|------|-------|
+| `GET` | `/api/v1/me/profile` | `AUTHENTICATED` | Lấy hồ sơ chi tiết của tài khoản hiện tại |
+| `PATCH` | `/api/v1/me/profile` | `AUTHENTICATED` | Cập nhật tên, ngày sinh, giới tính và số điện thoại |
+| `POST` | `/api/v1/me/change-password` | `AUTHENTICATED` | Đổi mật khẩu và thu hồi mọi refresh token đang hoạt động |
+
+`POST /api/v1/auth/refresh` và `POST /api/v1/auth/refresh/revoke` nhận body:
+
+```json
+{
+  "refreshToken": "<refresh-token>"
+}
+```
+
+Login và refresh trả `accessToken`, `refreshToken`, `tokenType`,
+`accessTokenExpiresInSeconds`, `refreshTokenExpiresAt` và thông tin user. Refresh token
+được rotate sau mỗi lần sử dụng; database chỉ lưu SHA-256 hash, không lưu token thô.
+
+`PATCH /api/v1/me/profile` không cho phép đổi các trường định danh/quản trị gồm `id`,
+email đăng nhập, role, status, khoa/bộ môn và ngày tuyển dụng.
+
+Body đổi mật khẩu:
+
+```json
+{
+  "currentPassword": "current-password",
+  "newPassword": "new-password",
+  "confirmPassword": "new-password"
+}
+```
 
 ## 2. Documents - Teacher (`/api/v1`)
 
@@ -111,16 +156,38 @@ Quy tắc:
 - AI Service không lưu conversation; Backend gửi tối đa history gần nhất sang AI.
 - `notFound=true` phải đi kèm `citations=[]` để FE không hiển thị nguồn gây hiểu nhầm.
 
-## 7. Admin Teacher Management
+## 7. Admin Teacher Management (`/api/v1/admin/teachers`)
 
-Tính năng Admin quản lý giảng viên đang được theo dõi trong:
+| Method | Endpoint | Role | Mô tả |
+|--------|----------|------|-------|
+| `GET` | `/api/v1/admin/teachers` | `ADMIN` | Danh sách giảng viên + search/filter/pagination |
+| `POST` | `/api/v1/admin/teachers` | `ADMIN` | Tạo một tài khoản giảng viên |
+| `POST` | `/api/v1/admin/teachers/batch` | `ADMIN` | Tạo hàng loạt giảng viên (partial success) |
+| `PATCH` | `/api/v1/admin/teachers/{teacherId}` | `ADMIN` | Cập nhật thông tin giảng viên |
+| `POST` | `/api/v1/admin/teachers/{teacherId}/activate` | `ADMIN` | Kích hoạt tài khoản giảng viên |
+| `POST` | `/api/v1/admin/teachers/{teacherId}/deactivate` | `ADMIN` | Vô hiệu hóa tài khoản giảng viên |
+| `POST` | `/api/v1/admin/teachers/{teacherId}/reset-password` | `ADMIN` | Đặt lại mật khẩu giảng viên |
 
-```txt
-docs/14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md
-docs/BE09_TEACHER_MANAGEMENT_DESIGN.md
-```
+### Dữ liệu tạo giảng viên
 
-Nếu branch/code hiện tại đã merge BE-09, cần bổ sung chính xác các endpoint Admin Teacher vào tài liệu này sau khi đối chiếu controller thực tế. Không tự coi endpoint đã có nếu chưa thấy trong source code hoặc OpenAPI.
+- Bắt buộc: `name`, `role = TEACHER`, `email` hợp lệ.
+- Tùy chọn: `dateOfBirth`, `gender`, `phoneNumber`, `department`, `hireDate`.
+- Email đăng nhập lấy từ request và được chuẩn hóa thành chữ thường; hệ thống kiểm tra trùng trước khi lưu.
+- Trạng thái mặc định là `ACTIVE`; hệ thống sinh mật khẩu tạm ngẫu nhiên và chỉ lưu BCrypt hash.
+- Sau khi transaction commit, hệ thống gửi bất đồng bộ email và mật khẩu tạm đến chính email đăng nhập.
+- Batch nhận tối đa 200 phần tử và cho phép partial success.
+- Reset mật khẩu không nhận body. Hệ thống tự sinh mật khẩu mới, không trả plaintext; response gồm
+  `teacherId`, `emailSent`, `resetAt`. Ở implementation hiện tại `emailSent=false`, vì luồng gửi email
+  mới chỉ được nối cho lúc tạo tài khoản.
+
+### Tham số lọc cho `GET /api/v1/admin/teachers`
+
+| Param | Kiểu | Mô tả |
+|-------|------|-------|
+| `keyword` | `String` | Tìm kiếm trong email đăng nhập hoặc tên |
+| `isActive` | `Boolean` | Lọc theo trạng thái tài khoản |
+| `department` | `String` | Lọc theo khoa/bộ môn |
+| `page`, `size`, `sortBy`, `sortDirection` | `Pageable` | Phân trang và sắp xếp |
 
 ## 8. Swagger / API Docs
 

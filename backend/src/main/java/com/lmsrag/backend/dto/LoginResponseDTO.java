@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 /**
  * DTO chứa kết quả trả về sau khi đăng nhập thành công.
  * <p>
@@ -21,6 +23,19 @@ public class LoginResponseDTO {
 
     @Schema(description = "JWT access token dùng để xác thực các request sau này", example = "eyJhbGciOiJIUzI1NiIs...")
     private String accessToken;
+
+    @Schema(description = "Refresh token dùng một lần để làm mới phiên đăng nhập")
+    private String refreshToken;
+
+    @Builder.Default
+    @Schema(description = "Loại token", example = "Bearer")
+    private String tokenType = "Bearer";
+
+    @Schema(description = "Thời gian còn hiệu lực của access token, tính bằng giây", example = "3600")
+    private long accessTokenExpiresInSeconds;
+
+    @Schema(description = "Thời điểm refresh token hết hạn")
+    private Instant refreshTokenExpiresAt;
 
     @Schema(description = "Thông tin tài khoản vừa đăng nhập")
     private AuthUserResponse user;

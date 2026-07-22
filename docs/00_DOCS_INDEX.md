@@ -1,7 +1,7 @@
 # Bộ tài liệu chính thức của dự án
 
-**Phiên bản:** 1.5
-**Cập nhật:** 21/07/2026
+**Phiên bản:** 1.6
+**Cập nhật:** 23/07/2026
 **Đối tượng đọc:** Frontend, Backend, AI Service
 
 ## 1. Mục đích
@@ -95,11 +95,13 @@ Tài liệu riêng cho tính năng lưu lịch sử hỏi đáp, resume chat và
 ### 11. Admin quản lý giảng viên
 
 ```txt
-14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md
 BE09_TEACHER_MANAGEMENT_DESIGN.md
+14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md  (kế hoạch lịch sử)
 ```
 
-Tài liệu thiết kế/plan cho bản đơn giản của tính năng Admin xem danh sách giảng viên, xem thống kê tài liệu đã upload và quản lý trạng thái tài khoản Teacher.
+`BE09_TEACHER_MANAGEMENT_DESIGN.md` là contract đã triển khai cho bộ API quản lý tài khoản
+Teacher. File `14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md` chỉ giữ lại kế hoạch read-only
+ban đầu và không dùng để suy ra endpoint đang tồn tại.
 
 ### 12. Báo cáo tiến độ
 

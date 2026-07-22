@@ -59,7 +59,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Các endpoint public: không cần xác thực
                         .requestMatchers(
-                                "/api/v1/auth/login",          // Đăng nhập
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/refresh/revoke",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -68,7 +70,7 @@ public class SecurityConfig {
                                 "/error"
                         ).permitAll()
                         // Endpoint lấy thông tin user hiện tại yêu cầu đã đăng nhập
-                        .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout").authenticated()
+                        .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/me/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/documents").hasRole("TEACHER")
                         .requestMatchers("/api/v1/my/**").hasRole("TEACHER")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -111,10 +113,10 @@ public class SecurityConfig {
     }
 
     private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        response.setStatus(errorCode.getStatus().value());
+        response.setStatus(errorCode.getStatusCode());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(errorCode.name(), errorCode.getMessage()));
+        objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
     @Bean

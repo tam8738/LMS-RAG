@@ -75,6 +75,7 @@ services:
       # ========= JWT =========
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      REFRESH_TOKEN_EXPIRATION_MS: ${REFRESH_TOKEN_EXPIRATION_MS:-2592000000}
 
       # ========= Storage =========
       UPLOAD_ROOT: /storage/uploads
@@ -82,6 +83,18 @@ services:
       # ========= AI Service =========
       AI_SERVICE_BASE_URL: http://ai-service:8000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+
+      # ========= Mail =========
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE:-true}
+      MAIL_CONNECTION_TIMEOUT_MS: ${MAIL_CONNECTION_TIMEOUT_MS:-5000}
+      MAIL_READ_TIMEOUT_MS: ${MAIL_READ_TIMEOUT_MS:-5000}
+      MAIL_WRITE_TIMEOUT_MS: ${MAIL_WRITE_TIMEOUT_MS:-5000}
 
       # ========= Spring =========
       SPRING_PROFILES_ACTIVE: docker

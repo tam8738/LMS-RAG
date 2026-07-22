@@ -5,6 +5,7 @@ import com.lmsrag.backend.client.ai.AiServiceException;
 import com.lmsrag.backend.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,16 +34,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleAppException(AppException ex) {
 
         ErrorCode errorCode = ex.getErrorCode();
-        log.warn("Business exception: code={}, message={}", errorCode.name(), errorCode.getMessage());
+        log.warn("Business exception: code={}, message={}", errorCode.getCode(), errorCode.getMessage());
 
         return ResponseEntity
-                .status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.name(), errorCode.getMessage()));
+                .status(errorCode.getStatusCode())
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
     /**
      * Fallback: bắt mọi exception không xác định (lỗi hệ thống, NullPointerException,...)
-     * để tránh lộ stack trace cho client, đồng thời log lại để debug.
+     * để tránh lộ stack trace cho client, đồng thờI log lại để debug.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleException(Exception ex) {
@@ -52,8 +53,8 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.INTERNAL_ERROR;
 
         return ResponseEntity
-                .status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.name(), errorCode.getMessage()));
+                .status(errorCode.getStatusCode())
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
     /**
@@ -74,8 +75,8 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.INVALID_INPUT;
 
         return ResponseEntity
-                .status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.name(), errorCode.getMessage(), details));
+                .status(errorCode.getStatusCode())
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage(), details));
     }
 
     /**
@@ -97,8 +98,21 @@ public class GlobalExceptionHandler {
                 invalidValue, paramName, requiredType);
 
         return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT.getStatus())
-                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.name(), message));
+                .status(ErrorCode.INVALID_INPUT.getStatusCode())
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleUnreadableRequestBody(
+            HttpMessageNotReadableException ex
+    ) {
+        log.warn("Request body cannot be parsed | exception={}", ex.getClass().getSimpleName());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getStatusCode())
+                .body(ApiResponse.error(
+                        ErrorCode.INVALID_INPUT.getCode(),
+                        ErrorCode.INVALID_INPUT.getMessage()
+                ));
     }
 
     /**
@@ -131,7 +145,7 @@ public class GlobalExceptionHandler {
         log.error("AI Service exception: code={}, message={}", ex.getErrorCode(), ex.getMessage());
 
         return ResponseEntity
-                .status(ErrorCode.AI_SERVICE_ERROR.getStatus())
+                .status(ErrorCode.AI_SERVICE_ERROR.getStatusCode())
                 .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 
@@ -146,8 +160,8 @@ public class GlobalExceptionHandler {
         log.warn("Access denied for user '{}' to resource: {}", username, ex.getMessage());
 
         return ResponseEntity
-                .status(ErrorCode.FORBIDDEN.getStatus())
-                .body(ApiResponse.error(ErrorCode.FORBIDDEN.name(), ErrorCode.FORBIDDEN.getMessage()));
+                .status(ErrorCode.FORBIDDEN.getStatusCode())
+                .body(ApiResponse.error(ErrorCode.FORBIDDEN.getCode(), ErrorCode.FORBIDDEN.getMessage()));
     }
 
 }

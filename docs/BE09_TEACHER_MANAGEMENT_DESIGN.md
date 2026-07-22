@@ -1,450 +1,267 @@
-# BE-09: Admin Teacher Management — Thiết kế chi tiết
+# BE-09: Admin Teacher Management — Contract đã triển khai
 
-> TIP-ID: BE-09  
-> Owner: Tâm  
-> Priority: P1 (SHOULD_HAVE)  
-> Depends on: Auth ổn định  
-> Estimate: 0.5 – 1 ngày  
-> Cập nhật: 2026-07-15
-
----
+**Phiên bản:** 2.0
+**Cập nhật:** 23/07/2026
+**Trạng thái:** Backend đã triển khai
+**Priority:** P1 (Should-have)
+**Phạm vi:** Backend API; không mô tả triển khai Frontend
 
 ## 1. Mục tiêu
 
-Xây dựng bộ API cho phép **Admin** quản lý tài khoản Teacher, bao gồm:
-- Xem danh sách Teacher (phân trang, lọc, tìm kiếm).
-- Tạo Teacher đơn lẻ.
-- **Tạo Teacher hàng loạt** từ danh sách.
+Bộ API cho phép Admin quản lý tài khoản có role `TEACHER`:
+
+- Xem danh sách có phân trang, tìm kiếm, lọc và sắp xếp.
+- Tạo một hoặc nhiều tài khoản Teacher.
 - Cập nhật thông tin Teacher.
-- Kích hoạt / vô hiệu hóa Teacher.
-- Reset mật khẩu Teacher.
+- Kích hoạt hoặc vô hiệu hóa tài khoản.
+- Reset mật khẩu bằng mật khẩu tạm do hệ thống sinh.
 
----
+Tài liệu này mô tả code hiện tại. Danh sách endpoint và role canonical vẫn nằm tại
+`API_ROLES.md`.
 
-## 2. Quy tắc nghiệp vụ
+## 2. Phân quyền và envelope
 
-1. Chỉ Admin được gọi các endpoint này.
-2. Không tạo thêm tài khoản Admin qua API này.
-3. Không đổi role qua UI/API này.
-4. Deactivate Teacher **không xóa** documents của Teacher đó.
-5. Teacher bị `INACTIVE` không đăng nhập được.
-6. Reset password có thể do Admin nhập mật khẩu mới hoặc để hệ thống tự sinh.
-7. Tạo hàng loạt (batch) cho phép lỗi một phần: tài khoản hợp lệ vẫn được tạo, tài khoản lỗi được liệt kê chi tiết.
+Base path:
 
----
+```txt
+/api/v1/admin/teachers
+```
 
-## 3. API Endpoints
+Tất cả endpoint yêu cầu:
 
-Base path: `/api/v1/admin/teachers`
+```http
+Authorization: Bearer <access-token>
+```
 
-| Method | Endpoint | Mô tả | Role |
-|--------|----------|-------|------|
-| `GET` | `/api/v1/admin/teachers` | Lấy danh sách Teacher | ADMIN |
-| `POST` | `/api/v1/admin/teachers` | Tạo một Teacher | ADMIN |
-| `POST` | `/api/v1/admin/teachers/batch` | **Tạo hàng loạt Teacher** | ADMIN |
-| `PATCH` | `/api/v1/admin/teachers/{teacherId}` | Cập nhật Teacher | ADMIN |
-| `POST` | `/api/v1/admin/teachers/{teacherId}/activate` | Kích hoạt Teacher | ADMIN |
-| `POST` | `/api/v1/admin/teachers/{teacherId}/deactivate` | Vô hiệu hóa Teacher | ADMIN |
-| `POST` | `/api/v1/admin/teachers/{teacherId}/reset-password` | Reset mật khẩu Teacher | ADMIN |
+Role bắt buộc: `ADMIN`. Teacher hoặc người chưa đăng nhập lần lượt nhận `403` hoặc `401`.
 
-### 3.1 `GET /api/v1/admin/teachers`
-
-Lấy danh sách Teacher với phân trang, lọc và tìm kiếm.
-
-**Query params:**
-
-| Param | Type | Required | Mô tả |
-|-------|------|----------|-------|
-| `status` | `ACTIVE` \| `INACTIVE` | No | Lọc theo trạng thái |
-| `keyword` | `String` | No | Tìm theo email hoặc tên (không phân biệt hoa thường) |
-| `page` | `Integer` | No | Trang (mặc định 0) |
-| `size` | `Integer` | No | Kích thước trang (mặc định 20) |
-| `sort` | `String` | No | Sắp xếp, ví dụ `createdAt,desc` |
-
-**Response:**
+Response dùng envelope chung:
 
 ```json
 {
   "success": true,
-  "data": {
-    "content": [
-      {
-        "id": 3,
-        "email": "teacher.c@example.com",
-        "name": "Teacher C",
-        "role": "TEACHER",
-        "status": "ACTIVE",
-        "createdAt": "2026-07-11T17:31:44Z",
-        "updatedAt": "2026-07-11T17:31:44Z"
-      }
-    ],
-    "totalElements": 5,
-    "totalPages": 1,
-    "size": 20,
-    "number": 0
-  },
-  "message": "Lấy danh sách Teacher thành công"
+  "data": {},
+  "message": "...",
+  "meta": null
 }
 ```
 
----
+## 3. Danh sách endpoint
 
-### 3.2 `POST /api/v1/admin/teachers`
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/v1/admin/teachers` | Danh sách/search/filter Teacher |
+| `POST` | `/api/v1/admin/teachers` | Tạo một Teacher |
+| `POST` | `/api/v1/admin/teachers/batch` | Tạo hàng loạt, partial success |
+| `PATCH` | `/api/v1/admin/teachers/{teacherId}` | Cập nhật một phần thông tin |
+| `POST` | `/api/v1/admin/teachers/{teacherId}/activate` | Kích hoạt tài khoản |
+| `POST` | `/api/v1/admin/teachers/{teacherId}/deactivate` | Vô hiệu hóa tài khoản |
+| `POST` | `/api/v1/admin/teachers/{teacherId}/reset-password` | Sinh và lưu mật khẩu tạm mới |
 
-Tạo một Teacher mới.
+## 4. `GET /api/v1/admin/teachers`
 
-**Request body:**
+Query params:
+
+| Param | Kiểu | Mặc định | Quy tắc |
+|---|---|---|---|
+| `keyword` | `String` | `null` | Tìm trong tên hoặc email |
+| `isActive` | `Boolean` | `null` | `true` → `ACTIVE`, `false` → `INACTIVE` |
+| `department` | `String` | `null` | Lọc theo khoa/bộ môn |
+| `page` | `Integer` | `0` | Tối thiểu `0` |
+| `size` | `Integer` | `20` | Từ `1` đến `100` |
+| `sortBy` | `String` | `createdAt` | Chỉ nhận `name`, `email`, `createdAt`, `updatedAt` |
+| `sortDirection` | `String` | `DESC` | `ASC` hoặc `DESC` |
+
+`data` trả về:
 
 ```json
 {
-  "email": "teacher.c@example.com",
-  "name": "Teacher C",
-  "password": "password123"
-}
-```
-
-**Rules:**
-- `email`: bắt buộc, định dạng email hợp lệ, unique.
-- `name`: bắt buộc, không rỗng.
-- `password`: tùy chọn. Nếu để trống, hệ thống tự sinh password ngẫu nhiên 12 ký tự và trả về trong response.
-- Nếu password được cung cấp, phải ≥ 6 ký tự.
-
-**Response khi tự sinh password:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "teacher": {
-      "id": 3,
-      "email": "teacher.c@example.com",
-      "name": "Teacher C",
+  "items": [
+    {
+      "id": 18,
+      "email": "teacher@example.com",
+      "name": "Nguyễn Văn A",
       "role": "TEACHER",
+      "dateOfBirth": "1990-05-20",
+      "gender": "MALE",
+      "department": "Công nghệ thông tin",
+      "phoneNumber": "0901234567",
+      "hireDate": "2020-08-01",
       "status": "ACTIVE",
-      "createdAt": "2026-07-15T08:00:00Z",
-      "updatedAt": "2026-07-15T08:00:00Z"
-    },
-    "generatedPassword": "aB3#x9QrLmP!"
-  },
-  "message": "Tạo tài khoản Teacher thành công"
+      "createdAt": "2026-07-23T02:00:00Z",
+      "updatedAt": "2026-07-23T02:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
 }
 ```
 
-**Response khi Admin nhập password:**
+Ngoài `data`, response envelope còn có `meta.total`, `meta.page` (đánh số từ 1),
+`meta.limit` và `meta.totalPages`.
+
+## 5. `POST /api/v1/admin/teachers`
+
+Request:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "teacher": {
-      "id": 3,
-      "email": "teacher.c@example.com",
-      "name": "Teacher C",
-      "role": "TEACHER",
-      "status": "ACTIVE",
-      "createdAt": "2026-07-15T08:00:00Z",
-      "updatedAt": "2026-07-15T08:00:00Z"
-    },
-    "generatedPassword": null
-  },
-  "message": "Tạo tài khoản Teacher thành công"
+  "name": "Nguyễn Văn A",
+  "role": "TEACHER",
+  "email": "teacher@example.com",
+  "dateOfBirth": "1990-05-20",
+  "gender": "MALE",
+  "department": "Công nghệ thông tin",
+  "phoneNumber": "0901234567",
+  "hireDate": "2020-08-01"
 }
 ```
 
----
+Validation chính:
 
-### 3.3 `POST /api/v1/admin/teachers/batch` ⭐
+- `name`, `role`, `email` bắt buộc; `role` phải đúng `TEACHER`.
+- Email hợp lệ, tối đa 255 ký tự và không được trùng.
+- `dateOfBirth` phải trong quá khứ; `hireDate` không được ở tương lai.
+- `phoneNumber` gồm 9–15 chữ số, có thể bắt đầu bằng `+`.
+- `gender`: theo enum `Gender` của Backend.
+- API không nhận trường `password`.
 
-Tạo hàng loạt Teacher từ danh sách.
+Hệ thống chuẩn hóa email thành chữ thường, tạo tài khoản ở trạng thái `ACTIVE`, sinh mật khẩu
+tạm 12 ký tự và chỉ lưu BCrypt hash. Sau khi transaction commit, email chứa thông tin đăng nhập
+được gửi bất đồng bộ. Gửi email lỗi không rollback tài khoản đã tạo.
 
-**Request body:**
+Response `data` là một `TeacherResponse`; không trả plaintext password.
+
+## 6. `POST /api/v1/admin/teachers/batch`
+
+Request:
 
 ```json
 {
   "teachers": [
-    { "email": "teacher.c@example.com", "name": "Teacher C", "password": "pass123" },
-    { "email": "teacher.d@example.com", "name": "Teacher D" },
-    { "email": "teacher.a@example.com", "name": "Duplicate Email" }
+    {
+      "name": "Nguyễn Văn A",
+      "role": "TEACHER",
+      "email": "teacher.a@example.com"
+    },
+    {
+      "name": "Trần Thị B",
+      "role": "TEACHER",
+      "email": "teacher.b@example.com",
+      "department": "Công nghệ thông tin"
+    }
   ]
 }
 ```
 
-**Rules:**
-- Tối đa **100** tài khoản mỗi request.
-- Mỗi item tuân thủ rule của `POST /api/v1/admin/teachers`.
-- Xử lý từng item độc lập: lỗi một item không làm fail toàn bộ batch.
-- Các tài khoản hợp lệ được tạo và lưu DB.
-- Các tài khoản lỗi được liệt kê trong `failures`.
+Rules:
 
-**Response:**
+- `teachers` bắt buộc, không rỗng, tối đa 200 phần tử.
+- Mỗi phần tử dùng cùng validation với API tạo đơn lẻ.
+- Partial success: lỗi một phần tử không rollback các phần tử hợp lệ.
+- Mỗi tài khoản tạo thành công được gửi email bất đồng bộ như create đơn lẻ.
 
-```json
-{
-  "success": true,
-  "data": {
-    "totalRequested": 3,
-    "successCount": 2,
-    "failedCount": 1,
-    "createdTeachers": [
-      {
-        "id": 5,
-        "email": "teacher.c@example.com",
-        "name": "Teacher C",
-        "role": "TEACHER",
-        "status": "ACTIVE",
-        "createdAt": "2026-07-15T08:00:00Z",
-        "updatedAt": "2026-07-15T08:00:00Z"
-      },
-      {
-        "id": 6,
-        "email": "teacher.d@example.com",
-        "name": "Teacher D",
-        "role": "TEACHER",
-        "status": "ACTIVE",
-        "createdAt": "2026-07-15T08:00:00Z",
-        "updatedAt": "2026-07-15T08:00:00Z"
-      }
-    ],
-    "failures": [
-      {
-        "email": "teacher.a@example.com",
-        "name": "Duplicate Email",
-        "errorCode": "EMAIL_EXISTED",
-        "message": "Email đã tồn tại"
-      }
-    ]
-  },
-  "message": "Tạo hàng loạt: 2 thành công, 1 thất bại"
-}
-```
-
-**Lưu ý về generated password trong batch:**
-- Vì lý do bảo mật, response của batch **không trả về plaintext password** đã sinh tự động.
-- Nếu cần biết password, Admin nên cung cấp password cho từng item trong batch, hoặc sau đó dùng API reset-password.
-
----
-
-### 3.4 `PATCH /api/v1/admin/teachers/{teacherId}`
-
-Cập nhật thông tin Teacher.
-
-**Request body:**
+Response `data`:
 
 ```json
 {
-  "email": "teacher.new@example.com",
-  "name": "Teacher New Name"
+  "totalRequested": 2,
+  "successCount": 1,
+  "failureCount": 1,
+  "created": [],
+  "errors": [
+    {
+      "index": 1,
+      "name": "Trần Thị B",
+      "email": "teacher.b@example.com",
+      "errorCode": "TEACHER_EMAIL_ALREADY_EXISTS",
+      "message": "Email đã được đăng ký"
+    }
+  ]
 }
 ```
 
-**Rules:**
-- Chỉ cập nhật các field được gửi (partial update).
-- Nếu đổi `email`, phải unique.
-- Không cho phép đổi `role`.
+## 7. `PATCH /api/v1/admin/teachers/{teacherId}`
 
-**Response:** trả về `TeacherResponse` đã cập nhật.
-
----
-
-### 3.5 `POST /api/v1/admin/teachers/{teacherId}/activate`
-
-Kích hoạt tài khoản Teacher.
-
-**Response:** trả về `TeacherResponse` với `status = ACTIVE`.
-
----
-
-### 3.6 `POST /api/v1/admin/teachers/{teacherId}/deactivate`
-
-Vô hiệu hóa tài khoản Teacher.
-
-**Response:** trả về `TeacherResponse` với `status = INACTIVE`.
-
-**Rules:**
-- Không xóa documents của Teacher.
-- Teacher INACTIVE không thể đăng nhập.
-
----
-
-### 3.7 `POST /api/v1/admin/teachers/{teacherId}/reset-password`
-
-Reset mật khẩu cho Teacher.
-
-**Request body:**
+Request nhận các field tùy chọn:
 
 ```json
 {
-  "newPassword": "newpassword123"
+  "name": "Nguyễn Văn A Updated",
+  "email": "teacher.updated@example.com",
+  "dateOfBirth": "1990-05-20",
+  "gender": "MALE",
+  "department": "Khoa CNTT",
+  "phoneNumber": "0901234567",
+  "hireDate": "2020-08-01"
 }
 ```
 
-**Rules:**
-- `newPassword`: tùy chọn. Nếu để trống, hệ thống tự sinh password ngẫu nhiên.
-- Nếu cung cấp, password phải ≥ 6 ký tự.
+Chỉ field khác `null` được cập nhật. Không cho đổi `id`, `role`, `status`, password hoặc
+thời điểm tạo. Email mới vẫn phải hợp lệ và không trùng.
 
-**Response khi tự sinh password:**
+Response `data` là `TeacherResponse` sau cập nhật.
+
+## 8. Activate và deactivate
+
+Hai endpoint không nhận body:
+
+```txt
+POST /api/v1/admin/teachers/{teacherId}/activate
+POST /api/v1/admin/teachers/{teacherId}/deactivate
+```
+
+- Activate tài khoản đang `ACTIVE` trả `TEACHER_ALREADY_ACTIVE`.
+- Deactivate tài khoản đang `INACTIVE` trả `TEACHER_ALREADY_INACTIVE`.
+- Deactivate không xóa documents của Teacher.
+- `JwtAuthenticationFilter` đọc trạng thái user từ database, vì vậy tài khoản bị deactivate
+  không tiếp tục truy cập bằng access token cũ.
+
+## 9. Reset mật khẩu
+
+```txt
+POST /api/v1/admin/teachers/{teacherId}/reset-password
+```
+
+Endpoint không nhận body. Backend tự sinh mật khẩu 12 ký tự, lưu BCrypt hash và không trả
+plaintext password.
+
+Response `data`:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "teacher": { ... },
-    "generatedPassword": "xY7#pL2QwR9!"
-  },
-  "message": "Reset mật khẩu thành công"
+  "teacherId": 18,
+  "emailSent": false,
+  "resetAt": "2026-07-23T02:30:00Z"
 }
 ```
 
-**Response khi Admin nhập password:**
+Giới hạn implementation hiện tại: reset password chưa nối email notification nên `emailSent=false`.
+Trước khi dùng chức năng này trong production/demo, cần nối email reset hoặc một kênh bàn giao mật
+khẩu tạm an toàn; nếu không Teacher sẽ không biết mật khẩu mới.
 
-```json
-{
-  "success": true,
-  "data": {
-    "teacher": { ... },
-    "generatedPassword": null
-  },
-  "message": "Reset mật khẩu thành công"
-}
-```
+## 10. Error codes chính
 
----
+| HTTP | Code | Ý nghĩa |
+|---:|---|---|
+| `400` | `INVALID_TEACHER_ROLE` | Request create dùng role khác `TEACHER` |
+| `400` | `TEACHER_ALREADY_ACTIVE` | Kích hoạt tài khoản đang active |
+| `400` | `TEACHER_ALREADY_INACTIVE` | Vô hiệu hóa tài khoản đang inactive |
+| `400` | `INVALID_INPUT` | Request validation lỗi, gồm batch vượt 200 phần tử |
+| `401` | `UNAUTHENTICATED` | Thiếu hoặc sai access token |
+| `403` | `FORBIDDEN` | User không có role Admin |
+| `404` | `TEACHER_NOT_FOUND` | Không tìm thấy user có role Teacher |
+| `409` | `TEACHER_EMAIL_ALREADY_EXISTS` | Email Teacher đã tồn tại |
 
-## 4. DTO đề xuất
+## 11. Thành phần triển khai và kiểm thử
 
-### 4.1 Request DTOs
+- Controller: `controller/admin/TeacherAdminController.java`
+- Service: `service/admin/impl/TeacherAdminServiceImpl.java`
+- DTO request/response: `dto/request/admin/teacher`, `dto/response/admin/teacher`
+- Notification tạo tài khoản: `TeacherAccountNotificationListener.java`
+- Security: `/api/v1/admin/**` yêu cầu role `ADMIN`
+- Migration liên quan hồ sơ/tài khoản: `V8` đến `V13`
 
-```java
-// Tạo / cập nhật / reset password
-TeacherCreateRequest      { email, name, password }
-TeacherBatchCreateRequest { List<TeacherCreateRequest> teachers }
-TeacherUpdateRequest      { email, name }
-ResetPasswordRequest      { newPassword }
-```
-
-### 4.2 Response DTOs
-
-```java
-TeacherResponse           { id, email, name, role, status, createdAt, updatedAt }
-TeacherCreationResult     { TeacherResponse teacher, String generatedPassword }
-TeacherBatchResponse      { int totalRequested, int successCount, int failedCount,
-                            List<TeacherResponse> createdTeachers,
-                            List<TeacherBatchErrorDetail> failures }
-TeacherBatchErrorDetail   { email, name, errorCode, message }
-```
-
----
-
-## 5. Repository đề xuất
-
-Mở rộng `UserRepository` thêm các method:
-
-```java
-Page<User> findByRole(UserRole role, Pageable pageable);
-
-Page<User> findByRoleAndStatus(UserRole role, UserStatus status, Pageable pageable);
-
-@Query("""
-    SELECT u FROM User u
-    WHERE u.role = :role
-      AND (:status IS NULL OR u.status = :status)
-      AND (:keyword IS NULL OR
-           LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-           LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
-    """)
-Page<User> searchByRole(@Param("role") UserRole role,
-                        @Param("status") UserStatus status,
-                        @Param("keyword") String keyword,
-                        Pageable pageable);
-```
-
----
-
-## 6. Service đề xuất
-
-Tạo `AdminTeacherService` với các method:
-
-```java
-Page<TeacherResponse> getTeachers(UserStatus status, String keyword, Pageable pageable);
-TeacherCreationResult createTeacher(TeacherCreateRequest request);
-TeacherBatchResponse createTeachersBatch(TeacherBatchCreateRequest request);
-TeacherResponse updateTeacher(Long teacherId, TeacherUpdateRequest request);
-TeacherResponse activateTeacher(Long teacherId);
-TeacherResponse deactivateTeacher(Long teacherId);
-TeacherCreationResult resetPassword(Long teacherId, ResetPasswordRequest request);
-```
-
-### 6.1 Xử lý batch chi tiết
-
-```java
-for (each teacher in request):
-    try:
-        validate input
-        check email exists
-        encode password (auto-generate if blank)
-        save user
-        add to createdTeachers
-    catch AppException:
-        add to failures with errorCode + message
-
-return TeacherBatchResponse
-```
-
-### 6.2 Sinh password tự động
-
-```java
-private String generateRandomPassword() {
-    // 12 ký tự gồm chữ hoa, chữ thường, số, ký tự đặc biệt
-}
-```
-
----
-
-## 7. Controller đề xuất
-
-Tạo `AdminTeacherController`:
-
-```java
-@RestController
-@RequestMapping("/api/v1/admin/teachers")
-@Tag(name = "Admin Teacher Management")
-public class AdminTeacherController { ... }
-```
-
-Các method mapping tương ứng với bảng endpoint ở mục 3.
-
----
-
-## 8. Bảo mật
-
-- Tất cả endpoint được bảo vệ bởi `.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")` trong `SecurityConfig`.
-- Không cần thay đổI phân quyền hiện tại.
-
----
-
-## 9. Validation & Error Handling
-
-Sử dụng các `ErrorCode` hiện có:
-
-| ErrorCode | Tình huống |
-|-----------|------------|
-| `EMAIL_REQUIRED` | Email rỗng |
-| `EMAIL_INVALID` | Email sai định dạng |
-| `EMAIL_EXISTED` | Email đã tồn tại |
-| `NAME_REQUIRED` | Tên rỗng |
-| `PASSWORD_WEAK` | Password < 6 ký tự |
-| `USER_NOT_FOUND` | Teacher ID không tồn tại hoặc không phảI role TEACHER |
-| `INVALID_INPUT` | Batch rỗng hoặc vượt quá 100 |
-
----
-
-## 10. Acceptance Criteria
-
-- [ ] Admin tạo Teacher đơn lẻ được.
-- [ ] Admin tạo hàng loạt Teacher được, lỗi một phần vẫn tạo được phần còn lại.
-- [ ] Admin cập nhật thông tin Teacher được.
-- [ ] Admin activate/deactivate Teacher được.
-- [ ] Admin reset password Teacher được.
-- [ ] Teacher bị INACTIVE không login được.
-- [ ] Deactivate Teacher không xóa documents.
-- [ ] Không làm ảnh hưởng core upload/review/RAG.
+Test hiện có bao phủ validation create, service Admin Teacher, writer transaction và mail listener.

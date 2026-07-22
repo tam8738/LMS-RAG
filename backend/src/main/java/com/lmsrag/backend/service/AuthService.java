@@ -4,75 +4,71 @@ import com.lmsrag.backend.dto.AuthUserResponse;
 import com.lmsrag.backend.dto.LoginRequestDTO;
 import com.lmsrag.backend.dto.LoginResponseDTO;
 import com.lmsrag.backend.entity.User;
+import com.lmsrag.backend.enums.UserStatus;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Tầng xử lý nghiệp vụ xác thực (authentication).
- * <p>
- * Chịu trách nhiệm:
- * <ul>
- *     <li>Đăng nhập và sinh JWT token</li>
- *     <li>Lấy thông tin tài khoản hiện tại dựa trên email từ SecurityContext</li>
- * </ul>
- */
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final int BCRYPT_MAX_PASSWORD_BYTES = 72;
+
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final InMemoryBlacklistService blacklistService;
+    private final RefreshTokenService refreshTokenService;
 
-    /**
-     * Xác thực tài khoản và trả về JWT token kèm thông tin cơ bản.
-     *
-     * @param request thông tin đăng nhập (email + password)
-     * @return {@link LoginResponseDTO} chứa access token và thông tin tài khoản
-     */
+    @Transactional
     public LoginResponseDTO login(LoginRequestDTO request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (request.getPassword().getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_PASSWORD_BYTES
+                || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
+        ensureAccountIsActive(user);
 
-        String accessToken = jwtService.generateToken(
-                user.getEmail(),
-                user.getRole().name()
-        );
-
-        return LoginResponseDTO.builder()
-                .accessToken(accessToken)
-                .user(mapToAuthUserResponse(user))
-                .build();
+        RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.issue(user);
+        LoginResponseDTO response = createTokenResponse(user, refreshToken);
+        log.info("[AUTH] Login succeeded | userId={}", user.getId());
+        return response;
     }
 
-    /**
-     * Lấy thông tin tài khoản hiện tại dựa trên email đã xác thực.
-     *
-     * @param email email của tài khoản đang đăng nhập
-     * @return {@link AuthUserResponse} thông tin tài khoản
-     */
+    @Transactional
+    public LoginResponseDTO refresh(String rawRefreshToken) {
+        RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.rotate(rawRefreshToken);
+        User user = refreshToken.user();
+        LoginResponseDTO response = createTokenResponse(user, refreshToken);
+        log.info("[AUTH] Access token refreshed | userId={}", user.getId());
+        return response;
+    }
+
+    @Transactional
+    public void revokeRefreshToken(String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken);
+    }
+
+    @Transactional(readOnly = true)
     public AuthUserResponse getCurrentUser(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
         return mapToAuthUserResponse(user);
     }
 
-    /**
-     * Đăng xuất bằng cách thêm JWT token hiện tại vào blacklist.
-     * Token sẽ bị từ chối ở các request sau ngay cả khi chưa hết hạn.
-     *
-     * @param token JWT access token cần đăng xuất
-     */
     public void logout(String token) {
         if (!jwtService.isTokenValid(token)) {
             throw new AppException(ErrorCode.INVALID_TOKEN);
@@ -80,16 +76,30 @@ public class AuthService {
 
         long remainingTime = jwtService.getRemainingTime(token);
         blacklistService.blacklistToken(token, remainingTime);
+        log.info("[AUTH] Access token revoked until expiration");
     }
 
-    /**
-     * Ánh xạ entity {@link User} sang {@link AuthUserResponse}.
-     * <p>
-     * Tách riêng helper để tái sử dụng cho cả login và /me, tránh duplicate code.
-     *
-     * @param user entity cần ánh xạ
-     * @return DTO thông tin tài khoản
-     */
+    private LoginResponseDTO createTokenResponse(
+            User user,
+            RefreshTokenService.IssuedRefreshToken refreshToken
+    ) {
+        String accessToken = jwtService.generateToken(user.getEmail(), user.getRole().name());
+        return LoginResponseDTO.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.value())
+                .tokenType("Bearer")
+                .accessTokenExpiresInSeconds(jwtService.getExpirationSeconds())
+                .refreshTokenExpiresAt(refreshToken.expiresAt())
+                .user(mapToAuthUserResponse(user))
+                .build();
+    }
+
+    private void ensureAccountIsActive(User user) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new AppException(ErrorCode.ACCOUNT_INACTIVE);
+        }
+    }
+
     private AuthUserResponse mapToAuthUserResponse(User user) {
         return AuthUserResponse.builder()
                 .id(user.getId())

@@ -84,10 +84,11 @@ scripts/       Checklist/test notes hỗ trợ tích hợp
 
 Backend:
 
-- Đã có Auth JWT, logout blacklist, phân quyền Teacher/Admin.
+- Đã có JWT access/refresh token, rotate/revoke refresh token, logout blacklist và phân quyền Teacher/Admin.
+- Đã có API hồ sơ cá nhân, đổi mật khẩu và quản lý Teacher cho Admin.
 - Đã có upload tài liệu, My Documents, Admin review, Library, file content/download.
 - Đã có RAG proxy và persisted RAG conversation history.
-- Đã có hoặc được giả định hoàn thiện theo plan phần Admin quản lý giảng viên cơ bản.
+- Đã có 7 API Admin quản lý Teacher: list, create, batch create, update, activate, deactivate và reset password.
 
 Frontend:
 

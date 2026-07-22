@@ -39,9 +39,11 @@ Một số tài liệu/test cũ trong repo từng nói về Course, Lecture và 
 
 **Xác thực và phân quyền**
 
-- Đăng nhập bằng JWT.
+- Đăng nhập bằng email, nhận JWT access token và refresh token.
+- Có API rotate/revoke refresh token; refresh token chỉ được lưu dưới dạng hash trong database.
 - Lấy thông tin người dùng hiện tại.
 - Có API đăng xuất và cơ chế vô hiệu hóa token ở Backend.
+- Có API xem/cập nhật hồ sơ cá nhân và đổi mật khẩu; đổi mật khẩu thu hồi toàn bộ refresh token đang hoạt động.
 - Phân quyền theo vai trò Teacher/Admin ở các API chính.
 
 **Quản lý tài liệu của giảng viên**
@@ -61,12 +63,15 @@ Một số tài liệu/test cũ trong repo từng nói về Course, Lecture và 
 
 **Quản lý giảng viên của Admin**
 
-Chức năng quản lý giảng viên của Admin đã hoàn thành theo phạm vi V1 trong plan. Phần này bao gồm xem tổng số giảng viên, xem danh sách giảng viên có tìm kiếm/phân trang, xem thông tin cơ bản của từng giảng viên, xem số lượng tài liệu đã upload, xem thống kê tài liệu theo trạng thái xử lý AI/trạng thái công bố và mở danh sách tài liệu của một giảng viên để kiểm tra nhanh.
+Backend đã hoàn thành bộ API quản lý tài khoản Teacher: xem danh sách có tìm kiếm/lọc/phân trang,
+tạo đơn lẻ hoặc hàng loạt, cập nhật thông tin, kích hoạt/vô hiệu hóa và reset mật khẩu. Tạo tài
+khoản sinh mật khẩu tạm và gửi email bất đồng bộ sau commit. API reset hiện chưa nối email bàn giao
+mật khẩu mới và trả `emailSent=false`.
 
 **Giao diện non-AI**
 
 - Frontend đã có đăng nhập, khôi phục phiên và bảo vệ route theo vai trò.
-- Có màn thư viện, chi tiết tài liệu, tài liệu cá nhân, tải lên, duyệt tài liệu và theo dõi giảng viên cho Admin.
+- Có màn thư viện, chi tiết tài liệu, tài liệu cá nhân, tải lên và duyệt tài liệu.
 - Có UX xác nhận cho một số thao tác quan trọng như xóa hội thoại/đăng xuất.
 - Theo kiểm thử thủ công, các tài khoản Teacher hoạt động ổn định; tải lại trang vẫn giữ được trạng thái hội thoại khi dùng chức năng RAG.
 
@@ -119,7 +124,7 @@ Luồng non-AI hiện có thể chạy như sau:
 
 Giảng viên đăng nhập -> tải PDF/TXT kèm metadata -> xem tài liệu trong danh sách cá nhân -> chỉnh sửa/gửi duyệt -> Admin đăng nhập -> Admin xem hàng chờ duyệt -> duyệt hoặc từ chối -> tài liệu được công bố xuất hiện trong Library -> người dùng xem chi tiết, xem nội dung hoặc tải file theo quyền.
 
-Ngoài ra, Admin đã có thể xem danh sách, thông tin chi tiết và thống kê tài liệu của từng giảng viên trong hệ thống.
+Ngoài ra, Backend đã có API để Admin tìm kiếm, tạo, cập nhật, kích hoạt/vô hiệu hóa và reset mật khẩu tài khoản Teacher.
 
 ### 4.2. Luồng có AI
 
@@ -135,8 +140,7 @@ Phần còn thiếu rõ ràng nhất là tính năng sinh quiz từ tài liệu.
 
 Tính năng quiz chưa có các phần chính sau:
 
-- API AI chuyên biệt để sinh danh sách câu hỏi, lựa chọn, đáp án đúng và giải thích dựa trên tài liệu đã lập chỉ mục.
-- Backend lưu quiz, câu hỏi, đáp án, trạng thái công bố và liên kết với tài liệu/giảng viên.
+- Backend chưa có API gọi `/v1/generate-quiz`, lưu quiz/câu hỏi/đáp án hoặc quản lý vòng đời quiz.
 - Giao diện để giảng viên xác nhận sinh quiz, xem lại, chỉnh sửa và công bố.
 - Trang làm quiz qua một URL riêng để người học làm bài và xem kết quả cuối trang.
 
@@ -155,6 +159,9 @@ Sau khi hoàn thiện hoặc chốt quiz là phần mở rộng sau MVP, nhóm c
 
 ## 7. Kết luận
 
-Dự án đã có nền tảng MVP khá rõ. Nhóm chức năng non-AI đã bao phủ phần xác thực/phân quyền, quản lý tài liệu, kiểm duyệt, thư viện, tải/xem file và phần Admin theo dõi giảng viên theo phạm vi V1. Nhóm chức năng AI đã bao phủ phân tích tài liệu, lập chỉ mục RAG, hỏi đáp có trích dẫn và resume lịch sử hội thoại.
+Dự án đã có nền tảng MVP khá rõ. Nhóm chức năng non-AI đã bao phủ phần xác thực/phân quyền,
+quản lý tài liệu, kiểm duyệt, thư viện, tải/xem file, hồ sơ cá nhân và API Admin quản lý tài khoản
+Teacher. Nhóm chức năng AI đã bao phủ phân tích tài liệu, lập chỉ mục RAG, hỏi đáp có trích dẫn,
+resume lịch sử hội thoại và sinh quiz draft nội bộ.
 
 Phần còn thiếu lớn nhất hiện nay là sinh quiz từ tài liệu. Nếu hoàn thiện quiz hoặc chốt quiz là phần mở rộng sau MVP, hệ thống đã đủ cơ sở để trình bày như một MVP thư viện học liệu có hỗ trợ AI.

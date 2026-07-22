@@ -5,10 +5,12 @@ import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.AuthUserResponse;
 import com.lmsrag.backend.dto.LoginRequestDTO;
 import com.lmsrag.backend.dto.LoginResponseDTO;
+import com.lmsrag.backend.dto.request.auth.RefreshTokenRequest;
 import com.lmsrag.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,71 +20,65 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-
-/**
- * Controller xử lý các API xác thực.
- * <p>
- * Cung cấp endpoint đăng nhập (public) và lấy thông tin tài khoản hiện tại (authenticated).
- */
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "API đăng ký, đăng nhập, đăng xuất")
+@Tag(name = "Authentication", description = "API xác thực và quản lý phiên đăng nhập")
 public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * Đăng nhập và nhận JWT token kèm thông tin tài khoản.
-     *
-     * @param request thông tin đăng nhập
-     * @return access token và thông tin tài khoản
-     */
-    @Operation(
-            summary = "Đăng nhập",
-            description = "Nhận email và password, trả về JWT token và thông tin tài khoản nếu hợp lệ"
-    )
+    @Operation(summary = "Đăng nhập")
     @PostMapping("/login")
-    public ApiResponse<LoginResponseDTO> login(@RequestBody LoginRequestDTO request) {
-        LoginResponseDTO response = authService.login(request);
-        return ApiResponse.success(response, "Đăng nhập thành công");
+    public ApiResponse<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+        return ApiResponse.success(authService.login(request), "Đăng nhập thành công");
     }
 
-    /**
-     * Lấy thông tin tài khoản đang đăng nhập từ JWT token.
-     *
-     * @param userDetails thông tin xác thực được Spring Security inject từ token
-     * @return thông tin tài khoản hiện tại
-     */
+    @Operation(summary = "Làm mới access token và rotate refresh token")
+    @PostMapping("/refresh")
+    public ApiResponse<LoginResponseDTO> refresh(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        return ApiResponse.success(
+                authService.refresh(request.refreshToken()),
+                "Làm mới access token thành công"
+        );
+    }
+
+    @Operation(summary = "Thu hồi refresh token")
+    @PostMapping("/refresh/revoke")
+    public ApiResponse<Void> revokeRefreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        authService.revokeRefreshToken(request.refreshToken());
+        return ApiResponse.success(null, "Thu hồi refresh token thành công");
+    }
+
     @Operation(
-            summary = "Lấy thông tin tài khoản hiện tại",
-            description = "Trả về thông tin user dựa trên token được gửi trong Authorization header",
+            summary = "Lấy thông tin cơ bản của tài khoản hiện tại",
             security = @SecurityRequirement(name = "BearerAuth")
     )
     @GetMapping("/me")
     public ApiResponse<AuthUserResponse> getCurrentUser(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        AuthUserResponse response = authService.getCurrentUser(userDetails.getUsername());
-        return ApiResponse.success(response, "Lấy thông tin tài khoản thành công");
+        return ApiResponse.success(
+                authService.getCurrentUser(userDetails.getUsername()),
+                "Lấy thông tin tài khoản thành công"
+        );
     }
 
-    /**
-     * Đăng xuất và vô hiệu hóa JWT token hiện tại.
-     * Token sẽ được thêm vào blacklist và không thể dùng lại cho đến khi hết hạn.
-     *
-     * @param authHeader Authorization header chứa Bearer token
-     * @return thông điệp đăng xuất thành công
-     */
     @Operation(
-            summary = "Đăng xuất",
-            description = "Vô hiệu hóa JWT token hiện tại bằng cách thêm vào blacklist",
+            summary = "Đăng xuất và thu hồi access token hiện tại",
             security = @SecurityRequirement(name = "BearerAuth")
     )
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(
-            @RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        authService.logout(token);
+    public ApiResponse<Void> logout(@RequestHeader("Authorization") String authHeader) {
+        authService.logout(extractBearerToken(authHeader));
         return ApiResponse.success(null, "Đăng xuất thành công");
+    }
+
+    private String extractBearerToken(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return "";
+        }
+        return authHeader.substring(7);
     }
 }

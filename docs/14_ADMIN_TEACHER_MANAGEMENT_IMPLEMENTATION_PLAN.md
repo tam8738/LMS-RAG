@@ -1,10 +1,18 @@
 ﻿# Kế Hoạch Triển Khai Admin Quản Lý Giảng Viên
 
-**Phiên bản:** 1.0  
-**Cập nhật:** 21/07/2026  
-**Phạm vi:** Tính năng bổ sung cho Admin sau MVP core  
+**Phiên bản:** 1.1
+**Cập nhật:** 23/07/2026
+**Trạng thái:** Kế hoạch lịch sử, đã được thay thế bởi implementation BE-09 hiện tại
+**Phạm vi:** Thiết kế read-only ban đầu; không dùng làm API contract
 **Owner tổng hợp:** Backend + Frontend  
 **Không liên quan trực tiếp:** AI Service
+
+> **Lưu ý:** Kế hoạch bên dưới đề xuất các endpoint read-only như
+> `GET /api/v1/admin/teachers/{teacherId}` và
+> `GET /api/v1/admin/teachers/{teacherId}/documents`, nhưng các endpoint này không có trong
+> controller hiện tại. Implementation đã chuyển sang bộ API quản lý tài khoản Teacher gồm list,
+> create, batch create, update, activate/deactivate và reset password. Dùng
+> `BE09_TEACHER_MANAGEMENT_DESIGN.md` và `API_ROLES.md` làm nguồn hiện hành.
 
 ## 1. Mục Tiêu
 
