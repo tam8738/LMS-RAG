@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { libraryDetailPath } from "../routes";
 import { LibraryDocument, LibraryQuery } from "../types";
@@ -253,6 +253,9 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const shouldRestoreSearchFocusRef = useRef(false);
+  const scrollRestoreYRef = useRef<number | null>(null);
+  const isScrollRestorePendingRef = useRef(false);
+  const hasScrollRestoreFetchStartedRef = useRef(false);
 
   // Global Ctrl+K listener to focus search bar
   useEffect(() => {
@@ -277,6 +280,39 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
     setSearchVal(value);
     setPage(0);
   };
+
+  const preserveScrollPosition = () => {
+    scrollRestoreYRef.current = window.scrollY;
+    isScrollRestorePendingRef.current = true;
+    hasScrollRestoreFetchStartedRef.current = false;
+  };
+
+  useLayoutEffect(() => {
+    if (
+      !isScrollRestorePendingRef.current ||
+      !hasScrollRestoreFetchStartedRef.current ||
+      scrollRestoreYRef.current === null ||
+      loading
+    ) {
+      return;
+    }
+
+    const scrollY = scrollRestoreYRef.current;
+    let secondFrameId: number | undefined;
+    const firstFrameId = window.requestAnimationFrame(() => {
+      secondFrameId = window.requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollY, behavior: "auto" });
+        scrollRestoreYRef.current = null;
+        isScrollRestorePendingRef.current = false;
+        hasScrollRestoreFetchStartedRef.current = false;
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrameId);
+      if (secondFrameId !== undefined) window.cancelAnimationFrame(secondFrameId);
+    };
+  }, [loading, documents.length, totalElements]);
 
   // Sync advanced filter subject with selectedSubject category chip
   useEffect(() => {
@@ -330,6 +366,9 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
 
   // Fetch library documents based on current filters and page
   const fetchLibrary = async () => {
+    if (isScrollRestorePendingRef.current) {
+      hasScrollRestoreFetchStartedRef.current = true;
+    }
     setLoading(true);
     setError("");
     try {
@@ -359,6 +398,7 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
 
   // Reset page when category chip or search value changes
   const handleCategorySelect = (subject: string) => {
+    preserveScrollPosition();
     setSelectedSubject(subject);
     setPage(0);
   };
@@ -616,6 +656,7 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
                       {val}
                       <button
                         onClick={() => {
+                          preserveScrollPosition();
                           setAdvancedFilters(prev => ({ ...prev, [key]: "" }));
                           if (key === "subject") setSelectedSubject("");
                         }}
@@ -628,6 +669,7 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
                 })}
                 <button
                   onClick={() => {
+                    preserveScrollPosition();
                     setAdvancedFilters({
                       subject: "",
                       topic: "",
