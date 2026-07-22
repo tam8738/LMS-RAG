@@ -13,6 +13,7 @@ from app.services.answer_question_service import AnswerQuestionService
 from app.services.chunk_embedding_service import ChunkEmbeddingService
 from app.services.document_chunking_pipeline import DocumentChunkingPipeline
 from app.services.document_validator import DocumentValidator
+from app.services.generate_quiz_service import GenerateQuizService
 from app.services.process_document_service import ProcessDocumentService
 from app.services.storage import StorageResolver
 
@@ -67,6 +68,24 @@ def get_answer_question_service() -> AnswerQuestionService:
 
     return AnswerQuestionService(
         embedding_provider=embedding_provider,
+        generation_provider=generation_provider,
+        chunk_repository=PostgresDocumentChunkRepository(),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_generate_quiz_service() -> GenerateQuizService:
+    """Assemble quiz generation service lazily for Backend internal calls."""
+    try:
+        generation_provider = OpenAIGenerationProvider()
+    except ValueError as exc:
+        raise ServiceError(
+            ErrorCode.PROVIDER_UNAVAILABLE,
+            "OpenAI provider chua duoc cau hinh",
+            status_code=503,
+        ) from exc
+
+    return GenerateQuizService(
         generation_provider=generation_provider,
         chunk_repository=PostgresDocumentChunkRepository(),
     )

@@ -1,4 +1,4 @@
-# BÁO CÁO TIẾN ĐỘ ĐỒ ÁN
+﻿# BÁO CÁO TIẾN ĐỘ ĐỒ ÁN
 
 ## 1. Tổng quan dự án hiện tại
 
@@ -131,7 +131,7 @@ Các module chính trong luồng đã được nối trong code. Nhóm đã ki�
 
 ## 5. Các phần chưa hoàn thiện
 
-Phần còn thiếu rõ ràng nhất là tính năng sinh quiz từ tài liệu. Hiện hệ thống mới có gợi ý “tạo câu hỏi ôn tập” trong khung chat AI, nhưng đây chỉ là một câu lệnh hỏi đáp, chưa phải một chức năng quiz độc lập.
+Phần còn thiếu rõ ràng nhất là tính năng sinh quiz từ tài liệu. Hiện AI Service đã có API nội bộ sinh quiz draft từ tài liệu đã index, nhưng đây mới là phần sinh bản nháp có cấu trúc cho Backend/Frontend dùng tiếp, chưa phải một chức năng quiz hoàn chỉnh cho người dùng cuối.
 
 Tính năng quiz chưa có các phần chính sau:
 
@@ -146,10 +146,10 @@ Ngoài quiz, báo cáo chỉ ghi nhận một điểm cần đồng bộ nhỏ: 
 
 Kế hoạch tiếp theo nên tập trung vào tính năng quiz nếu nhóm quyết định đưa vào phạm vi hoàn thiện:
 
-1. AI Service bổ sung API sinh quiz từ tài liệu đã index, chỉ dùng nội dung tài liệu làm nguồn.
-2. Backend bổ sung model/API để lưu quiz, câu hỏi, đáp án và trạng thái công bố.
-3. Frontend bổ sung luồng giảng viên xác nhận sinh quiz, review/chỉnh sửa và public.
-4. Frontend bổ sung trang làm quiz bằng URL riêng, hiển thị điểm/kết quả ở cuối trang.
+1. Backend bổ sung model/API để lưu quiz, câu hỏi, đáp án và trạng thái công bố dựa trên quiz draft từ AI Service.
+2. Frontend bổ sung luồng giảng viên xác nhận sinh quiz, review/chỉnh sửa và public.
+3. Frontend bổ sung trang làm quiz bằng URL riêng, hiển thị điểm/kết quả ở cuối trang.
+4. Nếu cần điểm số/xếp hạng thật, Backend bổ sung lưu attempt/result hoặc định danh người làm quiz.
 
 Sau khi hoàn thiện hoặc chốt quiz là phần mở rộng sau MVP, nhóm chỉ cần chạy lại một kịch bản demo cuối từ upload tài liệu -> duyệt -> hỏi đáp AI -> resume hội thoại để xác nhận các phần chính hoạt động ổn định.
 

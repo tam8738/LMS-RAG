@@ -1,7 +1,7 @@
-# AI Service Internal API Contract
+﻿# AI Service Internal API Contract
 
-**Phiên bản:** 1.6
-**Cập nhật:** 21/07/2026
+**Phiên bản:** 1.7
+**Cập nhật:** 22/07/2026
 **Base URL Docker:** `http://ai-service:8000/v1`
 
 ## 1. Phạm vi core
@@ -12,12 +12,13 @@ GET  /v1/health/pgvector
 POST /v1/analyze-document
 POST /v1/index-document
 POST /v1/answer-question
+POST /v1/generate-quiz
 ```
 
 `POST /v1/process-document` là endpoint cũ có thể giữ tạm như implementation tương đương `index-document` trong giai đoạn chuyển tiếp.
 
 
-Question generation/quiz generation là phần cần làm tiếp và chưa thuộc core contract hiện tại.
+Quiz generation hiện đã có endpoint nội bộ `/v1/generate-quiz` để sinh quiz draft có cấu trúc từ `document_chunks`. AI Service chỉ sinh bản nháp; Backend/Frontend vẫn chịu trách nhiệm lưu DB, review, public URL, làm quiz, chấm điểm và xếp hạng nếu có.
 
 ## 2. Quy ước
 
@@ -313,7 +314,75 @@ Không có context phù hợp vẫn trả `200`:
 
 AI does not use outside knowledge to fill missing data. After AI-09, when retrieval finds strong context, AI calls the generation model and returns provider usage in `tokens_used`. If no suitable chunk remains, AI does not call generation and still returns `not_found=true`, `citations=[]`, `tokens_used=0`.
 
-## 9. Error codes
+## 9. Generate quiz draft
+
+Implementation status AI-QUIZ-01: `/v1/generate-quiz` đã có trong AI Service. Endpoint này dùng cho Backend gọi sau khi đã kiểm tra quyền Teacher và trạng thái tài liệu. AI Service lấy các chunk đại diện từ `document_chunks`, gọi generation provider, validate JSON và trả về quiz draft để Teacher review ở FE.
+
+### `POST /v1/generate-quiz`
+
+Request:
+
+```json
+{
+  "document_ids": [12],
+  "question_count": 5,
+  "language": "vi",
+  "max_context_chunks": 12
+}
+```
+
+| Field | Required | Quy định |
+|---|---:|---|
+| `document_ids` | Yes | 1-10 positive BIGINT IDs, Backend phải kiểm quyền trước |
+| `question_count` | No | Mặc định 5, từ 1 đến 10 |
+| `language` | No | `vi` hoặc `en`, mặc định `vi` |
+| `max_context_chunks` | No | Mặc định theo `QUIZ_CONTEXT_CHUNKS`, từ 3 đến 24 |
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "Câu hỏi ôn tập",
+    "description": "Bộ câu hỏi được sinh từ tài liệu đã chọn.",
+    "questions": [
+      {
+        "question": "Mục tiêu chính của chuẩn hóa cơ sở dữ liệu là gì?",
+        "type": "single_choice",
+        "options": [
+          {"id": "A", "text": "Tăng số lượng bảng càng nhiều càng tốt"},
+          {"id": "B", "text": "Giảm dư thừa và hạn chế bất thường dữ liệu"},
+          {"id": "C", "text": "Thay thế hoàn toàn khóa chính"},
+          {"id": "D", "text": "Chỉ dùng cho cơ sở dữ liệu NoSQL"}
+        ],
+        "correct_option_ids": ["B"],
+        "explanation": "Tài liệu nêu chuẩn hóa giúp tổ chức dữ liệu hợp lý hơn, giảm trùng lặp và hạn chế bất thường khi cập nhật.",
+        "citations": [
+          {
+            "chunk_id": 120,
+            "document_id": 12,
+            "page_number": 5,
+            "chunk_index": 7,
+            "excerpt": "Chuẩn hóa cơ sở dữ liệu giúp giảm dư thừa và tránh bất nhất..."
+          }
+        ]
+      }
+    ],
+    "tokens_used": 820
+  },
+  "message": "Sinh quiz draft thanh cong"
+}
+```
+
+Quy tắc:
+
+- V1 chỉ sinh `single_choice` để đơn giản cho BE/FE review và chấm điểm.
+- AI không lưu quiz, không public URL, không tạo attempt/result và không xếp hạng sinh viên.
+- LLM chỉ trả `source_chunk_ids`; AI Service tự map sang citation thật từ context để tránh citation giả.
+- Nếu không có chunks cho tài liệu đã chọn, trả `NO_CHUNKS_FOUND`.
+- Nếu provider trả JSON sai shape, sai số câu hoặc tham chiếu chunk ngoài context, trả `INVALID_OUTPUT`.
+## 10. Error codes
 
 | Code | HTTP | Ý nghĩa |
 |---|---:|---|
@@ -324,27 +393,26 @@ AI does not use outside knowledge to fill missing data. After AI-09, when retrie
 | `FILE_TOO_LARGE` | 413 | Quá giới hạn |
 | `INVALID_FILE_CONTENT` | 422 | MIME/signature/encoding sai |
 | `EMPTY_DOCUMENT` | 422 | Không trích được text |
-| `NO_CHUNKS_FOUND` | 422 | Không có chunks cho document IDs |
+| `NO_CHUNKS_FOUND` | 404 | Không có chunks cho document IDs |
 | `PROVIDER_UNAVAILABLE` | 503 | OpenAI chưa cấu hình/không sẵn sàng |
 | `PROVIDER_TIMEOUT` | 504 | OpenAI timeout |
 | `RETRIEVAL_ERROR` | 503 | Lỗi query retrieval từ `document_chunks` |
 | `DATABASE_ERROR` | 503 | PostgreSQL/pgvector lỗi |
 | `INTERNAL_ERROR` | 500 | Lỗi không dự kiến |
 
-## 10. Timeout và retry
+## 11. Timeout và retry
 
 - Backend timeout index-document/process-document phải đủ cho tài liệu demo; gọi trong worker.
 - Backend không tự retry vô hạn.
 - OpenAI retry có giới hạn trong AI Service.
 - Reprocess phải idempotent theo document và atomic replace.
 
-## 11. Should-have contract
+## 12. Should-have contract
 
 Các endpoint sau chỉ được thiết kế/implement sau core E2E:
 
 ```txt
 POST /v1/generate-summary
-POST /v1/generate-questions
 ```
 
-Khi triển khai, scope cũng dùng `document_ids`, không dùng subject/topic/chapter làm scope duy nhất.
+Nếu triển khai summary riêng sau này, scope cũng dùng `document_ids`, không dùng subject/topic/chapter làm scope duy nhất.

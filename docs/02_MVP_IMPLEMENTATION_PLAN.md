@@ -1,4 +1,4 @@
-# Kế hoạch triển khai MVP document-centric
+﻿# Kế hoạch triển khai MVP document-centric
 
 **Phiên bản:** 1.8
 **Cập nhật:** 21/07/2026
@@ -89,12 +89,14 @@ Teacher A login
 - `/v1/index-document` để tạo chunks/embedding sau khi Admin approve.
 - `/v1/answer-question` để retrieval theo `document_ids`, lọc threshold, dùng grounded LLM generation khi có context, trả citations từ chunk thật.
 - Hỗ trợ `history` stateless để trả lời câu hỏi nối tiếp; AI Service không lưu conversation.
+- `/v1/generate-quiz` để sinh quiz draft dạng JSON từ chunks đã index, phục vụ Teacher review ở FE.
 
 ### Phần còn thiếu đáng chú ý
 
-- API sinh quiz chuyên biệt từ tài liệu chưa có trong AI Service.
+- AI Service đã có API sinh quiz draft `/v1/generate-quiz`; phần còn thiếu nằm ở Backend/Frontend để lưu quiz, Teacher review/public và trang Student làm quiz.
 - Chưa có luồng Teacher review/chỉnh sửa quiz trước khi public và trang Student làm quiz.
 - Cần chạy lại E2E tích hợp đầy đủ sau mỗi lần pull/build để xác nhận Docker, Backend, FE và AI cùng khớp contract.
+
 ## 4. Task graph tổng quan
 
 ```txt
@@ -188,6 +190,7 @@ Quy ước trạng thái:
 | AI-RAG-HIST-03 - AI docs handoff update | Khánh | P1 | AI-RAG-HIST-01 | DONE | `04_AI_API_CONTRACT.md`, `06_AI_PIPELINE.md` và `AI_LEARNING_LOG.md` đã mô tả AI stateless, không lưu conversation |
 
 | AI-09 - Grounded LLM answer generation | Khanh | P0 | AI-03, AI-08 | DONE | Current AI-05 working task: added `GenerationProvider` + `OpenAIGenerationProvider`; after retrieval/threshold AI calls `GENERATION_MODEL` for natural grounded answers; no generation call when `not_found`; AI regression pass 81 tests. |
+| AI-QUIZ-01 - Quiz draft generation endpoint | Khánh | P1 | AI-04, AI-09 | DONE | Thêm `/v1/generate-quiz` nhận `document_ids`, `question_count`, `language`, lấy chunks đại diện từ `document_chunks`, gọi grounded LLM trả JSON quiz draft `single_choice` kèm explanation và citations thật; AI chỉ sinh draft, không lưu/public/chấm điểm; `pytest tests/test_generate_quiz_api.py tests/test_generation_provider.py` pass 19 tests |
 
 ### 6.4. Infra, integration và QA tasks
 
@@ -198,7 +201,7 @@ Quy ước trạng thái:
 | INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
 | INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | DONE | Backend/AI/FE đã có luồng review, library và RAG chat; cần tiếp tục smoke test sau mỗi pull/build |
 | INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-05 | DONE | Đã có Backend persistence, AI stateless history và FE resume/clear; đã manual test reload/tiếp tục hội thoại ổn |
-| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | IN_PROGRESS | Cần chốt kịch bản demo cuối cùng, đặc biệt phần sinh quiz nếu đưa vào phạm vi trình bày |
+| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | IN_PROGRESS | Cần chốt kịch bản demo cuối cùng; nếu đưa quiz vào phạm vi trình bày thì BE/FE cần nối tiếp API AI-QUIZ-01 để lưu, review, public và làm quiz |
 
 ### 6.5. Cách cập nhật bảng tracking
 
@@ -304,7 +307,7 @@ AI Service đã có `/v1/index-document`; endpoint này reuse logic `/v1/process
 Frontend đã có app React/Vite để chạy demo UI; cần build/test lại sau mỗi lần pull.
 ```
 
-Ghi chú cập nhật 21/07: BE/AI/FE cho luồng Document -> Review -> Library -> RAG đã có. Phần còn lại là smoke test lại sau mỗi lần pull/build và hoàn thiện tính năng sinh quiz nếu đưa vào demo.
+Ghi chú cập nhật 22/07: BE/AI/FE cho luồng Document -> Review -> Library -> RAG đã có. AI Service đã có `/v1/generate-quiz` để sinh quiz draft; phần còn lại của quiz nằm ở BE/FE gồm lưu quiz, Teacher review/public và trang làm quiz.
 
 ### 6.8. Snapshot kiểm thử thực tế 14/07/2026
 

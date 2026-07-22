@@ -1,4 +1,4 @@
-# LMS-RAG
+﻿# LMS-RAG
 
 Hệ thống quản lý tài liệu học liệu và hỗ trợ hỏi đáp theo tài liệu bằng RAG cho giảng viên ngành CNTT.
 
@@ -99,7 +99,7 @@ AI Service:
 
 - Đã có analyze/index document, parse PDF/TXT, chunk/embedding, retrieval theo `document_ids`.
 - Đã có grounded LLM answer generation sau retrieval, hỗ trợ history stateless và citation từ chunk thật.
-- Chưa có API sinh quiz chuyên biệt từ tài liệu.
+- Đã có API nội bộ `/v1/generate-quiz` để sinh quiz draft từ tài liệu đã index; phần lưu/public/làm quiz thuộc BE/FE.
 
 Môi trường:
 

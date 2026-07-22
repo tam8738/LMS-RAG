@@ -1,7 +1,7 @@
-# AI pipeline cho Document MVP
+﻿# AI pipeline cho Document MVP
 
-**Phiên bản:** 1.6
-**Cập nhật:** 21/07/2026
+**Phiên bản:** 1.7
+**Cập nhật:** 22/07/2026
 **Owner:** AI Service
 
 File này chỉ mô tả thuật toán AI. API payload nằm trong
@@ -26,6 +26,7 @@ File này chỉ mô tả thuật toán AI. API payload nằm trong
 - Grounded LLM generation provider cho answer tự nhiên hơn sau retrieval.
 - Stateless history trong request để hỗ trợ câu hỏi nối tiếp.
 - Unit/API mock tests và regression tests cho RAG/history/provider.
+- `POST /v1/generate-quiz` sinh quiz draft dạng JSON từ chunks đã index, có explanation và citations thật để Teacher review.
 
 ## 2. Analyze pipeline
 
@@ -203,7 +204,44 @@ Required rules:
 - Reply according to `language`.
 - `tokens_used` uses provider usage when generation runs; remains `0` when not-found happens before generation.
 
-## 5. Citation
+## 5. Quiz draft generation
+
+Trạng thái AI-QUIZ-01: `/v1/generate-quiz` đã có trong AI Service. Endpoint này không thay thế RAG chat; nó là API nội bộ để Backend gọi khi Teacher muốn sinh bộ câu hỏi ôn tập từ tài liệu đã được index.
+
+```txt
+document_ids
+-> Backend kiểm quyền và trạng thái tài liệu trước
+-> AI đọc các chunks đại diện trong document_chunks
+-> gọi generation provider với yêu cầu JSON object
+-> validate số câu, options, đáp án đúng, explanation
+-> map source_chunk_ids về citations thật
+-> trả quiz draft cho Backend/Frontend review
+```
+
+Input chính:
+
+```txt
+document_ids: 1-10 IDs
+question_count: mặc định 5, tối đa 10
+language: vi/en
+max_context_chunks: mặc định QUIZ_CONTEXT_CHUNKS, tối đa 24
+```
+
+Quy tắc:
+
+- V1 chỉ sinh `single_choice` để BE/FE dễ lưu, review và chấm điểm.
+- Mỗi câu cần có 4 options A-D, một đáp án đúng và explanation ngắn dựa trên tài liệu.
+- LLM không được tự tạo citation metadata. Provider chỉ cho model trả `source_chunk_ids`, sau đó AI Service map lại thành `chunk_id`, `document_id`, `page_number`, `chunk_index`, `excerpt` từ chunk thật.
+- Nếu tài liệu chưa có chunks, trả `NO_CHUNKS_FOUND` và không gọi generation provider.
+- Nếu JSON sai cấu trúc, sai số câu hoặc trỏ tới chunk ngoài context, trả `INVALID_OUTPUT`.
+
+Boundary:
+
+- AI Service không lưu quiz vào database nghiệp vụ.
+- AI Service không public URL quiz.
+- AI Service không tạo attempt/result, không chấm điểm, không xếp hạng sinh viên.
+- Backend/Frontend chịu trách nhiệm Teacher review, chỉnh sửa, submit/public và trang làm quiz.
+## 6. Citation
 
 Mỗi citation:
 
@@ -218,7 +256,7 @@ score
 `excerpt` lấy từ chunk thực tế, không do model tự viết. Citation phải truy ngược
 được về row `document_chunks`.
 
-## 6. Not-found
+## 7. Not-found
 
 Trả:
 
@@ -230,7 +268,7 @@ tokens_used=0 hoặc usage thực tế nếu đã gọi model
 
 Ưu tiên không gọi generation model nếu retrieval chắc chắn không có context.
 
-## 7. Security boundary
+## 8. Security boundary
 
 AI Service:
 
@@ -241,7 +279,7 @@ AI Service:
 - Không đọc/cập nhật `publication_status`.
 - Tin rằng Backend đã kiểm permission của `document_ids`.
 
-## 8. Test bắt buộc
+## 9. Test bắt buộc
 
 ### Process
 
@@ -269,7 +307,15 @@ AI Service:
 - Internal key sai trả `401`.
 - Provider timeout/database error dùng đúng error envelope.
 
-## 9. Current parser evidence
+### Quiz
+
+- Chỉ sinh quiz từ chunks trong `document_ids` đã được Backend authorize.
+- Output là JSON có cấu trúc, không Markdown.
+- Mỗi câu có options, correct option, explanation và citation thật.
+- Không có chunks thì không gọi provider.
+- Provider trả chunk id ngoài context phải bị reject.
+
+## 10. Current parser evidence
 
 Pipeline parse/clean/chunk đã được thử với PDF tiếng Việt có text layer gồm 179
 trang:
@@ -282,12 +328,12 @@ max chunk: 999 tokens
 Đây chưa phải E2E đầy đủ vì lần test parser không gọi OpenAI và không lưu
 PostgreSQL.
 
-## 10. Should-have
+## 11. Should-have
 
 Sau core RAG E2E:
 
 - Summary một document.
-- Question generation từ selected documents.
+- Summary endpoint riêng nếu cần tách khỏi RAG chat.
 - Prompt/evaluation tuning.
 
 Các phần này không chặn core MVP.

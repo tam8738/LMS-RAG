@@ -35,6 +35,41 @@ INSERT INTO document_chunks (
 VALUES (%s, %s, %s, %s, %s, %s::vector)
 """
 
+_GET_DOCUMENT_CHUNKS_SQL = """
+WITH sampled AS (
+    SELECT DISTINCT ON (document_id, bucket)
+        id,
+        document_id,
+        page_number,
+        chunk_index,
+        content,
+        token_count
+    FROM (
+        SELECT
+            id,
+            document_id,
+            page_number,
+            chunk_index,
+            content,
+            token_count,
+            NTILE(%s) OVER (PARTITION BY document_id ORDER BY chunk_index) AS bucket
+        FROM document_chunks
+        WHERE document_id = ANY(%s::bigint[])
+    ) ranked
+    ORDER BY document_id, bucket, chunk_index
+)
+SELECT
+    id,
+    document_id,
+    page_number,
+    chunk_index,
+    content,
+    token_count
+FROM sampled
+ORDER BY document_id, chunk_index
+LIMIT %s
+"""
+
 _SEARCH_SIMILAR_CHUNKS_SQL = """
 SELECT
     id,
@@ -160,6 +195,45 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
 
         return len(rows)
 
+    def get_document_chunks(
+        self,
+        document_ids: list[int],
+        max_chunks: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Return representative chunks spread across each document."""
+        normalized_document_ids = self._validate_document_ids_and_top_k(
+            document_ids,
+            max_chunks,
+        )
+
+        try:
+            with self.connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        _GET_DOCUMENT_CHUNKS_SQL,
+                        (
+                            max_chunks,
+                            normalized_document_ids,
+                            max_chunks,
+                        ),
+                    )
+                    rows = cursor.fetchall()
+        except psycopg.Error as exc:
+            raise ServiceError(
+                ErrorCode.RETRIEVAL_ERROR,
+                "Khong the doc document chunks tu PostgreSQL",
+                status_code=503,
+                details=[
+                    ErrorDetail(
+                        field="document_ids",
+                        message=",".join(
+                            str(value) for value in normalized_document_ids
+                        ),
+                    )
+                ],
+            ) from exc
+
+        return [self._to_context_chunk(row) for row in rows]
     def search_keyword_chunks(
         self,
         document_ids: list[int],
@@ -529,6 +603,18 @@ LIMIT %s
                 normalized_document_ids.append(document_id)
         return normalized_document_ids
 
+    @staticmethod
+    def _to_context_chunk(row: tuple[Any, ...]) -> RetrievedDocumentChunk:
+        return RetrievedDocumentChunk(
+            chunk_id=int(row[0]),
+            document_id=int(row[1]),
+            page_number=row[2],
+            chunk_index=int(row[3]),
+            content=str(row[4]),
+            token_count=int(row[5]),
+            distance=0.0,
+            score=1.0,
+        )
     @staticmethod
     def _to_keyword_chunk(row: tuple[Any, ...], term_count: int) -> RetrievedDocumentChunk:
         match_count = int(row[6])
