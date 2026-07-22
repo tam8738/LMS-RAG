@@ -219,7 +219,40 @@ class OpenAIQuizGenerationProviderTest(unittest.TestCase):
         self.assertEqual(call["max_tokens"], 900)
         self.assertIn("source_chunk_ids", call["messages"][0]["content"])
 
-    def test_rejects_quiz_output_with_unknown_source_chunk(self) -> None:
+    def test_accepts_context_index_when_model_does_not_copy_chunk_id(self) -> None:
+        payload = {
+            "title": "Quiz",
+            "description": "Draft",
+            "questions": [
+                {
+                    "question": "Q?",
+                    "options": [
+                        {"id": "A", "text": "A"},
+                        {"id": "B", "text": "B"},
+                        {"id": "C", "text": "C"},
+                        {"id": "D", "text": "D"},
+                    ],
+                    "correct_option_ids": ["A"],
+                    "explanation": "Because A.",
+                    "source_chunk_ids": [1],
+                }
+            ],
+        }
+        self.client.chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(payload)))],
+            usage=SimpleNamespace(total_tokens=10),
+        )
+
+        result = self._provider().generate_quiz(
+            document_ids=[12],
+            question_count=1,
+            language="vi",
+            chunks=[chunk(chunk_id=120)],
+        )
+
+        self.assertEqual(result.quiz.questions[0].citations[0].chunk_id, 120)
+
+    def test_falls_back_to_first_context_chunk_for_unknown_source_chunk(self) -> None:
         payload = {
             "title": "Quiz",
             "description": "Draft",
@@ -241,15 +274,56 @@ class OpenAIQuizGenerationProviderTest(unittest.TestCase):
             usage=SimpleNamespace(total_tokens=10),
         )
 
-        with self.assertRaises(ServiceError) as context:
-            self._provider().generate_quiz(
-                document_ids=[12],
-                question_count=1,
-                language="vi",
-                chunks=[chunk()],
-            )
+        result = self._provider().generate_quiz(
+            document_ids=[12],
+            question_count=1,
+            language="vi",
+            chunks=[chunk(chunk_id=120)],
+        )
 
-        self.assertEqual(context.exception.code, ErrorCode.INVALID_OUTPUT)
+        self.assertEqual(result.quiz.questions[0].citations[0].chunk_id, 120)
+
+    def test_repairs_mojibake_quiz_text_and_citation_excerpt(self) -> None:
+        payload = {
+            "title": "Quiz v\u00e1\u00bb\u0081 An to\u00c3\u00a0n",
+            "description": "Ki\u00e1\u00bb\u0083m tra an to\u00c3\u00a0n th\u00c3\u00b4ng tin.",
+            "questions": [
+                {
+                    "question": "An to\u00c3\u00a0n th\u00c3\u00b4ng tin l\u00c3\u00a0 g\u00c3\u00ac?",
+                    "options": [
+                        {"id": "A", "text": "B\u00e1\u00ba\u00a3o v\u00e1\u00bb\u0087 th\u00c3\u00b4ng tin"},
+                        {"id": "B", "text": "Sai"},
+                        {"id": "C", "text": "Sai"},
+                        {"id": "D", "text": "Sai"},
+                    ],
+                    "correct_option_ids": ["A"],
+                    "explanation": "An to\u00c3\u00a0n th\u00c3\u00b4ng tin l\u00c3\u00a0 b\u00e1\u00ba\u00a3o v\u00e1\u00bb\u0087 th\u00c3\u00b4ng tin.",
+                    "source_chunk_ids": [120],
+                }
+            ],
+        }
+        self.client.chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(payload)))],
+            usage=SimpleNamespace(total_tokens=99),
+        )
+
+        result = self._provider().generate_quiz(
+            document_ids=[12],
+            question_count=1,
+            language="vi",
+            chunks=[chunk(content="12 CH\u00c6\u00af\u00c6\u00a0NG 1. T\u00e1\u00bb\u0094NG QUAN")],
+        )
+
+        quiz = result.quiz
+        self.assertEqual(quiz.title, "Quiz v\u1ec1 An to\u00e0n")
+        self.assertEqual(quiz.description, "Ki\u1ec3m tra an to\u00e0n th\u00f4ng tin.")
+        self.assertEqual(quiz.questions[0].question, "An to\u00e0n th\u00f4ng tin l\u00e0 g\u00ec?")
+        self.assertEqual(quiz.questions[0].options[0].text, "B\u1ea3o v\u1ec7 th\u00f4ng tin")
+        self.assertEqual(
+            quiz.questions[0].explanation,
+            "An to\u00e0n th\u00f4ng tin l\u00e0 b\u1ea3o v\u1ec7 th\u00f4ng tin.",
+        )
+        self.assertEqual(quiz.questions[0].citations[0].excerpt, "12 CH\u01af\u01a0NG 1. T\u1ed4NG QUAN")
 
 
 if __name__ == "__main__":

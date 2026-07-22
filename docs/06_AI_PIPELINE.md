@@ -233,7 +233,7 @@ Quy tắc:
 - Mỗi câu cần có 4 options A-D, một đáp án đúng và explanation ngắn dựa trên tài liệu.
 - LLM không được tự tạo citation metadata. Provider chỉ cho model trả `source_chunk_ids`, sau đó AI Service map lại thành `chunk_id`, `document_id`, `page_number`, `chunk_index`, `excerpt` từ chunk thật.
 - Nếu tài liệu chưa có chunks, trả `NO_CHUNKS_FOUND` và không gọi generation provider.
-- Nếu JSON sai cấu trúc, sai số câu hoặc trỏ tới chunk ngoài context, trả `INVALID_OUTPUT`.
+- Nếu JSON sai cấu trúc hoặc sai số câu, trả `INVALID_OUTPUT`. Nếu model trỏ tới chunk ngoài context, fallback về chunk thật đầu tiên trong context.
 
 Boundary:
 
@@ -313,7 +313,7 @@ AI Service:
 - Output là JSON có cấu trúc, không Markdown.
 - Mỗi câu có options, correct option, explanation và citation thật.
 - Không có chunks thì không gọi provider.
-- Provider trả chunk id ngoài context phải bị reject.
+- Provider trả chunk id ngoài context không làm fail toàn bộ quiz; AI fallback về citation thật trong context.
 
 ## 10. Current parser evidence
 

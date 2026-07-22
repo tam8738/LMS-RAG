@@ -1,12 +1,10 @@
-"""OpenAI chat implementation for grounded RAG answers."""
+"""OpenAI chat implementation for grounded RAG answers and quiz drafts."""
 
 import json
 import re
 import time
 from collections.abc import Callable
 from typing import Any
-
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from openai import (
     APIConnectionError,
@@ -15,6 +13,7 @@ from openai import (
     OpenAI,
     RateLimitError,
 )
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.core.config import settings
 from app.core.errors import ErrorCode, ServiceError
@@ -34,6 +33,23 @@ _FALLBACK_DEFAULT_MAX_TOKENS = 700
 _FALLBACK_QUIZ_MAX_TOKENS = 1800
 _MARKDOWN_EMPHASIS_PATTERN = re.compile(r"(\*\*\*|\*\*|___|__)(.+?)\1")
 _MARKDOWN_HEADING_PATTERN = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
+_MOJIBAKE_MARKERS = (
+    "\u00c3",
+    "\u00c2",
+    "\u00c6",
+    "\u00e1\u00ba",
+    "\u00e1\u00bb",
+    "\u00c4",
+    "\u00c5",
+)
+_REPLACEMENT_CHARACTER = "\ufffd"
+
+_RETRYABLE_EXCEPTIONS = (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 
 
 class _RawQuizQuestion(BaseModel):
@@ -58,16 +74,8 @@ class _RawQuiz(BaseModel):
     questions: list[_RawQuizQuestion] = Field(min_length=1, max_length=10)
 
 
-_RETRYABLE_EXCEPTIONS = (
-    APIConnectionError,
-    APITimeoutError,
-    InternalServerError,
-    RateLimitError,
-)
-
-
 class OpenAIGenerationProvider(GenerationProvider):
-    """Generate concise grounded answers with retry and output validation."""
+    """Generate concise grounded answers and structured quiz drafts."""
 
     def __init__(
         self,
@@ -243,6 +251,7 @@ class OpenAIGenerationProvider(GenerationProvider):
                 ) from exc
 
         raise AssertionError("Retry loop must always return or raise")
+
     def _request_completion(
         self,
         *,
@@ -301,7 +310,8 @@ class OpenAIGenerationProvider(GenerationProvider):
             "Return only a valid JSON object, without Markdown or code fences. "
             "Use only single_choice questions. Each question must have 4 options with ids A, B, C, D, "
             "exactly one correct_option_ids item, a short explanation grounded in context, "
-            "and source_chunk_ids containing existing chunk_id values from the context."
+            "and source_chunk_ids containing existing chunk_id values from the context. "
+            "Do not use the bracketed context number unless you cannot identify the chunk_id."
         )
         user_prompt = "\n\n".join(
             [
@@ -317,7 +327,7 @@ class OpenAIGenerationProvider(GenerationProvider):
                 "      \"options\": [{\"id\": \"A\", \"text\": \"...\"}, ...],\n"
                 "      \"correct_option_ids\": [\"A\"],\n"
                 "      \"explanation\": \"...\",\n"
-                "      \"source_chunk_ids\": [123]\n"
+                "      \"source_chunk_ids\": [actual_chunk_id_from_context]\n"
                 "    }\n"
                 "  ]\n"
                 "}",
@@ -328,6 +338,7 @@ class OpenAIGenerationProvider(GenerationProvider):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
+
     def _build_messages(
         self,
         *,
@@ -421,16 +432,21 @@ class OpenAIGenerationProvider(GenerationProvider):
             )
 
         chunk_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+        chunk_by_context_index = {
+            index: chunk for index, chunk in enumerate(chunks, start=1)
+        }
         questions: list[QuizQuestion] = []
         for raw_question in raw_quiz.questions:
             citations = OpenAIGenerationProvider._map_quiz_citations(
                 raw_question.source_chunk_ids,
                 chunk_by_id,
+                chunk_by_context_index,
+                chunks[0],
             )
             questions.append(
                 QuizQuestion(
                     question=OpenAIGenerationProvider._clean_answer_text(raw_question.question),
-                    options=raw_question.options,
+                    options=OpenAIGenerationProvider._clean_quiz_options(raw_question.options),
                     correct_option_ids=raw_question.correct_option_ids,
                     explanation=OpenAIGenerationProvider._clean_answer_text(raw_question.explanation),
                     citations=citations,
@@ -460,37 +476,43 @@ class OpenAIGenerationProvider(GenerationProvider):
     def _map_quiz_citations(
         source_chunk_ids: list[int],
         chunk_by_id: dict[int, RetrievedDocumentChunk],
+        chunk_by_context_index: dict[int, RetrievedDocumentChunk],
+        fallback_chunk: RetrievedDocumentChunk,
     ) -> list[QuizCitation]:
         citations: list[QuizCitation] = []
         seen: set[int] = set()
-        for chunk_id in source_chunk_ids:
-            if chunk_id in seen:
+
+        for source_id in source_chunk_ids:
+            chunk = chunk_by_id.get(source_id) or chunk_by_context_index.get(source_id)
+            if chunk is None or chunk.chunk_id in seen:
                 continue
-            chunk = chunk_by_id.get(chunk_id)
-            if chunk is None:
-                raise ServiceError(
-                    ErrorCode.INVALID_OUTPUT,
-                    "OpenAI referenced a chunk outside the supplied quiz context",
-                    status_code=502,
-                )
-            seen.add(chunk_id)
-            citations.append(
-                QuizCitation(
-                    chunk_id=chunk.chunk_id,
-                    document_id=chunk.document_id,
-                    page_number=chunk.page_number,
-                    chunk_index=chunk.chunk_index,
-                    excerpt=OpenAIGenerationProvider._excerpt(chunk.content),
-                )
-            )
+
+            seen.add(chunk.chunk_id)
+            citations.append(OpenAIGenerationProvider._to_quiz_citation(chunk))
+
+        if not citations:
+            citations.append(OpenAIGenerationProvider._to_quiz_citation(fallback_chunk))
+
         return citations
 
     @staticmethod
+    def _to_quiz_citation(chunk: RetrievedDocumentChunk) -> QuizCitation:
+        return QuizCitation(
+            chunk_id=chunk.chunk_id,
+            document_id=chunk.document_id,
+            page_number=chunk.page_number,
+            chunk_index=chunk.chunk_index,
+            excerpt=OpenAIGenerationProvider._excerpt(chunk.content),
+        )
+
+    @staticmethod
     def _excerpt(content: str, limit: int = 300) -> str:
-        normalized = " ".join(content.split()).strip()
+        repaired = OpenAIGenerationProvider._repair_mojibake(content)
+        normalized = " ".join(repaired.split()).strip()
         if len(normalized) <= limit:
             return normalized
         return normalized[:limit].rsplit(" ", 1)[0].rstrip() + "..."
+
     @staticmethod
     def _parse_response(response: Any) -> GeneratedAnswer:
         try:
@@ -519,9 +541,42 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _clean_answer_text(answer: str) -> str:
-        cleaned = _MARKDOWN_HEADING_PATTERN.sub("", answer.strip())
+        repaired = OpenAIGenerationProvider._repair_mojibake(answer)
+        cleaned = _MARKDOWN_HEADING_PATTERN.sub("", repaired.strip())
         cleaned = _MARKDOWN_EMPHASIS_PATTERN.sub(r"\2", cleaned)
         return cleaned.strip()
+
+    @staticmethod
+    def _clean_quiz_options(options: list[QuizOption]) -> list[QuizOption]:
+        return [
+            QuizOption(id=option.id, text=OpenAIGenerationProvider._clean_answer_text(option.text))
+            for option in options
+        ]
+
+    @staticmethod
+    def _repair_mojibake(text: str) -> str:
+        if not text:
+            return text
+
+        repaired = text
+        for _ in range(2):
+            if not OpenAIGenerationProvider._looks_like_mojibake(repaired):
+                break
+            try:
+                candidate = repaired.encode("latin1").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                break
+            if candidate == repaired:
+                break
+            if candidate.count(_REPLACEMENT_CHARACTER) > repaired.count(_REPLACEMENT_CHARACTER):
+                break
+            repaired = candidate
+        return repaired
+
+    @staticmethod
+    def _looks_like_mojibake(text: str) -> bool:
+        has_control = any("\u0080" <= character <= "\u009f" for character in text)
+        return has_control or any(marker in text for marker in _MOJIBAKE_MARKERS)
 
     def _validate_configuration(self) -> None:
         if self.max_retries < 0:

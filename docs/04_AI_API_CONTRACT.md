@@ -381,7 +381,7 @@ Quy tắc:
 - AI không lưu quiz, không public URL, không tạo attempt/result và không xếp hạng sinh viên.
 - LLM chỉ trả `source_chunk_ids`; AI Service tự map sang citation thật từ context để tránh citation giả.
 - Nếu không có chunks cho tài liệu đã chọn, trả `NO_CHUNKS_FOUND`.
-- Nếu provider trả JSON sai shape, sai số câu hoặc tham chiếu chunk ngoài context, trả `INVALID_OUTPUT`.
+- Nếu provider trả JSON sai shape hoặc sai số câu, trả `INVALID_OUTPUT`. Nếu model tham chiếu source chunk ngoài context, AI Service fallback về một chunk thật trong context để không làm hỏng toàn bộ quiz draft.
 ## 10. Error codes
 
 | Code | HTTP | Ý nghĩa |
