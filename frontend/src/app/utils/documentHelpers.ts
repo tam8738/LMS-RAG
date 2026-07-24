@@ -30,13 +30,13 @@ export function isProcessingFailed(status: ProcessingStatus): boolean {
  * Checks if a document is eligible to be submitted for review.
  * Requirements:
  * - processingStatus === ANALYZED
- * - publicationStatus === DRAFT or REJECTED
+ * - publicationStatus === DRAFT
+ *
+ * Rejected documents must be edited or replaced first. The backend moves them
+ * back to DRAFT after that change, then they can be submitted again.
  */
 export function canSubmitDocumentForReview(document: DocumentStatusScope): boolean {
-  return (
-    document.processingStatus === "ANALYZED" &&
-    (document.publicationStatus === "DRAFT" || document.publicationStatus === "REJECTED")
-  );
+  return document.processingStatus === "ANALYZED" && document.publicationStatus === "DRAFT";
 }
 
 /**

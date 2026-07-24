@@ -30,8 +30,9 @@ export function RejectionReasonBanner({ reason }: { reason: string }) {
       <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
       <div>
         <h4 className="text-[14.5px] font-semibold mb-1">Tài liệu bị từ chối phê duyệt</h4>
+        <p className="text-[11.5px] font-mono-label uppercase tracking-widest text-red-500 mb-1">Lý do từ chối</p>
         <p className="text-[14px] leading-relaxed">{reason}</p>
-        <p className="text-[13px] mt-2 text-red-700/80">Bạn có thể chỉnh sửa thông tin hoặc thay thế file và gửi lại yêu cầu duyệt.</p>
+        <p className="text-[13px] mt-2 text-red-700/80">Vui lòng chỉnh sửa thông tin hoặc thay thế file trước khi gửi duyệt lại.</p>
       </div>
     </div>
   );

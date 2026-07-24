@@ -664,19 +664,20 @@ export function MyDocumentDetailPage({
               </div>
             </div>
           </div>
-
-          {/* 3. Metadata */}
-          <DocumentMetadataPanel doc={doc} isOwner={true} />
-
-          {/* 4. Processing/Publication Timeline */}
-          <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
-
-          {/* 5. Rejection or Failure Details banners */}
-          {isProcessingFailed(aiStatus) && doc.failReason && (
-            <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
-          )}
+          {/* 3. Rejection Details */}
           {pStatus === "REJECTED" && doc.rejectReason && (
             <RejectionReasonBanner reason={doc.rejectReason} />
+          )}
+
+          {/* 4. Metadata */}
+          <DocumentMetadataPanel doc={doc} isOwner={true} />
+
+          {/* 5. Processing/Publication Timeline */}
+          <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
+
+          {/* 6. Processing Failure Details */}
+          {isProcessingFailed(aiStatus) && doc.failReason && (
+            <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
           )}
         </div>
 

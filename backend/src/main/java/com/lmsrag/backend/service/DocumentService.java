@@ -320,6 +320,10 @@ public class DocumentService {
             document.setTags(request.getTags());
         }
 
+        if (document.getPublicationStatus() == PublicationStatus.REJECTED) {
+            resetRejectedDocumentForRevision(document);
+        }
+
         boolean fileReplaced = false;
         if (file != null && !file.isEmpty()) {
             replaceDocumentFile(document, file);
@@ -334,6 +338,13 @@ public class DocumentService {
         }
 
         return DocumentMapper.toResponse(updated);
+    }
+
+    private void resetRejectedDocumentForRevision(Document document) {
+        document.setPublicationStatus(PublicationStatus.DRAFT);
+        document.setReviewedBy(null);
+        document.setReviewedAt(null);
+        document.setRejectionReason(null);
     }
 
     private void replaceDocumentFile(Document document, MultipartFile file) {
@@ -437,8 +448,7 @@ public class DocumentService {
             throw new AppException(ErrorCode.DOCUMENT_NOT_ANALYZED);
         }
 
-        if (document.getPublicationStatus() != PublicationStatus.DRAFT
-                && document.getPublicationStatus() != PublicationStatus.REJECTED) {
+        if (document.getPublicationStatus() != PublicationStatus.DRAFT) {
             throw new AppException(ErrorCode.DOCUMENT_CANNOT_SUBMIT);
         }
 

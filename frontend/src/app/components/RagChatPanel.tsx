@@ -507,6 +507,8 @@ export function RagChatPanel({
     );
   }
 
+  const isRejected = document.publicationStatus === "REJECTED";
+
   // Curated list of suggested prompts based on document context
   const suggestedPrompts = [
     { title: "Tóm tắt tài liệu", desc: "Tóm tắt ngắn gọn các luận điểm và ý chính của toàn bộ tài liệu này." },
@@ -591,7 +593,7 @@ export function RagChatPanel({
     }
 
     if (pubStatus === "REJECTED") {
-      return "Tài liệu bị từ chối phê duyệt. Hãy kiểm tra lý do từ chối và gửi duyệt lại.";
+      return "Tài liệu bị từ chối phê duyệt. Vui lòng xem lý do từ chối ở phần thông tin tài liệu, sau đó chỉnh sửa thông tin hoặc thay file trước khi gửi duyệt lại.";
     }
 
     return "Học liệu đang được xử lý chỉ mục RAG để sẵn sàng hỏi đáp.";
@@ -722,7 +724,7 @@ export function RagChatPanel({
 
               {/* Action Buttons if available */}
               <div className="flex gap-2.5 w-full mt-2">
-                {onRetry && (
+                {onRetry && !isRejected && (
                   <button onClick={onRetry} className="flex-1 h-9.5 bg-[#0E0D0B] text-white text-[13px] font-semibold rounded-xl hover:bg-[#1C1A17] transition-all border-none cursor-pointer font-action">
                     Thử kiểm tra lại
                   </button>
