@@ -1,8 +1,7 @@
 package com.lmsrag.backend.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.exception.ErrorCode;
+import com.lmsrag.backend.exception.ErrorResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,8 +23,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -37,7 +33,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ErrorResponseWriter errorResponseWriter;
 
     @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:4200}")
     private String allowedOrigins;
@@ -96,7 +92,7 @@ public class SecurityConfig {
         return (HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) -> {
             log.warn("[SECURITY] Unauthenticated access blocked at requestMatchers | uri={} | method={} | error={}",
                     request.getRequestURI(), request.getMethod(), authException.getMessage());
-            writeErrorResponse(response, ErrorCode.UNAUTHENTICATED);
+            errorResponseWriter.write(response, ErrorCode.UNAUTHENTICATED);
         };
     }
 
@@ -109,15 +105,8 @@ public class SecurityConfig {
             String username = request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous";
             log.warn("[SECURITY] Access denied by requestMatchers | uri={} | method={} | user={} | error={}",
                     request.getRequestURI(), request.getMethod(), username, accessDeniedException.getMessage());
-            writeErrorResponse(response, ErrorCode.FORBIDDEN);
+            errorResponseWriter.write(response, ErrorCode.FORBIDDEN);
         };
-    }
-
-    private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        response.setStatus(errorCode.getStatusCode());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
     @Bean

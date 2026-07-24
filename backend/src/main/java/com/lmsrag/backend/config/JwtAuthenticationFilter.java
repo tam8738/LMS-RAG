@@ -1,10 +1,9 @@
 package com.lmsrag.backend.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.entity.User;
 import com.lmsrag.backend.enums.UserStatus;
 import com.lmsrag.backend.exception.ErrorCode;
+import com.lmsrag.backend.exception.ErrorResponseWriter;
 import com.lmsrag.backend.repository.UserRepository;
 import com.lmsrag.backend.service.InMemoryBlacklistService;
 import com.lmsrag.backend.service.JwtService;
@@ -14,14 +13,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
 @Slf4j
@@ -38,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final InMemoryBlacklistService blacklistService;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper;
+    private final ErrorResponseWriter errorResponseWriter;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -63,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
         if (!jwtService.isTokenValid(token) || blacklistService.isBlacklisted(token)) {
-            writeError(response, ErrorCode.UNAUTHENTICATED);
+            errorResponseWriter.write(response, ErrorCode.UNAUTHENTICATED);
             return;
         }
 
@@ -74,7 +71,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (RuntimeException exception) {
             log.warn("[SECURITY] JWT authentication rejected | uri={} | reason={}",
                     request.getRequestURI(), exception.getClass().getSimpleName());
-            writeError(response, ErrorCode.UNAUTHENTICATED);
+            errorResponseWriter.write(response, ErrorCode.UNAUTHENTICATED);
         }
     }
 
@@ -90,11 +87,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = jwtService.extractEmail(token);
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
-            writeError(response, ErrorCode.UNAUTHENTICATED);
+            errorResponseWriter.write(response, ErrorCode.UNAUTHENTICATED);
             return false;
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
-            writeError(response, ErrorCode.ACCOUNT_INACTIVE);
+            errorResponseWriter.write(response, ErrorCode.ACCOUNT_INACTIVE);
             return false;
         }
 
@@ -111,16 +108,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return true;
     }
 
-    private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        if (response.isCommitted()) {
-            return;
-        }
-        response.setStatus(errorCode.getStatusCode());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(
-                response.getOutputStream(),
-                ApiResponse.error(errorCode.getCode(), errorCode.getMessage())
-        );
-    }
 }
