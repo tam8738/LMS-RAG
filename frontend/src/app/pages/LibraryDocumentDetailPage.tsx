@@ -4,12 +4,17 @@ import { Document, User } from "../types";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
 import { RagChatPanel } from "../components/RagChatPanel";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Download, FileText, Archive, AlertTriangle, Check } from "lucide-react";
+import { ArrowLeft, Download, FileText, Archive, AlertTriangle, Check, Sparkles } from "lucide-react";
 import { libraryService } from "../services/libraryService";
 import { adminReviewService } from "../services/adminReviewService";
 import { canUseDocumentRag } from "../utils/documentHelpers";
 import { ConfirmDialog } from "../components/Dialogs";
 import { ROUTES } from "../routes";
+import { GenerateQuizModal } from "../components/GenerateQuizModal";
+import { QuizEditorModal } from "../components/QuizEditorModal";
+import { QuizPreviewModal } from "../components/QuizPreviewModal";
+import { PublishSuccessModal } from "../components/PublishSuccessModal";
+import { QuizResponse } from "../services/quizService";
 
 export function LibraryDocumentDetailPage({ 
   documentId: propDocId,
@@ -34,6 +39,12 @@ export function LibraryDocumentDetailPage({
   const [downloadError, setDownloadError] = useState("");
   const [previewError, setPreviewError] = useState("");
   const [isPreviewing, setIsPreviewing] = useState(false);
+
+  // Quiz states
+  const [isQuizGenerateOpen, setIsQuizGenerateOpen] = useState(false);
+  const [activeQuizForEdit, setActiveQuizForEdit] = useState<QuizResponse | null>(null);
+  const [activeQuizForPreview, setActiveQuizForPreview] = useState<QuizResponse | null>(null);
+  const [publishedQuizForShare, setPublishedQuizForShare] = useState<QuizResponse | null>(null);
 
   const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -165,13 +176,25 @@ export function LibraryDocumentDetailPage({
         </div>
       )}
 
-      {/* Top Navigation */}
-      <button 
-        onClick={handleBack}
-        className="flex items-center gap-1.5 text-[13.5px] font-medium text-slate-500 hover:text-black transition-colors mb-5 w-fit border-none bg-transparent cursor-pointer font-action"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> Trở về thư viện
-      </button>
+      {/* Top Navigation Bar & Actions */}
+      <div className="flex items-center justify-between mb-5">
+        <button 
+          onClick={handleBack}
+          className="flex items-center gap-1.5 text-[13.5px] font-medium text-slate-500 hover:text-black transition-colors border-none bg-transparent cursor-pointer font-action"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Trở về thư viện
+        </button>
+
+        {ragEligible && user?.role === "teacher" && (
+          <button
+            onClick={() => setIsQuizGenerateOpen(true)}
+            className="h-8.5 px-3.5 flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            Tạo Quiz AI từ tài liệu này
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         
@@ -272,6 +295,49 @@ export function LibraryDocumentDetailPage({
           }
         }}
       />
+
+      {/* QUIZ MODALS */}
+      {isQuizGenerateOpen && (
+        <GenerateQuizModal
+          initialDocumentId={doc.id}
+          onClose={() => setIsQuizGenerateOpen(false)}
+          onSuccess={newQuiz => {
+            setIsQuizGenerateOpen(false);
+            setActiveQuizForEdit(newQuiz);
+          }}
+        />
+      )}
+
+      {activeQuizForEdit && (
+        <QuizEditorModal
+          quiz={activeQuizForEdit}
+          onClose={() => setActiveQuizForEdit(null)}
+          onSuccess={updatedQuiz => {
+            setActiveQuizForEdit(updatedQuiz);
+          }}
+          onPreview={quizToPreview => {
+            setActiveQuizForEdit(null);
+            setActiveQuizForPreview(quizToPreview);
+          }}
+          onPublishSuccess={pubQuiz => {
+            setPublishedQuizForShare(pubQuiz);
+          }}
+        />
+      )}
+
+      {activeQuizForPreview && (
+        <QuizPreviewModal
+          quiz={activeQuizForPreview}
+          onClose={() => setActiveQuizForPreview(null)}
+        />
+      )}
+
+      {publishedQuizForShare && (
+        <PublishSuccessModal
+          quiz={publishedQuizForShare}
+          onClose={() => setPublishedQuizForShare(null)}
+        />
+      )}
     </div>
   );
 }
