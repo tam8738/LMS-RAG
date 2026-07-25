@@ -4,10 +4,14 @@ import { DocumentMetadataPanel, DocumentStatusTimeline, ProcessingErrorBanner, R
 import { RagChatPanel } from "../components/RagChatPanel";
 import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
-import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle, Loader2, CheckCircle2, Clock, X, FileText, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, Edit2, Replace, Send, Trash2, AlertTriangle, Loader2, CheckCircle2, Clock, X, FileText, RefreshCw, Sparkles } from "lucide-react";
 import { teacherDocumentService } from "../services/teacherDocumentService";
 import { useParams, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
+import { GenerateQuizModal } from "../components/GenerateQuizModal";
+import { QuizEditorModal } from "../components/QuizEditorModal";
+import { QuizPreviewModal } from "../components/QuizPreviewModal";
+import { QuizResponse } from "../services/quizService";
 import {
   isAnalysisInProgress,
   isAnalysisComplete,
@@ -81,6 +85,11 @@ export function MyDocumentDetailPage({
   const [downloadError, setDownloadError] = useState("");
   const [previewError, setPreviewError] = useState("");
   const [isPreviewing, setIsPreviewing] = useState(false);
+
+  // Quiz states
+  const [isQuizGenerateOpen, setIsQuizGenerateOpen] = useState(false);
+  const [activeQuizForEdit, setActiveQuizForEdit] = useState<QuizResponse | null>(null);
+  const [activeQuizForPreview, setActiveQuizForPreview] = useState<QuizResponse | null>(null);
 
   const handleDownload = async () => {
     if (!doc) return;
@@ -481,6 +490,17 @@ export function MyDocumentDetailPage({
         </button>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Quiz Action */}
+          {ragEligible && (
+            <button
+              onClick={() => setIsQuizGenerateOpen(true)}
+              disabled={isMutatingActive}
+              className="h-8.5 px-3.5 flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Tạo Quiz AI
+            </button>
+          )}
+
           {/* Secondary Action group (Outlines) */}
           {canReplace && (
             <button
@@ -988,6 +1008,39 @@ export function MyDocumentDetailPage({
           }
         }}
       />
+
+      {/* QUIZ MODALS */}
+      {isQuizGenerateOpen && (
+        <GenerateQuizModal
+          initialDocumentId={doc.id}
+          onClose={() => setIsQuizGenerateOpen(false)}
+          onSuccess={newQuiz => {
+            setIsQuizGenerateOpen(false);
+            setActiveQuizForEdit(newQuiz);
+          }}
+        />
+      )}
+
+      {activeQuizForEdit && (
+        <QuizEditorModal
+          quiz={activeQuizForEdit}
+          onClose={() => setActiveQuizForEdit(null)}
+          onSuccess={updatedQuiz => {
+            setActiveQuizForEdit(updatedQuiz);
+          }}
+          onPreview={quizToPreview => {
+            setActiveQuizForEdit(null);
+            setActiveQuizForPreview(quizToPreview);
+          }}
+        />
+      )}
+
+      {activeQuizForPreview && (
+        <QuizPreviewModal
+          quiz={activeQuizForPreview}
+          onClose={() => setActiveQuizForPreview(null)}
+        />
+      )}
     </div>
   );
 }

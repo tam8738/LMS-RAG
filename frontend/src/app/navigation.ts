@@ -1,5 +1,5 @@
 import { Role } from "./types";
-import { Library, Files, Upload, ListChecks, Users } from "lucide-react";
+import { Library, Files, Upload, ListChecks, Users, HelpCircle } from "lucide-react";
 import { ROUTES } from "./routes";
 
 export interface NavItem {
@@ -12,6 +12,7 @@ export interface NavItem {
 export const TEACHER_NAV: NavItem[] = [
   { id: "library", path: ROUTES.LIBRARY, label: "Thư viện", icon: Library },
   { id: "my-documents", path: ROUTES.MY_DOCUMENTS, label: "Tài liệu của tôi", icon: Files },
+  { id: "quizzes", path: ROUTES.QUIZZES, label: "Quản lý Quiz", icon: HelpCircle },
   { id: "upload", path: ROUTES.UPLOAD, label: "Tải lên", icon: Upload },
 ];
 
@@ -37,6 +38,7 @@ export const isRouteAllowedForRole = (role: Role, pathname: string): boolean => 
     return (
       pathname.startsWith(ROUTES.LIBRARY) ||
       pathname.startsWith(ROUTES.MY_DOCUMENTS) ||
+      pathname.startsWith(ROUTES.QUIZZES) ||
       pathname.startsWith(ROUTES.UPLOAD)
     );
   } else if (role === "admin") {

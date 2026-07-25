@@ -15,6 +15,7 @@ import { MyDocumentDetailPage } from "./pages/MyDocumentDetailPage";
 import { AdminReviewQueuePage } from "./pages/AdminReviewQueuePage";
 import { AdminReviewDetailPage } from "./pages/AdminReviewDetailPage";
 import { AdminTeacherManagementPage } from "./pages/AdminTeacherManagementPage";
+import { QuizManagementPage } from "./pages/QuizManagementPage";
 import { AlertTriangle, Home } from "lucide-react";
 
 // Global Styles setup
@@ -213,6 +214,14 @@ export default function App() {
           element={
             <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
               <UploadDocumentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.QUIZZES}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <QuizManagementPage />
             </ProtectedRoute>
           }
         />

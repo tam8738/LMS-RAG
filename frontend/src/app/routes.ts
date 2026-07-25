@@ -6,6 +6,7 @@ export const ROUTES = {
   MY_DOCUMENTS: "/my-documents",
   MY_DOCUMENT_DETAIL: "/my-documents/:documentId",
   UPLOAD: "/upload",
+  QUIZZES: "/quizzes",
   ADMIN_REVIEWS: "/admin/reviews",
   ADMIN_REVIEW_DETAIL: "/admin/reviews/:documentId",
   ADMIN_TEACHERS: "/admin/teachers",
@@ -14,3 +15,4 @@ export const ROUTES = {
 export const libraryDetailPath = (id: number | string) => `/library/${id}`;
 export const myDocumentDetailPath = (id: number | string) => `/my-documents/${id}`;
 export const adminReviewDetailPath = (id: number | string) => `/admin/reviews/${id}`;
+export const quizDetailPath = (id: number | string) => `/quizzes/${id}`;
