@@ -289,7 +289,7 @@ export function AdminTeacherManagementPage() {
                 {teachers.map((teacher, index) => {
                   const isActive = teacher.status === "ACTIVE";
                   const isMenuOpen = activeMenuId === teacher.id;
-                  const isNearBottom = teachers.length > 2 && index >= teachers.length - 2;
+                  const isNearBottom = index > 0 && (teachers.length <= 3 || index >= teachers.length - 2);
                   const teacherAvatar = localStorage.getItem(`user_avatar_${teacher.id}`) || (teacher as any).avatarUrl;
 
                   const formatGender = (g?: string) => {
@@ -395,7 +395,7 @@ export function AdminTeacherManagementPage() {
                           <div
                             ref={dropdownRef}
                             className={`absolute right-5 w-44 bg-white rounded-xl border border-[rgba(14,13,11,0.12)] shadow-xl py-1.5 z-50 text-left transition-all duration-100 ${
-                              isNearBottom ? "bottom-10 origin-bottom-right" : "top-11 origin-top-right"
+                              isNearBottom ? "bottom-full mb-1 origin-bottom-right" : "top-full mt-1 origin-top-right"
                             }`}
                           >
                             <button

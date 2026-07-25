@@ -1,3 +1,4 @@
+// trang student làm quiz của giảng viên tạo
 import React, { useState, useEffect, useRef } from "react";
 import {
   HelpCircle, Plus, Search, Filter, RefreshCw, Sparkles, MoreVertical,
@@ -29,9 +30,16 @@ export function QuizManagementPage() {
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load Quizzes on mount
+  // Load Quizzes on mount and window focus
   useEffect(() => {
     fetchQuizzes();
+    const handleFocus = () => fetchQuizzes();
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("storage", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleFocus);
+    };
   }, []);
 
   // Close dropdown menu on outside click
@@ -173,27 +181,33 @@ export function QuizManagementPage() {
         </div>
 
         <div className="flex items-center gap-2.5 w-full md:w-auto">
-          <div className="flex items-center bg-[#F8F7F4] p-1 rounded-xl border border-[#0E0D0B]/[0.08] text-[12px] font-medium">
+          <div className="flex items-center bg-[#F8F7F4] p-1 rounded-xl border border-[#0E0D0B]/[0.08] h-10 box-border text-[12.5px]">
             <button
               onClick={() => setStatusFilter("ALL")}
-              className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-all ${
-                statusFilter === "ALL" ? "bg-white text-[#0E0D0B] shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
+              className={`px-3.5 h-8 rounded-lg border-none cursor-pointer transition-all flex items-center justify-center text-[12.5px] ${
+                statusFilter === "ALL"
+                  ? "bg-white text-[#0E0D0B] shadow-xs font-bold"
+                  : "text-[#6B6963] hover:text-[#0E0D0B] font-medium"
               }`}
             >
               Tất cả ({totalQuizzes})
             </button>
             <button
               onClick={() => setStatusFilter("PUBLISHED")}
-              className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-all ${
-                statusFilter === "PUBLISHED" ? "bg-white text-emerald-700 shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
+              className={`px-3.5 h-8 rounded-lg border-none cursor-pointer transition-all flex items-center justify-center text-[12.5px] ${
+                statusFilter === "PUBLISHED"
+                  ? "bg-white text-emerald-700 shadow-xs font-bold"
+                  : "text-[#6B6963] hover:text-[#0E0D0B] font-medium"
               }`}
             >
               Đã công bố ({publishedCount})
             </button>
             <button
               onClick={() => setStatusFilter("DRAFT")}
-              className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-all ${
-                statusFilter === "DRAFT" ? "bg-white text-amber-700 shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
+              className={`px-3.5 h-8 rounded-lg border-none cursor-pointer transition-all flex items-center justify-center text-[12.5px] ${
+                statusFilter === "DRAFT"
+                  ? "bg-white text-amber-700 shadow-xs font-bold"
+                  : "text-[#6B6963] hover:text-[#0E0D0B] font-medium"
               }`}
             >
               Bản nháp ({draftCount})
@@ -225,8 +239,8 @@ export function QuizManagementPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] shadow-xs overflow-hidden min-h-[240px]">
-          <div className="overflow-x-auto min-h-[240px]">
+        <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] shadow-xs min-h-[300px] pb-8">
+          <div className="overflow-x-auto overflow-y-visible min-h-[300px]">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#F8F7F4]/70 border-b border-[rgba(14,13,11,0.06)] text-[12px] font-semibold uppercase tracking-wider text-[#6B6963]">
@@ -243,7 +257,7 @@ export function QuizManagementPage() {
                 {filteredQuizzes.map((quizItem, index) => {
                   const isPublished = quizItem.status === "PUBLISHED";
                   const isMenuOpen = activeMenuId === quizItem.id;
-                  const isNearBottom = filteredQuizzes.length > 2 && index >= filteredQuizzes.length - 2;
+                  const isNearBottom = index > 0 && (filteredQuizzes.length <= 3 || index >= filteredQuizzes.length - 2);
 
                   return (
                     <tr key={quizItem.id} className="hover:bg-[#F8F7F4]/40 transition-colors group">
@@ -274,9 +288,8 @@ export function QuizManagementPage() {
 
                       {/* Trạng thái */}
                       <td className="py-3.5 px-5">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border ${
-                          isPublished ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
-                        }`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border ${isPublished ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"}`} />
                           {isPublished ? "Đã công bố" : "Bản nháp"}
                         </span>
@@ -303,7 +316,7 @@ export function QuizManagementPage() {
                           <div
                             ref={dropdownRef}
                             className={`absolute right-5 w-44 bg-white rounded-xl border border-[rgba(14,13,11,0.12)] shadow-xl py-1.5 z-50 text-left transition-all duration-100 ${
-                              isNearBottom ? "bottom-10 origin-bottom-right" : "top-11 origin-top-right"
+                              isNearBottom ? "bottom-full mb-1 origin-bottom-right" : "top-full mt-1 origin-top-right"
                             }`}
                           >
                             <button

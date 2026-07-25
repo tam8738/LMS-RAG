@@ -70,6 +70,22 @@ export function getPublicQuizUrl(quizId: number): string {
   return `${origin}/quiz/public/${quizId}`;
 }
 
+export function saveQuizToLocalStorage(quiz: QuizResponse): void {
+  try {
+    const savedStr = localStorage.getItem("saved_teacher_quizzes");
+    let list: QuizResponse[] = savedStr ? JSON.parse(savedStr) : [];
+    const index = list.findIndex(q => q.id === quiz.id);
+    if (index >= 0) {
+      list[index] = quiz;
+    } else {
+      list = [quiz, ...list];
+    }
+    localStorage.setItem("saved_teacher_quizzes", JSON.stringify(list));
+  } catch (e) {
+    console.error("Failed to save quiz to localStorage", e);
+  }
+}
+
 export const quizService = {
   /**
    * AI Generate quiz from document
@@ -79,6 +95,7 @@ export const quizService = {
       method: "POST",
       body: JSON.stringify(request),
     });
+    saveQuizToLocalStorage(res.data);
     return res.data;
   },
 
@@ -87,6 +104,9 @@ export const quizService = {
    */
   async getQuiz(quizId: number): Promise<QuizResponse> {
     const res = await apiFetch<QuizResponse>(`/api/v1/quiz/${quizId}`);
+    if (res.data) {
+      saveQuizToLocalStorage(res.data);
+    }
     return res.data;
   },
 
@@ -98,6 +118,7 @@ export const quizService = {
       method: "PATCH",
       body: JSON.stringify(request),
     });
+    saveQuizToLocalStorage(res.data);
     return res.data;
   },
 
@@ -108,6 +129,7 @@ export const quizService = {
     const res = await apiFetch<QuizResponse>(`/api/v1/quiz/${quizId}/publish`, {
       method: "POST",
     });
+    saveQuizToLocalStorage(res.data);
     return res.data;
   },
 };
