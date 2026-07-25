@@ -78,12 +78,36 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     onLogout();
   };
 
+  // Sync user info and avatar on user change
+  useEffect(() => {
+    setFullName(user.name);
+    try {
+      const savedAvatar = localStorage.getItem(`user_avatar_${user.id}`);
+      if (savedAvatar) {
+        setAvatarPreview(savedAvatar);
+      } else if (user.avatarUrl) {
+        setAvatarPreview(user.avatarUrl);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [user]);
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
+        const dataUrl = reader.result as string;
+        setAvatarPreview(dataUrl);
+        try {
+          localStorage.setItem(`user_avatar_${user.id}`, dataUrl);
+        } catch (err) {
+          // ignore storage quota error
+        }
+        if (onUpdateUser) {
+          onUpdateUser({ ...user, avatarUrl: dataUrl });
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -100,7 +124,11 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     try {
       const updatedUser = await authService.updateProfile(fullName.trim());
       setIsSavingProfile(false);
-      onUpdateUser?.(updatedUser);
+      const userWithAvatar = {
+        ...updatedUser,
+        avatarUrl: avatarPreview || user.avatarUrl || localStorage.getItem(`user_avatar_${user.id}`) || undefined
+      };
+      onUpdateUser?.(userWithAvatar);
       setProfileSavedMsg("Cập nhật thông tin cá nhân thành công!");
       setTimeout(() => setProfileSavedMsg(""), 3000);
     } catch (err: any) {
@@ -267,11 +295,19 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-[#F4F3F0] transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
-                  <span className="text-white text-[11.5px] font-bold">
-                    {user.name.charAt(0)}
-                  </span>
-                </div>
+                {(avatarPreview || user.avatarUrl) ? (
+                  <img
+                    src={avatarPreview || user.avatarUrl}
+                    alt={user.name}
+                    className="w-6.5 h-6.5 rounded-full object-cover border border-indigo-200 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
+                    <span className="text-white text-[11.5px] font-bold">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                    </span>
+                  </div>
+                )}
                 <div className="hidden sm:flex flex-col text-left">
                   <span className="text-[13.5px] text-[#0E0D0B] font-medium leading-none">{user.name}</span>
                   <span className="text-[11px] text-[#AAAA9F] font-mono-label mt-1 leading-none uppercase">{user.role}</span>
@@ -375,11 +411,19 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
             {/* Profile / Logout Section */}
             <div className="border-t border-[rgba(14,13,11,0.07)] pt-6 mt-auto">
               <div className="flex items-center gap-3 mb-4 px-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
-                  <span className="text-white text-[12px] font-bold">
-                    {user.name.charAt(0)}
-                  </span>
-                </div>
+                {(avatarPreview || user.avatarUrl) ? (
+                  <img
+                    src={avatarPreview || user.avatarUrl}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover border border-indigo-200 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
+                    <span className="text-white text-[12px] font-bold">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                    </span>
+                  </div>
+                )}
                 <div className="flex flex-col text-left">
                   <span className="text-[13.5px] text-[#0E0D0B] font-medium truncate max-w-[130px]">{user.name}</span>
                   <span className="text-[11px] text-[#AAAA9F] font-mono-label uppercase mt-0.5">{user.role}</span>
