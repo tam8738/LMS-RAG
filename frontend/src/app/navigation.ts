@@ -31,7 +31,7 @@ export const getDefaultRouteForRole = (role: Role): string => {
 };
 
 export const isRouteAllowedForRole = (role: Role, pathname: string): boolean => {
-  if (pathname === ROUTES.LOGIN || pathname === ROUTES.HOME) return true;
+  if (pathname === ROUTES.LOGIN || pathname === ROUTES.HOME || pathname.startsWith("/quiz/public")) return true;
 
   if (role === "teacher") {
     // Teacher allowed routes

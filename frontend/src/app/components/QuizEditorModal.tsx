@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, HelpCircle } from "lucide-react";
+import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, HelpCircle, Plus, Trash2, Sliders } from "lucide-react";
 import { quizService, QuizResponse, QuizQuestionResponse } from "../services/quizService";
 
 interface QuizEditorModalProps {
@@ -7,14 +7,18 @@ interface QuizEditorModalProps {
   onClose: () => void;
   onSuccess: (updatedQuiz: QuizResponse) => void;
   onPreview: (quiz: QuizResponse) => void;
+  onPublishSuccess?: (publishedQuiz: QuizResponse) => void;
 }
 
-export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEditorModalProps) {
+export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublishSuccess }: QuizEditorModalProps) {
   const [title, setTitle] = useState(quiz.title || `Bộ Quiz tài liệu #${quiz.documentId}`);
   const [description, setDescription] = useState(quiz.description || "");
+  const [studyNotes, setStudyNotes] = useState(
+    quiz.studyNotes || "Tóm tắt kiến thức cốt lõi và nội dung ôn tập cho bài học."
+  );
   const [questions, setQuestions] = useState<QuizQuestionResponse[]>(quiz.questions || []);
 
-  const [activeTab, setActiveTab] = useState<number>(0); // Active question tab
+  const [activeTab, setActiveTab] = useState<number>(0);
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
@@ -25,6 +29,12 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
   const handleUpdateQuestionText = (val: string) => {
     setQuestions(prev =>
       prev.map((q, idx) => (idx === activeTab ? { ...q, question: val } : q))
+    );
+  };
+
+  const handleUpdateDifficulty = (diff: "EASY" | "MEDIUM" | "HARD") => {
+    setQuestions(prev =>
+      prev.map((q, idx) => (idx === activeTab ? { ...q, difficulty: diff } : q))
     );
   };
 
@@ -54,6 +64,43 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
     );
   };
 
+  const handleAddQuestion = () => {
+    if (questions.length >= 10) {
+      setError("Bộ Quiz chỉ tối đa 10 câu hỏi.");
+      return;
+    }
+    const newQId = Date.now();
+    const newQuestion: QuizQuestionResponse = {
+      id: newQId,
+      questionIndex: questions.length + 1,
+      question: `Câu hỏi mới số ${questions.length + 1}`,
+      type: "single_choice",
+      difficulty: "MEDIUM",
+      options: [
+        { id: "A", text: "Phương án A" },
+        { id: "B", text: "Phương án B" },
+        { id: "C", text: "Phương án C" },
+        { id: "D", text: "Phương án D" },
+      ],
+      correctOptionIds: ["A"],
+      explanation: "Giải thích cho câu hỏi mới.",
+      citations: [],
+    };
+
+    setQuestions(prev => [...prev, newQuestion]);
+    setActiveTab(questions.length);
+  };
+
+  const handleDeleteQuestion = (indexToDelete: number) => {
+    if (questions.length <= 1) {
+      setError("Bộ Quiz phải có ít nhất 1 câu hỏi.");
+      return;
+    }
+    const filtered = questions.filter((_, idx) => idx !== indexToDelete);
+    setQuestions(filtered);
+    setActiveTab(prev => Math.min(prev, filtered.length - 1));
+  };
+
   const handleSaveDraft = async () => {
     if (!title.trim()) {
       setError("Tiêu đề Quiz không được để trống.");
@@ -67,10 +114,12 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
       const updated = await quizService.updateQuiz(quiz.id, {
         title: title.trim(),
         description: description.trim() || undefined,
+        studyNotes: studyNotes.trim() || undefined,
         questions: questions.map(q => ({
           id: q.id,
           question: q.question.trim(),
           type: "single_choice",
+          difficulty: q.difficulty || "MEDIUM",
           options: q.options.map(o => ({ id: o.id, text: o.text.trim() })),
           correctOptionIds: q.correctOptionIds,
           explanation: q.explanation.trim(),
@@ -96,24 +145,29 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
     setPublishing(true);
     setError("");
     try {
-      // First save draft updates
+      // 1. Update draft
       await quizService.updateQuiz(quiz.id, {
         title: title.trim(),
         description: description.trim() || undefined,
+        studyNotes: studyNotes.trim() || undefined,
         questions: questions.map(q => ({
           id: q.id,
           question: q.question.trim(),
           type: "single_choice",
+          difficulty: q.difficulty || "MEDIUM",
           options: q.options.map(o => ({ id: o.id, text: o.text.trim() })),
           correctOptionIds: q.correctOptionIds,
           explanation: q.explanation.trim(),
         })),
       });
 
-      // Then publish
+      // 2. Publish official Quiz
       const publishedQuiz = await quizService.publishQuiz(quiz.id);
       onSuccess(publishedQuiz);
       onClose();
+      if (onPublishSuccess) {
+        onPublishSuccess(publishedQuiz);
+      }
     } catch (err: any) {
       setError(err.message || "Công bố Quiz thất bại.");
     } finally {
@@ -125,7 +179,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
 
-      <div className="bg-white rounded-2xl max-w-4xl w-full h-[85vh] shadow-2xl relative z-50 text-left flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl max-w-5xl w-full h-[88vh] shadow-2xl relative z-50 text-left flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8F7F4]/60 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -141,13 +195,13 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
                 </span>
                 <span className="text-[12px] text-[#AAAA9F] font-mono-label">#{quiz.id}</span>
               </div>
-              <p className="text-[12.5px] text-[#6B6963] mt-0.5">Duyệt lại câu hỏi, tùy chỉnh đáp án và đối soát nguồn trích dẫn</p>
+              <p className="text-[12.5px] text-[#6B6963] mt-0.5">Biên tập nội dung ôn tập, câu hỏi, đáp án đúng và mức độ khó</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onPreview({ ...quiz, title, description, questions })}
+              onClick={() => onPreview({ ...quiz, title, description, studyNotes, questions })}
               className="h-9 px-3.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-[#0E0D0B] text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <Eye className="w-4 h-4 text-indigo-600" />
@@ -162,10 +216,10 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
         {/* Content Body: Left Question Navigator & Right Editor */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar: Questions list */}
-          <div className="w-64 border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex flex-col flex-shrink-0 overflow-y-auto space-y-3">
+          <div className="w-72 border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex flex-col flex-shrink-0 overflow-y-auto space-y-3">
             <div>
               <label className="block text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
-                Tiêu đề Quiz
+                Tiêu đề Quiz *
               </label>
               <input
                 type="text"
@@ -177,38 +231,49 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
 
             <div>
               <label className="block text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
-                Mô tả
+                Tóm tắt kiến thức ôn tập
               </label>
               <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={2}
-                placeholder="Nhập mô tả bộ Quiz..."
+                value={studyNotes}
+                onChange={e => setStudyNotes(e.target.value)}
+                rows={3}
+                placeholder="Nhập nội dung tóm tắt cho sinh viên ôn tập..."
                 className="w-full border border-gray-200 rounded-lg p-2 text-[12px] text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 resize-none"
               />
             </div>
 
-            <div className="border-t border-gray-200 pt-3">
-              <span className="block text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider mb-2">
-                Danh sách câu hỏi ({questions.length})
-              </span>
+            <div className="border-t border-gray-200 pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">
+                  Câu hỏi ({questions.length}/10)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 border-none bg-transparent cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Thêm
+                </button>
+              </div>
 
               <div className="space-y-1.5">
                 {questions.map((q, idx) => (
-                  <button
-                    key={q.id || idx}
-                    onClick={() => setActiveTab(idx)}
-                    className={`w-full p-2.5 rounded-xl border text-left text-[12.5px] font-medium transition-all cursor-pointer flex items-center justify-between ${
-                      activeTab === idx
-                        ? "border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-xs font-semibold"
-                        : "border-gray-100 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="truncate pr-2">Câu {idx + 1}: {q.question}</span>
-                    <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center flex-shrink-0">
-                      {q.correctOptionIds[0] || "A"}
-                    </span>
-                  </button>
+                  <div key={q.id || idx} className="relative group">
+                    <button
+                      onClick={() => setActiveTab(idx)}
+                      className={`w-full p-2.5 rounded-xl border text-left text-[12.5px] font-medium transition-all cursor-pointer flex items-center justify-between ${
+                        activeTab === idx
+                          ? "border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-xs font-semibold"
+                          : "border-gray-100 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="truncate pr-5">Câu {idx + 1}: {q.question}</span>
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                        {q.correctOptionIds[0] || "A"}
+                      </span>
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -232,14 +297,41 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview }: QuizEdi
             {currentQ ? (
               <div className="space-y-5 text-left">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-[15px] font-bold text-[#0E0D0B] flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white text-[12px]">Câu {activeTab + 1}</span>
-                    <span>Nội dung câu hỏi</span>
-                  </h4>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[12.5px] font-bold">
+                      Câu {activeTab + 1} / {questions.length}
+                    </span>
+
+                    {/* Difficulty selector */}
+                    <div className="flex items-center gap-1.5 ml-2">
+                      <span className="text-[11.5px] font-semibold text-gray-500">Mức độ:</span>
+                      <select
+                        value={currentQ.difficulty || "MEDIUM"}
+                        onChange={e => handleUpdateDifficulty(e.target.value as any)}
+                        className="h-8 border border-gray-200 rounded-lg px-2 text-[12px] font-semibold text-gray-800 bg-gray-50 focus:outline-none"
+                      >
+                        <option value="EASY">Dễ (Easy)</option>
+                        <option value="MEDIUM">Trung bình (Medium)</option>
+                        <option value="HARD">Khó (Hard)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteQuestion(activeTab)}
+                    className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1 border-none bg-transparent cursor-pointer p-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Xóa câu này
+                  </button>
                 </div>
 
                 {/* Question Input */}
                 <div>
+                  <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
+                    Nội dung câu hỏi
+                  </label>
                   <textarea
                     value={currentQ.question}
                     onChange={e => handleUpdateQuestionText(e.target.value)}

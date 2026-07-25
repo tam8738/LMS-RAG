@@ -24,6 +24,7 @@ export interface QuizQuestionResponse {
   questionIndex: number;
   question: string;
   type: "single_choice" | string;
+  difficulty?: "EASY" | "MEDIUM" | "HARD" | string;
   options: QuizOptionDto[];
   correctOptionIds: string[];
   explanation: string;
@@ -36,6 +37,7 @@ export interface QuizResponse {
   createdById?: number;
   title: string;
   description?: string;
+  studyNotes?: string;
   status: "DRAFT" | "PUBLISHED";
   questionCount: number;
   language: "vi" | "en" | string;
@@ -50,6 +52,7 @@ export interface QuizQuestionUpdateRequest {
   id: number;
   question?: string;
   type?: "single_choice";
+  difficulty?: "EASY" | "MEDIUM" | "HARD" | string;
   options?: QuizOptionDto[];
   correctOptionIds?: string[];
   explanation?: string;
@@ -58,7 +61,13 @@ export interface QuizQuestionUpdateRequest {
 export interface QuizUpdateRequest {
   title?: string;
   description?: string;
+  studyNotes?: string;
   questions?: QuizQuestionUpdateRequest[];
+}
+
+export function getPublicQuizUrl(quizId: number): string {
+  const origin = window.location.origin;
+  return `${origin}/quiz/public/${quizId}`;
 }
 
 export const quizService = {

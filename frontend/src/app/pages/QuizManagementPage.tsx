@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   HelpCircle, Plus, Search, Filter, RefreshCw, Sparkles, MoreVertical,
-  Edit3, Eye, Send, CheckCircle2, AlertCircle, BookOpen, Clock, Globe, FileText
+  Edit3, Eye, Send, CheckCircle2, AlertCircle, BookOpen, Clock, Globe, FileText, Share2
 } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { GenerateQuizModal } from "../components/GenerateQuizModal";
 import { QuizEditorModal } from "../components/QuizEditorModal";
 import { QuizPreviewModal } from "../components/QuizPreviewModal";
+import { PublishSuccessModal } from "../components/PublishSuccessModal";
 import { PageLoading, EmptyState } from "../components/EmptyState";
 
 export function QuizManagementPage() {
@@ -22,6 +23,7 @@ export function QuizManagementPage() {
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [activeQuizForEdit, setActiveQuizForEdit] = useState<QuizResponse | null>(null);
   const [activeQuizForPreview, setActiveQuizForPreview] = useState<QuizResponse | null>(null);
+  const [publishedQuizForShare, setPublishedQuizForShare] = useState<QuizResponse | null>(null);
 
   // Kebab menu state
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
@@ -319,6 +321,16 @@ export function QuizManagementPage() {
                               <Eye className="w-3.5 h-3.5 text-emerald-600" />
                               Làm thử Quiz
                             </button>
+
+                            {isPublished && (
+                              <button
+                                onClick={() => { setActiveMenuId(null); setPublishedQuizForShare(quizItem); }}
+                                className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+                              >
+                                <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+                                Lấy link chia sẻ
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -349,6 +361,9 @@ export function QuizManagementPage() {
             setActiveQuizForEdit(null);
             setActiveQuizForPreview(quizToPreview);
           }}
+          onPublishSuccess={pubQuiz => {
+            setPublishedQuizForShare(pubQuiz);
+          }}
         />
       )}
 
@@ -357,6 +372,14 @@ export function QuizManagementPage() {
         <QuizPreviewModal
           quiz={activeQuizForPreview}
           onClose={() => setActiveQuizForPreview(null)}
+        />
+      )}
+
+      {/* MODAL: Publish Success Share Link */}
+      {publishedQuizForShare && (
+        <PublishSuccessModal
+          quiz={publishedQuizForShare}
+          onClose={() => setPublishedQuizForShare(null)}
         />
       )}
     </div>

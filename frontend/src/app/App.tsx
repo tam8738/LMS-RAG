@@ -16,6 +16,7 @@ import { AdminReviewQueuePage } from "./pages/AdminReviewQueuePage";
 import { AdminReviewDetailPage } from "./pages/AdminReviewDetailPage";
 import { AdminTeacherManagementPage } from "./pages/AdminTeacherManagementPage";
 import { QuizManagementPage } from "./pages/QuizManagementPage";
+import { PublicQuizPage } from "./pages/PublicQuizPage";
 import { AlertTriangle, Home } from "lucide-react";
 
 // Global Styles setup
@@ -225,6 +226,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Public Student Quiz Route (accessible via shareable link) */}
+        <Route path={ROUTES.PUBLIC_QUIZ} element={<PublicQuizPage />} />
 
         <Route
           path={ROUTES.ADMIN_REVIEWS}
