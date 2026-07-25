@@ -14,6 +14,7 @@ import { LibraryDocumentDetailPage } from "./pages/LibraryDocumentDetailPage";
 import { MyDocumentDetailPage } from "./pages/MyDocumentDetailPage";
 import { AdminReviewQueuePage } from "./pages/AdminReviewQueuePage";
 import { AdminReviewDetailPage } from "./pages/AdminReviewDetailPage";
+import { AdminTeacherManagementPage } from "./pages/AdminTeacherManagementPage";
 import { AlertTriangle, Home } from "lucide-react";
 
 // Global Styles setup
@@ -229,6 +230,14 @@ export default function App() {
           element={
             <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
               <AdminReviewDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN_TEACHERS}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <AdminTeacherManagementPage />
             </ProtectedRoute>
           }
         />

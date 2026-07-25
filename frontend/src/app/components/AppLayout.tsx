@@ -50,7 +50,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   const navItems = getNavForRole(user.role);
-  
+
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +101,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       const updatedUser = await authService.updateProfile(fullName.trim());
       setIsSavingProfile(false);
       onUpdateUser?.(updatedUser);
-      setProfileSavedMsg("Cập nhật thông tin giảng viên thành công!");
+      setProfileSavedMsg("Cập nhật thông tin cá nhân thành công!");
       setTimeout(() => setProfileSavedMsg(""), 3000);
     } catch (err: any) {
       setIsSavingProfile(false);
@@ -191,7 +191,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
             )
           );
           if (focusableElements.length === 0) return;
-          
+
           const first = focusableElements[0];
           const last = focusableElements[focusableElements.length - 1];
 
@@ -224,13 +224,13 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   return (
     <div className="min-h-screen bg-[#F8F7F4] flex flex-col font-sans-body text-left">
       <style>{LAYOUT_STYLES}</style>
-      
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[rgba(14,13,11,0.07)] h-14">
         <div className="max-w-[1440px] mx-auto px-6 h-full flex items-center gap-5">
           {/* Logo */}
-          <button 
-            onClick={() => navigate(navItems[0].path)} 
+          <button
+            onClick={() => navigate(navItems[0].path)}
             className="flex items-center gap-2 flex-shrink-0 group cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg p-0.5"
           >
             <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center group-hover:bg-indigo-100/60 transition-colors">
@@ -248,8 +248,8 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                   key={id}
                   onClick={() => navigate(path)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isActive
-                      ? "text-[#0E0D0B] bg-[#F4F3F0]"
-                      : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                    ? "text-[#0E0D0B] bg-[#F4F3F0]"
+                    : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
                     }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -285,7 +285,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                     <p className="text-[13.5px] font-medium text-[#0E0D0B] truncate">{user.name}</p>
                     <p className="text-[11.5px] text-[#AAAA9F] truncate">{user.email}</p>
                   </div>
-                  <button 
+                  <button
                     onClick={handleAccountClick}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-[#F8F7F4]"
                   >
@@ -322,14 +322,14 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-[100] md:hidden">
           {/* Backdrop Overlay */}
-          <div 
+          <div
             onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm transition-opacity"
             aria-hidden="true"
           />
 
           {/* Drawer Content */}
-          <div 
+          <div
             ref={drawerRef}
             id="mobile-drawer"
             role="dialog"
@@ -340,7 +340,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
             {/* Close Button Header */}
             <div className="flex items-center justify-between mb-8">
               <span className="text-[15px] font-bold text-[#0E0D0B] tracking-tight">Điều hướng</span>
-              <button 
+              <button
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Đóng menu"
                 className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B] focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
@@ -361,8 +361,8 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                       setMobileMenuOpen(false);
                     }}
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent text-left focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${isActive
-                        ? "text-[#0E0D0B] bg-[#F4F3F0]"
-                        : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                      ? "text-[#0E0D0B] bg-[#F4F3F0]"
+                      : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
                       }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -386,7 +386,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={requestLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all border-none bg-transparent cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-red-500 outline-none"
               >
@@ -463,20 +463,20 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       {isAccountOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center animate-fadeIn">
           {/* Backdrop */}
-          <div 
+          <div
             onClick={() => setIsAccountOpen(false)}
             className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm"
           />
           {/* Modal Container */}
           <div className="bg-white rounded-2xl w-full max-w-[500px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col relative z-50 text-left animate-[fade-in_150ms_ease-out] overflow-hidden">
-            
+
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/50">
               <div>
                 <h3 className="text-[16px] font-bold text-[#0E0D0B]">Thông tin tài khoản</h3>
                 <p className="text-[11.5px] text-[#AAAA9F]">Quản lý thông tin hồ sơ và mật khẩu đăng nhập</p>
               </div>
-              <button 
+              <button
                 onClick={() => setIsAccountOpen(false)}
                 className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent"
               >
@@ -488,22 +488,20 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
             <div className="flex border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/20 px-5">
               <button
                 onClick={() => setProfileTab("profile")}
-                className={`flex items-center gap-2 py-3 text-[13px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent border-none ${
-                  profileTab === "profile" 
-                    ? "border-[#4F63D2] text-[#4F63D2]" 
+                className={`flex items-center gap-2 py-3 text-[13px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent border-none ${profileTab === "profile"
+                    ? "border-[#4F63D2] text-[#4F63D2]"
                     : "border-transparent text-[#6B6963] hover:text-[#0E0D0B]"
-                }`}
+                  }`}
               >
                 <UserIcon className="w-3.5 h-3.5" />
-                Hồ sơ giảng viên
+                Hồ sơ {user.role === "admin" ? "quản trị viên" : "giảng viên"}
               </button>
               <button
                 onClick={() => setProfileTab("security")}
-                className={`flex items-center gap-2 py-3 ml-6 text-[13px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent border-none ${
-                  profileTab === "security" 
-                    ? "border-[#4F63D2] text-[#4F63D2]" 
+                className={`flex items-center gap-2 py-3 ml-6 text-[13px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent border-none ${profileTab === "security"
+                    ? "border-[#4F63D2] text-[#4F63D2]"
                     : "border-transparent text-[#6B6963] hover:text-[#0E0D0B]"
-                }`}
+                  }`}
               >
                 <Key className="w-3.5 h-3.5" />
                 Bảo mật & Đổi mật khẩu
@@ -512,7 +510,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
             {/* Scrollable Content Area */}
             <div className="p-6 max-h-[400px] overflow-y-auto space-y-5">
-              
+
               {profileTab === "profile" ? (
                 /* Profile Tab */
                 <div className="space-y-4">
@@ -527,9 +525,9 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                   <div className="flex items-center gap-4.5 pb-2">
                     <div className="relative group/avatar">
                       {avatarPreview ? (
-                        <img 
-                          src={avatarPreview} 
-                          alt="Avatar preview" 
+                        <img
+                          src={avatarPreview}
+                          alt="Avatar preview"
                           className="w-16 h-16 rounded-full object-cover border border-[#0E0D0B]/[0.08]"
                         />
                       ) : (
@@ -539,14 +537,14 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                           </span>
                         </div>
                       )}
-                      
+
                       <label className="absolute inset-0 bg-[#0E0D0B]/50 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer">
                         <Upload className="w-4 h-4 text-white" />
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleAvatarChange} 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
                         />
                       </label>
                     </div>
@@ -556,11 +554,11 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                       <p className="text-[12px] text-[#6B6963]">{user.email}</p>
                       <label className="inline-block text-[11px] font-semibold text-[#4F63D2] hover:text-[#3D50B8] cursor-pointer mt-1">
                         Thay ảnh đại diện
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleAvatarChange} 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
                         />
                       </label>
                     </div>
@@ -580,7 +578,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mã giảng viên</label>
+                        <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mã {user.role === "admin" ? "quản trị viên" : "giảng viên"}</label>
                         <input
                           type="text"
                           value={lecturerId}
