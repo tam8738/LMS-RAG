@@ -290,6 +290,7 @@ export function AdminTeacherManagementPage() {
                   const isActive = teacher.status === "ACTIVE";
                   const isMenuOpen = activeMenuId === teacher.id;
                   const isNearBottom = teachers.length > 2 && index >= teachers.length - 2;
+                  const teacherAvatar = localStorage.getItem(`user_avatar_${teacher.id}`) || (teacher as any).avatarUrl;
 
                   const formatGender = (g?: string) => {
                     if (g === "MALE") return "Nam";
@@ -308,11 +309,19 @@ export function AdminTeacherManagementPage() {
                       {/* Teacher info (Avatar + Name + Email) */}
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8.5 h-8.5 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center flex-shrink-0 shadow-xs">
-                            <span className="text-white text-[12.5px] font-bold">
-                              {teacher.name ? teacher.name.charAt(0).toUpperCase() : "G"}
-                            </span>
-                          </div>
+                          {teacherAvatar ? (
+                            <img
+                              src={teacherAvatar}
+                              alt={teacher.name}
+                              className="w-8.5 h-8.5 rounded-full object-cover border border-indigo-200 flex-shrink-0 shadow-xs"
+                            />
+                          ) : (
+                            <div className="w-8.5 h-8.5 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center flex-shrink-0 shadow-xs">
+                              <span className="text-white text-[12.5px] font-bold">
+                                {teacher.name ? teacher.name.charAt(0).toUpperCase() : "G"}
+                              </span>
+                            </div>
+                          )}
                           <div>
                             <p className="font-semibold text-[#0E0D0B] text-[13.5px] leading-tight">{teacher.name}</p>
                             <p className="text-[12px] text-[#6B6963] flex items-center gap-1 mt-0.5">
