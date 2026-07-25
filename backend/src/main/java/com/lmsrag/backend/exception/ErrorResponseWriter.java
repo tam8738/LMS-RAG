@@ -3,7 +3,6 @@ package com.lmsrag.backend.exception;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lmsrag.backend.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -16,13 +15,15 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * Các filter/handler không thể return object như @RestController, nên cần viết trực tiếp
  * vào {@link HttpServletResponse}.
+ * <p>
+ * ObjectMapper được khởi tạo thủ công thay vì inject bean để tránh phụ thuộc vào
+ * Jackson auto-configuration trong các môi trường khác nhau.
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ErrorResponseWriter {
 
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Ghi lỗi dạng JSON vào response.

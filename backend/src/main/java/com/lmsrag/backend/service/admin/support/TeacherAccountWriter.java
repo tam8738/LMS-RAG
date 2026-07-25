@@ -4,7 +4,7 @@ import com.lmsrag.backend.entity.User;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.repository.UserRepository;
-import com.lmsrag.backend.service.admin.event.TeacherAccountCreatedEvent;
+import com.lmsrag.backend.event.TeacherAccountCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;

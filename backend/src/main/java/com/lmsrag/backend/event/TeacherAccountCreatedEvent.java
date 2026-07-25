@@ -1,4 +1,4 @@
-package com.lmsrag.backend.service.admin.event;
+package com.lmsrag.backend.event;
 
 public record TeacherAccountCreatedEvent(
         Long teacherId,

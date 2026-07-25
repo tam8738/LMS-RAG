@@ -1,6 +1,6 @@
 package com.lmsrag.backend.service.admin.notification;
 
-import com.lmsrag.backend.service.admin.event.TeacherAccountCreatedEvent;
+import com.lmsrag.backend.event.TeacherAccountCreatedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

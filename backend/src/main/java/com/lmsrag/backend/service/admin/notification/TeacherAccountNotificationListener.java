@@ -1,7 +1,7 @@
 package com.lmsrag.backend.service.admin.notification;
 
 import com.lmsrag.backend.config.AsyncConfig;
-import com.lmsrag.backend.service.admin.event.TeacherAccountCreatedEvent;
+import com.lmsrag.backend.event.TeacherAccountCreatedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;

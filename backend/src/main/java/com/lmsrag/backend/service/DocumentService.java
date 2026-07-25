@@ -17,8 +17,10 @@ import com.lmsrag.backend.mapper.DocumentMapper;
 import com.lmsrag.backend.repository.DocumentProcessingJobRepository;
 import com.lmsrag.backend.repository.DocumentRepository;
 import com.lmsrag.backend.repository.UserRepository;
+import com.lmsrag.backend.event.DocumentReviewCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +49,7 @@ public class DocumentService {
     private final StorageService storageService;
     private final AiValidationService aiValidationService;
     private final AiIndexService aiIndexService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Lấy user hiện tại từ JWT
     private User getCurrentUser() {
@@ -496,7 +499,28 @@ public class DocumentService {
             startRagIndexJob(approved);
         }
 
+        publishReviewCompletedEvent(approved, PublicationStatus.PUBLISHED, null);
+
         return DocumentMapper.toResponse(approved);
+    }
+
+    private void publishReviewCompletedEvent(Document document, PublicationStatus status, String rejectionReason) {
+        User owner = document.getUploadedBy();
+        User reviewer = document.getReviewedBy();
+
+        DocumentReviewCompletedEvent event = new DocumentReviewCompletedEvent(
+                document.getId(),
+                document.getTitle(),
+                owner.getEmail(),
+                owner.getName(),
+                status,
+                rejectionReason,
+                reviewer != null ? reviewer.getName() : "Quản trị viên"
+        );
+
+        eventPublisher.publishEvent(event);
+        log.info("[DOCUMENT_REVIEW] Published review notification event | documentId={} | status={} | teacherEmail={}",
+                document.getId(), status, owner.getEmail());
     }
 
     /**
@@ -585,7 +609,11 @@ public class DocumentService {
         document.setReviewedAt(Instant.now());
         document.setRejectionReason(reason);
 
-        return DocumentMapper.toResponse(documentRepository.save(document));
+        Document rejected = documentRepository.save(document);
+
+        publishReviewCompletedEvent(rejected, PublicationStatus.REJECTED, reason);
+
+        return DocumentMapper.toResponse(rejected);
     }
 
     @Transactional

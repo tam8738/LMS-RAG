@@ -6,7 +6,7 @@ import com.lmsrag.backend.enums.UserStatus;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.repository.UserRepository;
-import com.lmsrag.backend.service.admin.event.TeacherAccountCreatedEvent;
+import com.lmsrag.backend.event.TeacherAccountCreatedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

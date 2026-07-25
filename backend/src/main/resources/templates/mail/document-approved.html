@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tài liệu đã được duyệt</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background-color: #28a745;
+            color: #ffffff;
+            padding: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+        .content {
+            padding: 32px;
+            color: #333333;
+            line-height: 1.6;
+        }
+        .document-title {
+            font-weight: bold;
+            color: #28a745;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 16px 32px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🎉 Tài liệu đã được duyệt</h1>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${teacherName}">Giảng viên</strong>,</p>
+
+        <p>
+            Tài liệu <span class="document-title" th:text="'&quot;' + ${documentTitle} + '&quot;'">"Tên tài liệu"</span>
+            của bạn đã được <strong th:text="${reviewerName}">Admin</strong> duyệt và công bố thành công.
+        </p>
+
+        <p>Tài liệu hiện đã có trong thư viện và có thể được sử dụng để hỏi đáp RAG.</p>
+
+        <p>Trân trọng,<br>Hệ thống LMS</p>
+    </div>
+    <div class="footer">
+        © LMS-RAG. Đây là email tự động, vui lòng không phản hồi.
+    </div>
+</div>
+</body>
+</html>
