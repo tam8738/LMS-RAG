@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Sparkles, BookOpen, Globe, Sliders, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { X, Sparkles, BookOpen, Globe, Sliders, CheckCircle2, AlertCircle, Loader2, Shuffle } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { libraryService } from "../services/libraryService";
 import { LibraryDocument } from "../types";
@@ -15,6 +15,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
   const [selectedDocId, setSelectedDocId] = useState<number | undefined>(initialDocumentId);
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [language, setLanguage] = useState<"vi" | "en">("vi");
+  const [shuffleAnswers, setShuffleAnswers] = useState(true);
 
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -69,6 +70,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
         documentId: selectedDocId,
         questionCount,
         language,
+        shuffleAnswers,
       });
       onSuccess(quiz);
     } catch (err: any) {
@@ -225,6 +227,24 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
               </div>
             </div>
 
+            {/* Answer Shuffle */}
+            <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={shuffleAnswers}
+                onChange={e => setShuffleAnswers(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-indigo-600 cursor-pointer"
+              />
+              <span className="flex-1">
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#0E0D0B]">
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-600" />
+                  Xáo trộn đáp án sau khi sinh
+                </span>
+                <span className="block text-[12px] text-[#6B6963] mt-0.5 leading-relaxed">
+                  Đổi vị trí A/B/C/D cho từng câu nhưng vẫn giữ đúng đáp án đúng.
+                </span>
+              </span>
+            </label>
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
               <button

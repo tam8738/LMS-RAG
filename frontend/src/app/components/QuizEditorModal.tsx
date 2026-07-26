@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, HelpCircle, Plus, Trash2 } from "lucide-react";
-import { quizService, QuizResponse, QuizQuestionResponse } from "../services/quizService";
+import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, Plus, Trash2, Shuffle } from "lucide-react";
+import { quizService, QuizResponse, QuizQuestionResponse, shuffleQuestionAnswerOptions } from "../services/quizService";
 
 interface QuizEditorModalProps {
   quiz: QuizResponse;
@@ -62,6 +62,13 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
     if (isPublished) return;
     setQuestions(prev =>
       prev.map((q, idx) => (idx === activeTab ? { ...q, explanation: val } : q))
+    );
+  };
+
+  const handleShuffleCurrentQuestionOptions = () => {
+    if (isPublished || !currentQ) return;
+    setQuestions(prev =>
+      prev.map((q, idx) => (idx === activeTab ? shuffleQuestionAnswerOptions(q) : q))
     );
   };
 
@@ -183,24 +190,18 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
 
       <div className="relative z-50 flex w-full max-w-5xl max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl bg-white text-left shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8F7F4]/60 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <HelpCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                  isPublished ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
-                }`}>
-                  {isPublished ? "Đã công bố" : "Bản nháp"}
-                </span>
-                <span className="text-[12px] text-[#AAAA9F] font-mono-label">#{quiz.id}</span>
-              </div>
-              <p className="text-[12.5px] text-[#6B6963] mt-0.5">{isPublished ? "Xem nội dung ôn tập, câu hỏi, đáp án đúng và lời giải thích" : "Biên tập nội dung ôn tập, câu hỏi, đáp án đúng và lời giải thích"}</p>
-            </div>
+        <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-gray-100 bg-white flex-shrink-0">
+          <div className="min-w-0 flex items-center gap-2.5">
+            <span className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold uppercase shrink-0 ${
+              isPublished ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+            }`}>
+              {isPublished ? "Đã công bố" : "Bản nháp"}
+            </span>
+            <span className="text-[12px] text-[#AAAA9F] font-mono-label shrink-0">Quiz #{quiz.id}</span>
+            <span className="text-[12.5px] text-[#6B6963] truncate">
+              {isPublished ? "Xem nội dung ôn tập, câu hỏi, đáp án và lời giải thích" : "Biên tập nội dung ôn tập, câu hỏi, đáp án và lời giải thích"}
+            </span>
           </div>
-
           <div className="flex items-center gap-2">
             <button
               onClick={() => onPreview({ ...quiz, title, description, studyNotes, questions })}
@@ -336,9 +337,21 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
 
                 {/* Options List */}
                 <div className="space-y-3">
-                  <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider">
-                    {isPublished ? "Lựa chọn đáp án" : "Lựa chọn đáp án (Bấm radio để chọn đáp án đúng)"}
-                  </label>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider">
+                      {isPublished ? "Lựa chọn đáp án" : "Lựa chọn đáp án (Bấm radio để chọn đáp án đúng)"}
+                    </label>
+                    {!isPublished && (
+                      <button
+                        type="button"
+                        onClick={handleShuffleCurrentQuestionOptions}
+                        className="h-8 px-2.5 rounded-lg border border-indigo-100 bg-indigo-50 text-[12px] font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Shuffle className="w-3.5 h-3.5" />
+                        <span>Xáo trộn đáp án</span>
+                      </button>
+                    )}
+                  </div>
 
                   <div className="grid grid-cols-1 gap-2.5">
                     {currentQ.options.map(opt => {
