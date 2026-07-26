@@ -539,7 +539,7 @@ export function AdminTeacherManagementPage() {
       )}
 
       {/* --- MODAL 4: Reset Password Confirm --- */}
-      {resetTeacher && (
+      {resetTeacher && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
           <div onClick={() => setResetTeacher(null)} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl relative z-50 text-left space-y-4">
@@ -572,11 +572,12 @@ export function AdminTeacherManagementPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* --- MODAL 5: Toggle Active Status Confirm --- */}
-      {toggleTeacher && (
+      {toggleTeacher && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
           <div onClick={() => setToggleTeacher(null)} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl relative z-50 text-left space-y-4">
@@ -615,7 +616,8 @@ export function AdminTeacherManagementPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
