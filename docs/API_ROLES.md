@@ -1,7 +1,7 @@
 # Danh sách API Backend & Phân quyền
 
 > Tài liệu này tổng hợp các endpoint Backend (`/api/v1/**`) đang có trong source code hiện tại và role được phép truy cập.
-> Cập nhật lần cuối: **2026-07-23**.
+> Cập nhật lần cuối: **2026-07-26**.
 
 ## Thay đổi API gần nhất
 
@@ -10,9 +10,8 @@
 - Bổ sung API hồ sơ cá nhân và đổi mật khẩu dưới `/api/v1/me`.
 - Bổ sung bộ API Admin quản lý Teacher, gồm tạo đơn lẻ/hàng loạt, cập nhật, kích hoạt,
   vô hiệu hóa và reset mật khẩu.
-- Bổ sung 4 API Teacher cho quiz: sinh từ document, xem, chỉnh sửa draft và công bố.
-- Backend gọi internal API `POST /v1/generate-quiz`, kiểm tra dữ liệu AI trả về và lưu quiz/câu hỏi
-  vào database. Frontend không gọi AI Service trực tiếp.
+- Bổ sung API quiz cho Teacher và public link: generate/list/get/update/delete draft/publish, public get quiz đã công bố.
+- Backend gọi internal API `POST /v1/generate-quiz`, kiểm tra dữ liệu AI trả về và lưu quiz/câu hỏi vào database. Frontend không gọi AI Service trực tiếp.
 
 ## Chú thích
 
@@ -194,10 +193,13 @@ Quy tắc:
 
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|-------|
+| `GET` | `/api/v1/quiz/my` | `TEACHER` | Lấy danh sách quiz do Teacher hiện tại tạo, dữ liệu lấy từ database |
 | `POST` | `/api/v1/quiz/generate` | `TEACHER` | Sinh và lưu quiz draft từ một document `PUBLISHED + PROCESSED` |
 | `GET` | `/api/v1/quiz/{quizId}` | `TEACHER` | Xem toàn bộ quiz do chính Teacher tạo |
 | `PATCH` | `/api/v1/quiz/{quizId}` | `TEACHER` | Sửa metadata/câu hỏi hiện có khi quiz còn `DRAFT` |
+| `DELETE` | `/api/v1/quiz/{quizId}` | `TEACHER` | Xóa hẳn một quiz khi quiz còn `DRAFT` |
 | `POST` | `/api/v1/quiz/{quizId}/publish` | `TEACHER` | Chuyển quiz của chính Teacher từ `DRAFT` sang `PUBLISHED` |
+| `GET` | `/api/v1/quiz/public/{quizId}` | `PUBLIC` | Lấy quiz đã công bố để người học làm bài qua link public |
 
 Body sinh quiz:
 
@@ -212,19 +214,14 @@ Body sinh quiz:
 Quy tắc:
 
 - `questionCount` từ 1 đến 10, mặc định 5; `language` nhận `vi` hoặc `en`, mặc định `vi`.
-- Mọi Teacher có thể sinh quiz từ bất kỳ document nào đã `PUBLISHED + PROCESSED`; quiz mới ghi
-  `createdById` là Teacher hiện tại.
-- Chỉ owner được xem, sửa hoặc publish quiz. Chỉ quiz `DRAFT` được sửa/publish.
-- `PATCH` chỉ cập nhật các câu hỏi đã tồn tại theo `questions[].id`; không thêm/xóa câu hỏi và
-  không cho sửa citations. V1 chỉ hỗ trợ `single_choice`, 2-4 options và đúng một đáp án.
-- Response luôn trả full `questions`, gồm cả `correctOptionIds`, `explanation` và `citations` để
-  Teacher review.
-- `POST /generate` trả HTTP `201`; ba API còn lại trả HTTP `200`.
+- Mỗi Teacher có thể sinh quiz từ bất kỳ document nào đã `PUBLISHED + PROCESSED`; quiz mới ghi `createdById` là Teacher hiện tại.
+- Chỉ owner được xem, sửa, xóa draft hoặc publish quiz. Chỉ quiz `DRAFT` được sửa/xóa/publish.
+- Endpoint public chỉ trả quiz đã `PUBLISHED`; nếu quiz chưa công bố, Backend trả lỗi `QUIZ_NOT_PUBLISHED`.
+- Response hiện trả full `questions`, gồm `correctOptionIds`, `explanation` và `citations`. MVP đang chấm điểm ở Frontend; nếu cần chống lộ đáp án/chấm server thì bổ sung DTO public + submit endpoint sau MVP.
 
 Contract triển khai chi tiết nằm tại `15_QUIZ_API_BACKEND_SPEC.md`.
 
 ## 9. Swagger / API Docs
-
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|-------|
 | `GET` | `/swagger-ui.html` | `PUBLIC` | Swagger UI |

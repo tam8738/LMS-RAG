@@ -44,7 +44,7 @@ SQL migration chi tiết, index, seed và checklist triển khai nằm ở:
 | `subjects` | Chưa cần bảng riêng; dùng text metadata trước |
 | `document_reviews` | MVP lưu review trực tiếp trong `documents` |
 | `chat_sessions`, `chat_messages` | Đã thay bằng `rag_conversations`/`rag_messages` cho RAG history resume |
-| `quiz_attempts`, `quiz_results` | Student/quiz flow out-of-scope |
+| `quiz_attempts`, `quiz_results` | MVP hiện làm quiz public/xem kết quả ở Frontend; chưa lưu lượt làm, điểm hoặc xếp hạng vào DB |
 
 Nếu code cũ còn entity/table `Course`, `Lecture`, `CourseMember`, chúng là dấu vết hướng LMS cũ và không được dùng làm dependency của Document MVP mới.
 
@@ -121,7 +121,7 @@ Các field bắt buộc:
 | `created_at` | `TIMESTAMPTZ` | Not null |
 | `updated_at` | `TIMESTAMPTZ` | Not null |
 
-Core MVP chỉ dùng `ADMIN` và `TEACHER`. `STUDENT` có thể còn trong enum để tránh vỡ code cũ nhưng không triển khai flow.
+Core MVP dùng `ADMIN` và `TEACHER` cho luồng đăng nhập. `STUDENT` có thể còn trong enum để tránh vỡ code cũ, nhưng người học làm quiz public không cần tài khoản và chưa có flow Student đăng nhập.
 
 ## 7. Contract bảng documents
 

@@ -78,9 +78,11 @@ Chức năng Should-have của Admin:
 
 Admin không upload thay Teacher, không sửa nội dung chuyên môn và không quản trị hệ thống phức tạp trong MVP. Hệ thống chỉ có một Admin; tài khoản này được tạo bằng migration/seed, không tạo hoặc thay đổi role qua giao diện.
 
-### 4.3. Student
+### 4.3. Student / người học
 
-Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thống nhưng không cần màn hình, API nghiệp vụ hoặc quiz attempt/result trong giai đoạn này.
+Student không cần tài khoản riêng trong MVP hiện tại. Người học tham gia qua đường dẫn quiz public do Teacher công bố. Khi mở link, người học có thể làm bài, nộp bài và xem kết quả ngay trên trang đó.
+
+MVP chưa quản lý hồ sơ Student, lớp học, enrollment, lịch sử điểm dài hạn hoặc bảng xếp hạng lưu trong database.
 
 ## 5. Phạm vi core MVP
 
@@ -95,9 +97,13 @@ Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thốn
 - Teacher xem hai trạng thái độc lập.
 - Teacher submit review.
 - Admin approve/reject/archive.
+- Admin quản lý tài khoản Teacher ở mức cơ bản.
 - Library chỉ hiển thị `PUBLISHED`.
 - Teacher khác mở/tải tài liệu đã công bố.
 - RAG theo `document_ids`, có citation và `not_found`.
+- Lưu/resume lịch sử hỏi đáp RAG theo user + document.
+- Teacher sinh quiz từ document `PUBLISHED + PROCESSED`, review/chỉnh sửa, xóa draft và publish quiz.
+- Người học mở link quiz public, làm bài và xem kết quả cuối trang.
 - Permission và test E2E cho toàn bộ luồng.
 
 ### Should-have
@@ -106,18 +112,17 @@ Student flow nằm ngoài core MVP. Role có thể tồn tại trong hệ thốn
 - Chọn nhiều document để RAG.
 - PDF preview trong ứng dụng.
 - Summary một document.
-- Question generation từ selected documents.
-- Lịch sử hỏi đáp.
-- Quản lý tài khoản Teacher ở mức cơ bản.
+- Xáo trộn đáp án quiz để tránh đáp án đúng tập trung ở một vài lựa chọn.
 - Bảng `subjects` riêng nếu nhóm muốn chuẩn hóa danh mục môn học.
 
 ### Out-of-scope
 
 - Teacher tạo/quản lý Course như LMS.
 - Lecture entity là luồng nghiệp vụ bắt buộc.
-- Student flow.
-- Quiz attempt/result.
-- Gamification, level, score.
+- Student account, enrollment, lớp học hoặc quản lý hồ sơ sinh viên.
+- Lưu quiz attempt/result/xếp hạng vào database.
+- Chấm quiz phía server và ẩn đáp án đúng bằng DTO public riêng.
+- Gamification, level, score dài hạn.
 - OCR.
 - Parse DOCX/PPTX trực tiếp.
 - RAG toàn thư viện không có phạm vi.
@@ -262,6 +267,10 @@ Teacher A login
 -> Teacher B mở document
 -> hỏi RAG
 -> nhận answer + citation đúng nguồn
+-> Teacher sinh quiz từ document đã PUBLISHED + PROCESSED
+-> review/chỉnh sửa và publish quiz
+-> copy link public
+-> người học mở link quiz, làm bài, nộp bài và xem kết quả
 ```
 
-Summary/question chưa hoàn thành không làm core MVP thất bại.
+Những phần như lưu attempt/result/xếp hạng quiz vào database, chấm điểm phía server, OCR hoặc dashboard thống kê phức tạp không làm MVP thất bại nếu chưa triển khai.

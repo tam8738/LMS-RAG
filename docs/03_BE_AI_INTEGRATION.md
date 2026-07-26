@@ -191,8 +191,7 @@ Backend gửi một `document_id` dưới dạng `document_ids` tới `POST /v1/
 document tồn tại, `PUBLISHED` và `PROCESSED`. Theo contract quiz, không yêu cầu Teacher là owner của
 document nguồn; Backend vẫn ghi `created_by` là Teacher hiện tại.
 
-AI chỉ sinh draft có cấu trúc và citations thật. Backend validate response, lưu `quizzes` cùng
-`quiz_questions`, enforce owner và trạng thái `DRAFT -> PUBLISHED`. AI không ghi các bảng quiz.
+AI chỉ sinh draft có cấu trúc và citations thật. Backend validate response, lưu `quizzes` cùng `quiz_questions`, enforce owner và trạng thái `DRAFT -> PUBLISHED`, cung cấp danh sách quiz của Teacher, xóa draft và public endpoint cho quiz đã publish. AI không ghi các bảng quiz.
 
 ## 11. Database ownership
 
@@ -228,7 +227,7 @@ AI chỉ sinh draft có cấu trúc và citations thật. Backend validate respo
 | RAG permission | Chủ trì | Tin `document_ids` đã được kiểm |
 | Retrieval/generation/citation | Không | Chủ trì |
 | Sinh nội dung quiz draft/citation | Gọi và validate | Chủ trì |
-| Lưu, owner check, sửa/publish quiz | Chủ trì | Không |
+| Lưu, owner check, danh sách, sửa/xóa draft/publish/public quiz | Chủ trì | Không |
 | Admin review/Library | Chủ trì | Không |
 
 ## 14. Environment

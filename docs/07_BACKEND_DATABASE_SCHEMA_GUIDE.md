@@ -38,7 +38,7 @@ Không tạo trong MVP:
 | `courses` | Dễ kéo hệ thống về LMS; subject chỉ là metadata |
 | `lectures` | Không còn là bước bắt buộc trước upload |
 | `course_members` | Không có enrollment/lớp học trong MVP mới |
-| `quiz_attempts`, `quiz_results` | Student/quiz flow out-of-scope |
+| `quiz_attempts`, `quiz_results` | MVP hiện làm quiz public/xem kết quả ở Frontend; chưa lưu lượt làm, điểm hoặc xếp hạng vào DB |
 | `chat_sessions`, `chat_messages` | Lịch sử hỏi đáp là Should-have |
 | `document_reviews` | MVP lưu review trực tiếp trong `documents` để đơn giản |
 | `subjects` | Chưa cần bảng riêng; dùng text metadata trước |
@@ -140,7 +140,7 @@ ON users(status);
 Ghi chú:
 
 - `password` lưu BCrypt hash, không lưu plain text.
-- MVP chỉ cần Admin và Teacher. `STUDENT` có thể còn trong enum để tránh vỡ code cũ, nhưng không triển khai flow Student.
+- MVP chỉ cần Admin và Teacher cho đăng nhập. `STUDENT` có thể còn trong enum để tránh vỡ code cũ; người học làm quiz public qua link không cần tài khoản Student.
 - Khi khóa Teacher, set `status = 'INACTIVE'`, không xóa user.
 
 ## 6. Migration V2 - pgvector extension

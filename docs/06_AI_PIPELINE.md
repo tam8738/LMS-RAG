@@ -1,4 +1,4 @@
-﻿# AI pipeline cho Document MVP
+# AI pipeline cho Document MVP
 
 **Phiên bản:** 1.7
 **Cập nhật:** 22/07/2026
@@ -240,8 +240,8 @@ Boundary:
 - AI Service không lưu quiz vào database nghiệp vụ.
 - AI Service không public URL quiz.
 - AI Service không tạo attempt/result, không chấm điểm, không xếp hạng sinh viên.
-- Backend đã chịu trách nhiệm lưu, owner check, chỉnh sửa và publish qua `/api/v1/quiz/**`.
-- Frontend chưa nối UI Teacher review/publish; trang làm quiz/attempt/result vẫn ngoài phạm vi hiện tại.
+- Backend chịu trách nhiệm lưu, owner check, danh sách quiz, chỉnh sửa, xóa draft, publish và public endpoint qua `/api/v1/quiz/**`.
+- Frontend đã nối UI Teacher review/publish và trang làm quiz public; lưu attempt/result/xếp hạng vẫn ngoài MVP hiện tại.
 ## 6. Citation
 
 Mỗi citation:

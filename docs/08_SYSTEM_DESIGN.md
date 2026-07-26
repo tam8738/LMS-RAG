@@ -588,8 +588,8 @@ MAX_FILE_SIZE_MB=20
 
 Core MVP **không làm**:
 
-- Student flow.
-- Quiz attempt/result.
+- Student account/enrollment/lớp học; người học chỉ làm quiz qua public link trong MVP.
+- Lưu quiz attempt/result/xếp hạng vào database và chấm điểm phía server.
 - Gamification, level, score.
 - OCR.
 - Parse DOCX/PPTX trực tiếp.

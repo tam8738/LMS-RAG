@@ -1,8 +1,8 @@
-﻿# Kế hoạch triển khai MVP document-centric
+# Kế hoạch triển khai MVP document-centric
 
-**Phiên bản:** 1.9
-**Cập nhật:** 23/07/2026
-**Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI analyze -> Teacher submit review -> Admin approve -> AI index RAG -> Library -> RAG citation
+**Phiên bản:** 2.0
+**Cập nhật:** 26/07/2026
+**Mục tiêu:** Demo được luồng Teacher upload tài liệu -> AI analyze -> Admin approve -> AI index RAG -> RAG citation/history -> Teacher sinh/publish quiz -> người học làm quiz public
 
 ## 1. Scope đã khóa
 
@@ -10,8 +10,8 @@ Core MVP tập trung vào quản lý tài liệu/học liệu cho giảng viên.
 
 Không làm trong core MVP:
 
-- Student flow.
-- Quiz attempt/result.
+- Student account/enrollment/lớp học.
+- Lưu quiz attempt/result/xếp hạng vào database.
 - Gamification.
 - Dashboard thống kê phức tạp.
 - Teacher tạo Course/Lecture như LMS.
@@ -73,7 +73,7 @@ Teacher A login
 - `AiServiceClient` gọi AI Service `/v1/analyze-document`, `/v1/index-document`, `/v1/answer-question`
   và `/v1/generate-quiz`.
 - Flyway migrations cho users, documents, jobs, chunks, RAG conversation history và quiz.
-- 4 API Teacher sinh/xem/sửa/publish quiz; Backend lưu quiz/câu hỏi và enforce owner + trạng thái DRAFT.
+- API Teacher sinh/list/xem/sửa/xóa draft/publish quiz, API public lấy quiz đã publish; Backend lưu quiz/câu hỏi và enforce owner + trạng thái DRAFT.
 - Admin Teacher management đã có API list/search/filter, tạo đơn lẻ/hàng loạt, cập nhật,
   activate/deactivate và reset mật khẩu.
 
@@ -97,8 +97,8 @@ Teacher A login
 
 ### Phần còn thiếu đáng chú ý
 
-- AI Service và Backend đã có luồng sinh, lưu, xem, chỉnh sửa draft và publish quiz.
-- Frontend chưa có luồng Teacher review/chỉnh sửa/publish và chưa có trang Student làm quiz.
+- AI Service, Backend và Frontend đã nối luồng sinh, lưu, xem, chỉnh sửa draft, xóa draft, publish quiz và mở quiz public qua link.
+- Trang public quiz hiện phục vụ làm bài/xem kết quả trên Frontend; MVP chưa lưu attempt/result/xếp hạng vào database.
 - Cần chạy lại E2E tích hợp đầy đủ sau mỗi lần pull/build để xác nhận Docker, Backend, FE và AI cùng khớp contract.
 
 ## 4. Task graph tổng quan
@@ -156,7 +156,7 @@ Quy ước trạng thái:
 | BE-RAG-HIST-04 - Persist send-message flow + AI call | Tâm | P0 | BE-RAG-HIST-03 | DONE | `sendMessage` lưu user message, lấy 6 messages gần nhất làm history, gọi AI `/v1/answer-question`, lưu assistant message + citations + `notFound` + `tokensUsed`; giữ `POST /api/v1/rag/answer` cũ để backward compatibility |
 | BE-RAG-HIST-05 - Clear history + tests | Tâm | P0 | BE-RAG-HIST-04 | DONE | `DELETE /api/v1/rag/conversations/{id}/messages` xóa messages và reset counters; unit test `RagConversationServiceTest` 14 cases pass |
 | BE-09 - Admin Teacher management | Tâm | P1 | Auth ổn định | DONE | Đã có 7 endpoint dưới `/api/v1/admin/teachers`, phân quyền ADMIN, batch partial success tối đa 200 item và unit test cho service/validation/notification |
-| BE-QUIZ-01 - Quiz generation/lifecycle API | Tâm | P1 | BE-07, AI-QUIZ-01 | DONE | Migration V14 tạo `quizzes`/`quiz_questions`; 4 endpoint `/api/v1/quiz/**` cho TEACHER; validate document `PUBLISHED + PROCESSED`, gọi AI, lưu full draft, enforce owner/DRAFT, test service/request validation; toàn bộ 53 Backend tests pass |
+| BE-QUIZ-01 - Quiz generation/lifecycle API | Tâm | P1 | BE-07, AI-QUIZ-01 | DONE | Migration V14 tạo `quizzes`/`quiz_questions`; API `/api/v1/quiz/**` cho TEACHER gồm generate/my/get/update/delete draft/publish và public endpoint `/api/v1/quiz/public/{quizId}`; validate document `PUBLISHED + PROCESSED`, gọi AI, lưu full draft, enforce owner/DRAFT, public chỉ trả quiz `PUBLISHED`; backend compile pass |
 
 ### 6.2. Frontend tasks
 
@@ -176,7 +176,7 @@ Quy ước trạng thái:
 | FE-07 - My Document detail | Việt | P0 | FE-05, BE-05 | DONE | Detail tài liệu, action owner, xem/tải file và RAG khi đủ điều kiện |
 | FE-08 - Admin review queue | Việt | P0 | FE-01, BE-06 | DONE | Admin review queue đã có UI |
 | FE-09 - Admin review detail | Việt | P0 | FE-08, BE-06 | DONE | Admin approve/reject document đã có UI |
-| FE-10 - Admin Teacher management | Việt | P1 | BE-09 | IN_PROGRESS | Theo plan quản lý giảng viên; cần đối chiếu branch/code mới nhất trước demo |
+| FE-10 - Admin Teacher management | Việt | P1 | BE-09 | DONE | Đã có giao diện quản lý tài khoản giảng viên theo plan MVP: xem danh sách, thông tin giảng viên và thao tác quản trị cơ bản |
 
 ### 6.3. AI tasks
 
@@ -206,7 +206,7 @@ Quy ước trạng thái:
 | INT-01 - Backend upload -> AI analyze | Tâm + Khánh | P0 | BE-04, AI-01, INFRA-01 | DONE | Backend upload xong tự gọi AI `POST /v1/analyze-document` qua `WebClient` fire-and-forget; AI đọc file từ shared volume, trả `can_rag` + metadata; BE tự cập nhật `processing_status` và RAG eligibility fields; đã test Docker với PDF thật |
 | INT-02 - Review -> Library -> RAG | Cả nhóm | P0 | BE-08, FE-09, AI-03 | DONE | Backend/AI/FE đã có luồng review, library và RAG chat; cần tiếp tục smoke test sau mỗi pull/build |
 | INT-RAG-HIST-01 - Resume chat E2E | FE + BE + AI | P0 | BE-RAG-HIST-04, AI-RAG-HIST-01, FE-RAG-HIST-05 | DONE | Đã có Backend persistence, AI stateless history và FE resume/clear; đã manual test reload/tiếp tục hội thoại ổn |
-| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | IN_PROGRESS | Cần chốt kịch bản demo cuối cùng; Backend đã nối AI-QUIZ-01 và lưu/review/publish quiz, Frontend vẫn cần nối UI nếu đưa quiz vào demo |
+| QA-01 - E2E demo rehearsal | Cả nhóm | P0 | INT-02 | READY_FOR_FINAL_SMOKE | MVP đã nối đủ luồng document/RAG/history/quiz public; cần chạy smoke test cuối và cập nhật sơ đồ/ảnh báo cáo trước khi demo |
 
 ### 6.5. Cách cập nhật bảng tracking
 

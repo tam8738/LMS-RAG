@@ -1,7 +1,7 @@
-﻿# AI Service Internal API Contract
+# AI Service Internal API Contract
 
-**Phiên bản:** 1.7
-**Cập nhật:** 22/07/2026
+**Phiên bản:** 1.8
+**Cập nhật:** 26/07/2026
 **Base URL Docker:** `http://ai-service:8000/v1`
 
 ## 1. Phạm vi core
@@ -20,8 +20,8 @@ POST /v1/generate-quiz
 
 Quiz generation hiện đã có endpoint nội bộ `/v1/generate-quiz` để sinh quiz draft có cấu trúc từ
 `document_chunks`. AI Service chỉ sinh bản nháp; Backend đã nối gọi, validate, lưu DB và quản lý
-`DRAFT -> PUBLISHED`. Frontend/Student flow vẫn chịu trách nhiệm UI review, làm quiz, chấm điểm và
-xếp hạng nếu có.
+`DRAFT -> PUBLISHED`; Frontend đã có luồng Teacher review/publish và trang public để người học làm quiz.
+AI không xử lý public URL, chấm điểm, attempt/result hoặc xếp hạng.
 
 ## 2. Quy ước
 
@@ -384,7 +384,7 @@ Success `200`:
 Quy tắc:
 
 - V1 chỉ sinh `single_choice` để đơn giản cho BE/FE review và chấm điểm.
-- AI không lưu quiz, không public URL, không tạo attempt/result và không xếp hạng sinh viên.
+- AI không lưu quiz, không tạo public URL, không tạo attempt/result, không chấm điểm và không xếp hạng sinh viên; các việc này thuộc Backend/Frontend hoặc hướng nâng cấp sau MVP.
 - LLM chỉ trả `source_chunk_ids`; AI Service tự map sang citation thật từ context để tránh citation giả.
 - Nếu không có chunks cho tài liệu đã chọn, trả `NO_CHUNKS_FOUND`.
 - Nếu provider trả JSON sai shape hoặc sai số câu, trả `INVALID_OUTPUT`. Nếu model tham chiếu source chunk ngoài context, AI Service fallback về một chunk thật trong context để không làm hỏng toàn bộ quiz draft.

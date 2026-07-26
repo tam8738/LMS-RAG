@@ -1,7 +1,7 @@
 # Bộ tài liệu chính thức của dự án
 
-**Phiên bản:** 1.7
-**Cập nhật:** 23/07/2026
+**Phiên bản:** 1.8
+**Cập nhật:** 26/07/2026
 **Đối tượng đọc:** Frontend, Backend, AI Service
 
 ## 1. Mục đích
@@ -12,122 +12,28 @@ Khi tài liệu và code không thống nhất, cần ưu tiên kiểm tra code 
 
 ## 2. Thứ tự đọc khuyến nghị
 
-### 1. PRD
-
-```txt
-01_PROJECT_PRD.md
-```
-
-Đọc để hiểu vấn đề, actor, phạm vi MVP, luồng nghiệp vụ và tiêu chí hoàn thành.
-
-### 2. Kế hoạch triển khai MVP
-
-```txt
-02_MVP_IMPLEMENTATION_PLAN.md
-```
-
-Đọc để biết task graph, owner, trạng thái tracking, public API tối thiểu, handoff, test gate và thứ tự thực hiện.
-
-### 3. Quyết định tích hợp Backend - AI
-
-```txt
-03_BE_AI_INTEGRATION.md
-```
-
-Đọc để hiểu ranh giới trách nhiệm giữa Backend và AI Service, shared storage, auto-processing, status và internal API.
-
-### 4. AI API contract
-
-```txt
-04_AI_API_CONTRACT.md
-```
-
-Nguồn chính cho endpoint, request, response và error giữa Backend và AI Service.
-
-### 5. Database schema contract
-
-```txt
-05_DATABASE_SCHEMA_CONTRACT.md
-```
-
-Nguồn chính cho schema database của Document MVP: `users`, `documents`, jobs, chunks/vector và RAG chat history.
-
-### 6. Backend database guide
-
-```txt
-07_BACKEND_DATABASE_SCHEMA_GUIDE.md
-```
-
-Đọc khi Backend tạo hoặc kiểm tra migration database chi tiết.
-
-### 7. AI pipeline
-
-```txt
-06_AI_PIPELINE.md
-```
-
-Đọc để hiểu thuật toán parse, clean, chunk, embedding, retrieval, grounded answer generation và citation.
-
-### 8. Thiết kế hệ thống tổng quan
-
-```txt
-08_SYSTEM_DESIGN.md
-```
-
-Đọc để có cái nhìn tổng thể về kiến trúc, luồng dữ liệu, API, database, security và scope triển khai.
-
-### 9. API roles và permissions
-
-```txt
-API_ROLES.md
-```
-
-Nguồn tổng hợp các Backend API `/api/v1/**`, method, path, role được phép truy cập và tham số lọc/phân trang.
-
-### 10. RAG chat history/resume
-
-```txt
-13_RAG_CHAT_HISTORY_RESUME_PLAN.md
-```
-
-Tài liệu riêng cho tính năng lưu lịch sử hỏi đáp, resume chat và clear history theo từng user + document.
-
-### 11. Admin quản lý giảng viên
-
-```txt
-BE09_TEACHER_MANAGEMENT_DESIGN.md
-14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md  (kế hoạch lịch sử)
-```
-
-`BE09_TEACHER_MANAGEMENT_DESIGN.md` là contract đã triển khai cho bộ API quản lý tài khoản
-Teacher. File `14_ADMIN_TEACHER_MANAGEMENT_IMPLEMENTATION_PLAN.md` chỉ giữ lại kế hoạch read-only
-ban đầu và không dùng để suy ra endpoint đang tồn tại.
-
-### 12. Quiz API Backend
-
-```txt
-15_QUIZ_API_BACKEND_SPEC.md
-```
-
-Contract triển khai cho 4 API Teacher sinh, xem, sửa và công bố quiz; gồm schema V14, quyền owner,
-state `DRAFT -> PUBLISHED`, DTO và error codes.
-
-### 13. Báo cáo tiến độ
-
-```txt
-../PROJECT_PROGRESS_REPORT.md
-```
-
-Báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn. File này không phải API/schema contract nhưng phản ánh trạng thái dự án tại thời điểm kiểm tra.
+1. `01_PROJECT_PRD.md`: phạm vi, actor, nghiệp vụ và tiêu chí hoàn thành.
+2. `02_MVP_IMPLEMENTATION_PLAN.md`: task graph, tracking, public API tối thiểu, test gate và thứ tự thực hiện.
+3. `03_BE_AI_INTEGRATION.md`: ranh giới Backend - AI Service, shared storage, status và internal API.
+4. `04_AI_API_CONTRACT.md`: endpoint, request, response và error giữa Backend và AI Service.
+5. `05_DATABASE_SCHEMA_CONTRACT.md`: schema database của MVP document-centric.
+6. `07_BACKEND_DATABASE_SCHEMA_GUIDE.md`: hướng dẫn migration database chi tiết cho Backend.
+7. `06_AI_PIPELINE.md`: parse, clean, chunk, embedding, retrieval, grounded answer, citation và quiz generation.
+8. `08_SYSTEM_DESIGN.md`: kiến trúc, luồng dữ liệu, API, database, security và scope triển khai.
+9. `API_ROLES.md`: tổng hợp Backend API `/api/v1/**`, method, path và role.
+10. `13_RAG_CHAT_HISTORY_RESUME_PLAN.md`: lưu lịch sử hỏi đáp, resume chat và clear history.
+11. `BE09_TEACHER_MANAGEMENT_DESIGN.md`: contract đã triển khai cho API Admin quản lý tài khoản Teacher.
+12. `15_QUIZ_API_BACKEND_SPEC.md`: contract quiz generate/list/get/update/delete draft/publish và public quiz link.
+13. `../PROJECT_PROGRESS_REPORT.md`: báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn.
 
 ## 3. Quyết định đã khóa
 
 - `Document` là trung tâm của hệ thống.
-- Giảng viên là actor chính trong core MVP.
+- Giảng viên là actor chính trong luồng quản lý tài liệu, RAG và quiz.
+- Admin kiểm duyệt/công bố tài liệu và quản lý tài khoản Teacher ở mức cơ bản.
+- Sinh viên/người học chỉ tham gia MVP qua link quiz public; không cần tài khoản Student.
 - `subject`, `topic`, `chapter`, `tags` chỉ là metadata của Document.
 - Không bắt Teacher tạo Course/Lecture trước khi upload.
-- Core MVP không triển khai Student flow.
-- Admin kiểm duyệt/công bố tài liệu và có thể quản lý tài khoản Teacher ở mức cơ bản.
 - Upload tự động kích hoạt AI analyze.
 - Admin approve kích hoạt AI index RAG.
 - Dùng hai trạng thái riêng: `processing_status` và `publication_status`.
@@ -135,8 +41,8 @@ Báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn. File
 - RAG nhận `document_ids`; AI không tự kiểm quyền và không retrieval toàn thư viện trong MVP.
 - Backend là source of truth cho RAG conversation history; AI Service chỉ nhận `history` stateless.
 - Grounded LLM answer chỉ được sinh sau khi retrieval có context phù hợp.
-- AI Service và Backend đã có luồng sinh/lưu/review/publish quiz; giao diện Teacher và Student
-  play/attempt/result vẫn chưa thuộc phần đã hoàn thiện.
+- AI Service sinh quiz draft từ chunks thật; Backend/Frontend quản lý review, publish, link public và làm quiz.
+- MVP chưa lưu attempt/result/xếp hạng quiz vào database và chưa chấm quiz phía server.
 
 ## 4. Thứ tự ưu tiên khi có xung đột
 
@@ -154,14 +60,7 @@ Báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn. File
 
 Các file học tập, ghi chú cá nhân, báo cáo cũ hoặc test-case theo scope cũ không dùng làm nguồn triển khai chính. Nếu cần giữ lại để tham khảo, file phải ghi rõ trạng thái legacy.
 
-Ví dụ:
-
-```txt
-AI_LEARNING_LOG.md
-LMS-RAG-Backend-Test-Cases.md
-BACKEND_CHANGES_*.md
-frontend/TODO_DEVELOPMENT_PLAN.md
-```
+Ví dụ: `AI_LEARNING_LOG.md`, `LMS-RAG-Backend-Test-Cases.md`, `BACKEND_CHANGES_*.md`, `frontend/TODO_DEVELOPMENT_PLAN.md`.
 
 ## 6. Quy trình thay đổi docs
 
