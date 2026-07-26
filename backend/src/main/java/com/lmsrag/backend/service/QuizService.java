@@ -158,6 +158,21 @@ public class QuizService {
         return toResponse(savedQuiz, questions);
     }
 
+
+    /** Xóa quiz khi còn là DRAFT. */
+    @Transactional
+    public void deleteDraftQuiz(User currentUser, Long quizId) {
+        log.info("[QUIZ] Bắt đầu xóa quiz draft | userId={} | quizId={}", currentUser.getId(), quizId);
+        Quiz quiz = findQuiz(quizId);
+        requireOwner(quiz, currentUser);
+        requireDraft(quiz, currentUser);
+
+        quizQuestionRepository.deleteByQuizId(quizId);
+        quizRepository.delete(quiz);
+
+        log.info("[QUIZ] Xóa quiz draft thành công | userId={} | quizId={}", currentUser.getId(), quizId);
+    }
+
     private Quiz findQuiz(Long quizId) {
         return quizRepository.findById(quizId)
                 .orElseThrow(() -> new AppException(ErrorCode.QUIZ_NOT_FOUND));

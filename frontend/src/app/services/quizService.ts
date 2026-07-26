@@ -130,4 +130,12 @@ export const quizService = {
     saveQuizToLocalStorage(res.data);
     return res.data;
   },
+  /**
+   * Delete draft quiz.
+   */
+  async deleteQuiz(quizId: number): Promise<void> {
+    await apiFetch<void>(`/api/v1/quiz/${quizId}`, {
+      method: "DELETE",
+    });
+  },
 };

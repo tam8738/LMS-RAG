@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   HelpCircle, Plus, Search, Filter, RefreshCw, Sparkles, MoreVertical,
-  Edit3, Eye, Send, CheckCircle2, AlertCircle, BookOpen, Clock, Globe, FileText, Share2
+  Edit3, Eye, Send, CheckCircle2, AlertCircle, BookOpen, Clock, Globe, FileText, Share2, Trash2
 } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { GenerateQuizModal } from "../components/GenerateQuizModal";
@@ -26,6 +26,8 @@ export function QuizManagementPage() {
   const [activeQuizForEdit, setActiveQuizForEdit] = useState<QuizResponse | null>(null);
   const [activeQuizForPreview, setActiveQuizForPreview] = useState<QuizResponse | null>(null);
   const [publishedQuizForShare, setPublishedQuizForShare] = useState<QuizResponse | null>(null);
+  const [quizToDelete, setQuizToDelete] = useState<QuizResponse | null>(null);
+  const [deletingQuizId, setDeletingQuizId] = useState<number | null>(null);
 
   // Kebab menu state
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
@@ -91,6 +93,16 @@ export function QuizManagementPage() {
           <Eye className="w-3.5 h-3.5 text-emerald-600" />
           Làm thử Quiz
         </button>
+
+        {!isPublished && (
+          <button
+            onClick={() => { closeActionMenu(); setQuizToDelete(quizItem); }}
+            className="w-full px-3.5 py-2 text-[13px] text-red-600 hover:bg-red-50 flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+            Xóa quiz
+          </button>
+        )}
 
         {isPublished && (
           <button
@@ -177,6 +189,25 @@ export function QuizManagementPage() {
       localStorage.setItem("saved_teacher_quizzes", JSON.stringify(updated));
     } catch (e) {
       // ignore
+    }
+  };
+
+
+  const handleConfirmDeleteQuiz = async () => {
+    if (!quizToDelete) return;
+
+    setDeletingQuizId(quizToDelete.id);
+    setError(null);
+    try {
+      await quizService.deleteQuiz(quizToDelete.id);
+      const updated = quizzes.filter(q => q.id !== quizToDelete.id);
+      setQuizzes(updated);
+      localStorage.setItem("saved_teacher_quizzes", JSON.stringify(updated));
+      setQuizToDelete(null);
+    } catch (err: any) {
+      setError(err.message || "Không thể xóa quiz. Vui lòng thử lại.");
+    } finally {
+      setDeletingQuizId(null);
     }
   };
 
@@ -445,6 +476,52 @@ export function QuizManagementPage() {
           quiz={publishedQuizForShare}
           onClose={() => setPublishedQuizForShare(null)}
         />
+      )}
+
+      {quizToDelete && createPortal(
+        <div className="fixed inset-0 z-[190] flex items-center justify-center px-4 py-6 animate-fadeIn">
+          <button
+            type="button"
+            onClick={() => deletingQuizId ? undefined : setQuizToDelete(null)}
+            className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm border-none cursor-default"
+            aria-label="Đóng xác nhận xóa quiz"
+          />
+
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 text-left shadow-2xl border border-red-100">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-[16px] font-bold text-[#0E0D0B]">Xác nhận xóa quiz</h3>
+                <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                  Bạn đang xóa bản nháp <strong>{quizToDelete.title}</strong>. Hành động này sẽ xóa toàn bộ câu hỏi trong quiz và không thể hoàn tác.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setQuizToDelete(null)}
+                disabled={deletingQuizId === quizToDelete.id}
+                className="h-10 px-4 rounded-xl border border-gray-300 bg-white text-[13px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteQuiz}
+                disabled={deletingQuizId === quizToDelete.id}
+                className="h-10 px-4 rounded-xl border-none bg-red-600 text-[13px] font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{deletingQuizId === quizToDelete.id ? "Đang xóa..." : "Xóa quiz"}</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

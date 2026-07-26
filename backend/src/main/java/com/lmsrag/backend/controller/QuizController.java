@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -88,5 +89,17 @@ public class QuizController {
                 quizService.publishQuiz(user, quizId),
                 "Công bố quiz thành công"
         ));
+    }
+
+    @Operation(summary = "Xóa quiz draft")
+    @DeleteMapping("/{quizId}")
+    public ResponseEntity<ApiResponse<Void>> deleteDraftQuiz(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long quizId
+    ) {
+        User user = userDetails.getUser();
+        log.info("[QUIZ-CTRL] Nhận yêu cầu xóa quiz draft | userId={} | quizId={}", user.getId(), quizId);
+        quizService.deleteDraftQuiz(user, quizId);
+        return ResponseEntity.ok(ApiResponse.<Void>success(null, "Xóa quiz thành công"));
     }
 }

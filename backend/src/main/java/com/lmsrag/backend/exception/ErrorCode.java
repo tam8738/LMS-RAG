@@ -116,7 +116,7 @@ public enum ErrorCode {
     // =========================================================
     QUIZ_NOT_FOUND(404, "QUIZ_NOT_FOUND", "Không tìm thấy quiz"),
     QUIZ_ACCESS_DENIED(403, "QUIZ_ACCESS_DENIED", "Không có quyền truy cập quiz này"),
-    QUIZ_NOT_DRAFT(400, "QUIZ_NOT_DRAFT", "Chỉ có thể sửa hoặc publish quiz ở trạng thái DRAFT"),
+    QUIZ_NOT_DRAFT(400, "QUIZ_NOT_DRAFT", "Chỉ có thể sửa, xóa hoặc publish quiz ở trạng thái DRAFT"),
     QUIZ_GENERATE_FAILED(502, "QUIZ_GENERATE_FAILED", "AI Service không thể sinh quiz"),
 
     // =========================================================
