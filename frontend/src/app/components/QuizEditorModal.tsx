@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, HelpCircle, Plus, Trash2, Sliders } from "lucide-react";
 import { quizService, QuizResponse, QuizQuestionResponse } from "../services/quizService";
 
@@ -175,11 +176,11 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
+  return createPortal(
+    <div className="fixed inset-0 z-[160] flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-8 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
 
-      <div className="bg-white rounded-2xl max-w-5xl w-full h-[88vh] shadow-2xl relative z-50 text-left flex flex-col overflow-hidden">
+      <div className="relative z-50 flex w-full max-w-5xl max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl bg-white text-left shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8F7F4]/60 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -214,9 +215,9 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
         </div>
 
         {/* Content Body: Left Question Navigator & Right Editor */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex overflow-hidden">
           {/* Left Sidebar: Questions list */}
-          <div className="w-72 border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex flex-col flex-shrink-0 overflow-y-auto space-y-3">
+          <div className="w-72 min-h-0 border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex flex-col flex-shrink-0 overflow-y-auto space-y-3">
             <div>
               <label className="block text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Tiêu đề Quiz *
@@ -280,7 +281,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
           </div>
 
           {/* Right Main Editor Area */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-5">
+          <div className="flex-1 min-h-0 p-6 overflow-y-auto space-y-5">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[12.5px] flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
@@ -463,6 +464,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
