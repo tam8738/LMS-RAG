@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /** API Teacher sinh, review, chỉnh sửa và công bố quiz. */
 @Slf4j
 @RestController
@@ -46,6 +48,29 @@ public class QuizController {
         QuizResponse response = quizService.generateQuiz(user, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Sinh quiz thành công"));
+    }
+
+    @Operation(summary = "Lấy danh sách quiz của teacher hiện tại")
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<QuizResponse>>> listMyQuizzes(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        User user = userDetails.getUser();
+        log.info("[QUIZ-CTRL] Nhận yêu cầu lấy danh sách quiz | userId={}", user.getId());
+        return ResponseEntity.ok(ApiResponse.success(
+                quizService.listMyQuizzes(user),
+                "Lấy danh sách quiz thành công"
+        ));
+    }
+
+    @Operation(summary = "Lấy quiz public đã công bố")
+    @GetMapping("/public/{quizId}")
+    public ResponseEntity<ApiResponse<QuizResponse>> getPublicQuiz(@PathVariable Long quizId) {
+        log.info("[QUIZ-CTRL] Nhận yêu cầu xem quiz public | quizId={}", quizId);
+        return ResponseEntity.ok(ApiResponse.success(
+                quizService.getPublicQuiz(quizId),
+                "Lấy quiz public thành công"
+        ));
     }
 
     @Operation(summary = "Xem quiz đã sinh")

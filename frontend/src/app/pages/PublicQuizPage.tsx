@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
-  HelpCircle, BookOpen, CheckCircle2, XCircle, Award, RotateCcw,
-  Sparkles, FileText, ChevronLeft, ChevronRight, Share2, Copy, Check,
-  ArrowLeft, User, GraduationCap, Play, ShieldCheck, Printer
+  HelpCircle, BookOpen, Award, RotateCcw,
+  ChevronLeft, ChevronRight, Copy, Check,
+  User, GraduationCap, Play, Printer
 } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { PageLoading } from "../components/EmptyState";
-import { ROUTES } from "../routes";
 
 export function PublicQuizPage() {
   const { quizId } = useParams<{ quizId: string }>();
-  const navigate = useNavigate();
   const idNum = Number(quizId);
 
   const [quiz, setQuiz] = useState<QuizResponse | null>(null);
@@ -36,26 +34,19 @@ export function PublicQuizPage() {
       setLoading(true);
       setError("");
       try {
-        const data = await quizService.getQuiz(idNum);
+        if (!quizId || !Number.isFinite(idNum)) {
+          throw new Error("Đường dẫn Quiz không hợp lệ.");
+        }
+        const data = await quizService.getPublicQuiz(idNum);
         setQuiz(data);
       } catch (err: any) {
-        const savedListStr = localStorage.getItem("saved_teacher_quizzes");
-        if (savedListStr) {
-          const list: QuizResponse[] = JSON.parse(savedListStr);
-          const found = list.find(q => q.id === idNum);
-          if (found) {
-            setQuiz(found);
-            setLoading(false);
-            return;
-          }
-        }
         setError(err.message || "Không tìm thấy bộ Quiz ôn tập.");
       } finally {
         setLoading(false);
       }
     }
     loadQuiz();
-  }, [idNum]);
+  }, [idNum, quizId]);
 
   const handleStartQuiz = (e: React.FormEvent) => {
     e.preventDefault();

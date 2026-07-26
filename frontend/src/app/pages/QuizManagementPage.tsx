@@ -123,10 +123,8 @@ export function QuizManagementPage() {
     fetchQuizzes();
     const handleFocus = () => fetchQuizzes();
     window.addEventListener("focus", handleFocus);
-    window.addEventListener("storage", handleFocus);
     return () => {
       window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("storage", handleFocus);
     };
   }, []);
 
@@ -157,10 +155,8 @@ export function QuizManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      // Load saved quiz drafts from localStorage / cached responses
-      const savedListStr = localStorage.getItem("saved_teacher_quizzes");
-      let savedList: QuizResponse[] = savedListStr ? JSON.parse(savedListStr) : [];
-      setQuizzes(savedList);
+      const list = await quizService.listMyQuizzes();
+      setQuizzes(list);
     } catch (err: any) {
       setError(err.message || "Không thể tải danh sách Quiz.");
     } finally {
@@ -170,28 +166,13 @@ export function QuizManagementPage() {
 
   const handleQuizGenerated = (newQuiz: QuizResponse) => {
     setIsGenerateOpen(false);
-    // Add to list
-    const updated = [newQuiz, ...quizzes];
-    setQuizzes(updated);
-    try {
-      localStorage.setItem("saved_teacher_quizzes", JSON.stringify(updated));
-    } catch (e) {
-      // ignore
-    }
-    // Open editor for review
+    setQuizzes(prev => [newQuiz, ...prev.filter(q => q.id !== newQuiz.id)]);
     setActiveQuizForEdit(newQuiz);
   };
 
   const handleQuizUpdated = (updatedQuiz: QuizResponse) => {
-    const updated = quizzes.map(q => (q.id === updatedQuiz.id ? updatedQuiz : q));
-    setQuizzes(updated);
-    try {
-      localStorage.setItem("saved_teacher_quizzes", JSON.stringify(updated));
-    } catch (e) {
-      // ignore
-    }
+    setQuizzes(prev => prev.map(q => (q.id === updatedQuiz.id ? updatedQuiz : q)));
   };
-
 
   const handleConfirmDeleteQuiz = async () => {
     if (!quizToDelete) return;
@@ -200,9 +181,7 @@ export function QuizManagementPage() {
     setError(null);
     try {
       await quizService.deleteQuiz(quizToDelete.id);
-      const updated = quizzes.filter(q => q.id !== quizToDelete.id);
-      setQuizzes(updated);
-      localStorage.setItem("saved_teacher_quizzes", JSON.stringify(updated));
+      setQuizzes(prev => prev.filter(q => q.id !== quizToDelete.id));
       setQuizToDelete(null);
     } catch (err: any) {
       setError(err.message || "Không thể xóa quiz. Vui lòng thử lại.");

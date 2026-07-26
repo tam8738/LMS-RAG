@@ -149,6 +149,21 @@ export const quizService = {
   },
 
   /**
+   * Get current teacher quizzes from Backend DB.
+   */
+  async listMyQuizzes(): Promise<QuizResponse[]> {
+    const res = await apiFetch<QuizResponse[]>("/api/v1/quiz/my");
+    return res.data || [];
+  },
+
+  /**
+   * Get published quiz through public share link.
+   */
+  async getPublicQuiz(quizId: number): Promise<QuizResponse> {
+    const res = await apiFetch<QuizResponse>(`/api/v1/quiz/public/${quizId}`);
+    return res.data;
+  },
+  /**
    * Get quiz details by ID
    */
   async getQuiz(quizId: number): Promise<QuizResponse> {

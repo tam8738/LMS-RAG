@@ -104,6 +104,27 @@ public class QuizService {
         return toResponse(savedQuiz, savedQuestions);
     }
 
+    /** Lấy danh sách quiz thật từ DB của Teacher hiện tại. */
+    @Transactional(readOnly = true)
+    public List<QuizResponse> listMyQuizzes(User currentUser) {
+        List<Quiz> quizzes = quizRepository.findByCreatedByIdOrderByCreatedAtDesc(currentUser.getId());
+        return quizzes.stream()
+                .map(quiz -> toResponse(quiz, quizQuestionRepository.findByQuizIdOrderByQuestionIndex(quiz.getId())))
+                .toList();
+    }
+
+    /** Lấy quiz đã PUBLISHED cho sinh viên qua link public, không yêu cầu đăng nhập. */
+    @Transactional(readOnly = true)
+    public QuizResponse getPublicQuiz(Long quizId) {
+        Quiz quiz = findQuiz(quizId);
+        if (quiz.getStatus() != QuizStatus.PUBLISHED) {
+            log.warn("[QUIZ] Quiz public chưa được công bố | quizId={} | status={}", quizId, quiz.getStatus());
+            throw new AppException(ErrorCode.QUIZ_NOT_PUBLISHED);
+        }
+        List<QuizQuestion> questions = quizQuestionRepository.findByQuizIdOrderByQuestionIndex(quizId);
+        return toResponse(quiz, questions);
+    }
+
     /** Lấy full quiz; chỉ Teacher owner được truy cập. */
     @Transactional(readOnly = true)
     public QuizResponse getQuiz(User currentUser, Long quizId) {
@@ -157,7 +178,6 @@ public class QuizService {
                 currentUser.getId(), quizId, quiz.getDocument().getId());
         return toResponse(savedQuiz, questions);
     }
-
 
     /** Xóa quiz khi còn là DRAFT. */
     @Transactional

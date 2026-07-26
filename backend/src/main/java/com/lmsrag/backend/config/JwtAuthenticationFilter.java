@@ -43,7 +43,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return PUBLIC_AUTH_ENDPOINTS.contains(path)
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
-                || path.startsWith("/webjars");
+                || path.startsWith("/webjars")
+                || path.startsWith("/api/v1/quiz/public/");
     }
 
     @Override
