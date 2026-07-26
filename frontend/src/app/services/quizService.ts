@@ -24,7 +24,6 @@ export interface QuizQuestionResponse {
   questionIndex: number;
   question: string;
   type: "single_choice" | string;
-  difficulty?: "EASY" | "MEDIUM" | "HARD" | string;
   options: QuizOptionDto[];
   correctOptionIds: string[];
   explanation: string;
@@ -52,7 +51,6 @@ export interface QuizQuestionUpdateRequest {
   id: number;
   question?: string;
   type?: "single_choice";
-  difficulty?: "EASY" | "MEDIUM" | "HARD" | string;
   options?: QuizOptionDto[];
   correctOptionIds?: string[];
   explanation?: string;

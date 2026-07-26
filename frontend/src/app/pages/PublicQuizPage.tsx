@@ -450,13 +450,6 @@ export function PublicQuizPage() {
                         <span className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-800 text-[12.5px] font-bold">
                           Câu hỏi {activeQuestionIndex + 1} / {questions.length}
                         </span>
-                        {currentQ.difficulty && (
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11.5px] font-bold uppercase ${
-                            currentQ.difficulty === "EASY" ? "bg-emerald-100 text-emerald-800" : currentQ.difficulty === "HARD" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
-                          }`}>
-                            Mức độ: {currentQ.difficulty === "EASY" ? "Dễ" : currentQ.difficulty === "HARD" ? "Khó" : "Trung bình"}
-                          </span>
-                        )}
                       </div>
 
                       <h3 className="text-[17.5px] font-bold text-[#0E0D0B] leading-relaxed">

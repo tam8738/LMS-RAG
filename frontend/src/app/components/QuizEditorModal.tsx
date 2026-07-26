@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, HelpCircle, Plus, Trash2, Sliders } from "lucide-react";
+import { X, Save, Send, Eye, CheckCircle2, AlertCircle, FileText, BookOpen, Edit3, HelpCircle, Plus, Trash2 } from "lucide-react";
 import { quizService, QuizResponse, QuizQuestionResponse } from "../services/quizService";
 
 interface QuizEditorModalProps {
@@ -33,11 +33,6 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
     );
   };
 
-  const handleUpdateDifficulty = (diff: "EASY" | "MEDIUM" | "HARD") => {
-    setQuestions(prev =>
-      prev.map((q, idx) => (idx === activeTab ? { ...q, difficulty: diff } : q))
-    );
-  };
 
   const handleUpdateOptionText = (optionId: string, text: string) => {
     setQuestions(prev =>
@@ -76,7 +71,6 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
       questionIndex: questions.length + 1,
       question: `Câu hỏi mới số ${questions.length + 1}`,
       type: "single_choice",
-      difficulty: "MEDIUM",
       options: [
         { id: "A", text: "Phương án A" },
         { id: "B", text: "Phương án B" },
@@ -120,7 +114,6 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
           id: q.id,
           question: q.question.trim(),
           type: "single_choice",
-          difficulty: q.difficulty || "MEDIUM",
           options: q.options.map(o => ({ id: o.id, text: o.text.trim() })),
           correctOptionIds: q.correctOptionIds,
           explanation: q.explanation.trim(),
@@ -155,7 +148,6 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
           id: q.id,
           question: q.question.trim(),
           type: "single_choice",
-          difficulty: q.difficulty || "MEDIUM",
           options: q.options.map(o => ({ id: o.id, text: o.text.trim() })),
           correctOptionIds: q.correctOptionIds,
           explanation: q.explanation.trim(),
@@ -196,7 +188,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                 </span>
                 <span className="text-[12px] text-[#AAAA9F] font-mono-label">#{quiz.id}</span>
               </div>
-              <p className="text-[12.5px] text-[#6B6963] mt-0.5">Biên tập nội dung ôn tập, câu hỏi, đáp án đúng và mức độ khó</p>
+              <p className="text-[12.5px] text-[#6B6963] mt-0.5">Biên tập nội dung ôn tập, câu hỏi, đáp án đúng và lời giải thích</p>
             </div>
           </div>
 
@@ -302,20 +294,6 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                     <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[12.5px] font-bold">
                       Câu {activeTab + 1} / {questions.length}
                     </span>
-
-                    {/* Difficulty selector */}
-                    <div className="flex items-center gap-1.5 ml-2">
-                      <span className="text-[11.5px] font-semibold text-gray-500">Mức độ:</span>
-                      <select
-                        value={currentQ.difficulty || "MEDIUM"}
-                        onChange={e => handleUpdateDifficulty(e.target.value as any)}
-                        className="h-8 border border-gray-200 rounded-lg px-2 text-[12px] font-semibold text-gray-800 bg-gray-50 focus:outline-none"
-                      >
-                        <option value="EASY">Dễ (Easy)</option>
-                        <option value="MEDIUM">Trung bình (Medium)</option>
-                        <option value="HARD">Khó (Hard)</option>
-                      </select>
-                    </div>
                   </div>
 
                   <button
