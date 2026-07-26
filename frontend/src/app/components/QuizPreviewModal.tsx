@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, CheckCircle2, XCircle, RotateCcw, Award, ChevronRight, ChevronLeft, HelpCircle } from "lucide-react";
 import { QuizResponse } from "../services/quizService";
 
@@ -44,11 +45,11 @@ export function QuizPreviewModal({ quiz, onClose }: QuizPreviewModalProps) {
   const score = calculateScore();
   const scorePercentage = Math.round((score / (questions.length || 1)) * 100);
 
-  return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 animate-fadeIn">
+  return createPortal(
+    <div className="fixed inset-0 z-[180] flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-8 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
 
-      <div className="bg-white rounded-2xl max-w-3xl w-full h-[85vh] shadow-2xl relative z-50 text-left flex flex-col overflow-hidden">
+      <div className="relative z-50 flex w-full max-w-3xl max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl bg-white text-left shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8F7F4]/60 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -78,9 +79,9 @@ export function QuizPreviewModal({ quiz, onClose }: QuizPreviewModalProps) {
         </div>
 
         {/* Quiz Body */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
           {/* Left Question Tabs */}
-          <div className="w-full md:w-56 border-b md:border-b-0 md:border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex-shrink-0 flex md:flex-col overflow-x-auto md:overflow-y-auto gap-2">
+          <div className="w-full md:w-56 border-b md:border-b-0 md:border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex-shrink-0 flex md:flex-col overflow-x-auto md:overflow-y-auto gap-2 md:max-h-full">
             <span className="hidden md:block text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider mb-2">
               Danh sách câu ({questions.length})
             </span>
@@ -120,7 +121,7 @@ export function QuizPreviewModal({ quiz, onClose }: QuizPreviewModalProps) {
           </div>
 
           {/* Main Question Display */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
             {submitted && activeQuestion === 0 && (
               /* Submission Score Banner */
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
@@ -245,6 +246,7 @@ export function QuizPreviewModal({ quiz, onClose }: QuizPreviewModalProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

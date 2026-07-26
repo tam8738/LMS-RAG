@@ -1,5 +1,6 @@
 // trang student làm quiz của giảng viên tạo
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   HelpCircle, Plus, Search, Filter, RefreshCw, Sparkles, MoreVertical,
   Edit3, Eye, Send, CheckCircle2, AlertCircle, BookOpen, Clock, Globe, FileText, Share2
@@ -28,7 +29,78 @@ export function QuizManagementPage() {
 
   // Kebab menu state
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const closeActionMenu = () => {
+    setActiveMenuId(null);
+    setMenuPosition(null);
+  };
+
+  const toggleActionMenu = (event: React.MouseEvent<HTMLButtonElement>, quizId: number) => {
+    event.stopPropagation();
+
+    if (activeMenuId === quizId) {
+      closeActionMenu();
+      return;
+    }
+
+    const menuWidth = 176;
+    const menuHeight = 132;
+    const viewportPadding = 16;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const left = Math.min(
+      window.innerWidth - menuWidth - viewportPadding,
+      Math.max(viewportPadding, rect.right - menuWidth)
+    );
+    const shouldOpenUp = rect.bottom + menuHeight + viewportPadding > window.innerHeight;
+    const top = shouldOpenUp
+      ? Math.max(viewportPadding, rect.top - menuHeight - 8)
+      : rect.bottom + 8;
+
+    setMenuPosition({ top, left });
+    setActiveMenuId(quizId);
+  };
+
+  const renderActionMenu = (quizItem: QuizResponse, isPublished: boolean) => {
+    if (activeMenuId !== quizItem.id || !menuPosition) return null;
+
+    return createPortal(
+      <div
+        ref={dropdownRef}
+        style={{ top: menuPosition.top, left: menuPosition.left }}
+        onMouseDown={e => e.stopPropagation()}
+        className="fixed w-44 bg-white rounded-xl border border-[rgba(14,13,11,0.12)] shadow-xl py-1.5 z-[170] text-left animate-[fade-in_100ms_ease-out]"
+      >
+        <button
+          onClick={() => { closeActionMenu(); setActiveQuizForEdit(quizItem); }}
+          className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+        >
+          <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+          Xem & Chỉnh sửa
+        </button>
+
+        <button
+          onClick={() => { closeActionMenu(); setActiveQuizForPreview(quizItem); }}
+          className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+        >
+          <Eye className="w-3.5 h-3.5 text-emerald-600" />
+          Làm thử Quiz
+        </button>
+
+        {isPublished && (
+          <button
+            onClick={() => { closeActionMenu(); setPublishedQuizForShare(quizItem); }}
+            className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+          >
+            <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+            Lấy link chia sẻ
+          </button>
+        )}
+      </div>,
+      document.body
+    );
+  };
 
   // Load Quizzes on mount and window focus
   useEffect(() => {
@@ -46,12 +118,24 @@ export function QuizManagementPage() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setActiveMenuId(null);
+        closeActionMenu();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (activeMenuId === null) return;
+
+    const closeOnViewportChange = () => closeActionMenu();
+    window.addEventListener("scroll", closeOnViewportChange, true);
+    window.addEventListener("resize", closeOnViewportChange);
+    return () => {
+      window.removeEventListener("scroll", closeOnViewportChange, true);
+      window.removeEventListener("resize", closeOnViewportChange);
+    };
+  }, [activeMenuId]);
 
   const fetchQuizzes = async () => {
     setLoading(true);
@@ -254,10 +338,9 @@ export function QuizManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(14,13,11,0.05)] text-[13px]">
-                {filteredQuizzes.map((quizItem, index) => {
+                {filteredQuizzes.map((quizItem) => {
                   const isPublished = quizItem.status === "PUBLISHED";
                   const isMenuOpen = activeMenuId === quizItem.id;
-                  const isNearBottom = index > 0 && (filteredQuizzes.length <= 3 || index >= filteredQuizzes.length - 2);
 
                   return (
                     <tr key={quizItem.id} className="hover:bg-[#F8F7F4]/40 transition-colors group">
@@ -303,49 +386,13 @@ export function QuizManagementPage() {
                       {/* Thao tác */}
                       <td className="py-3.5 px-5 text-right relative">
                         <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setActiveMenuId(isMenuOpen ? null : quizItem.id);
-                          }}
+                          onMouseDown={e => e.stopPropagation()}
+                          onClick={e => toggleActionMenu(e, quizItem.id)}
                           className="p-1.5 rounded-lg text-[#AAAA9F] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] transition-colors border-none bg-transparent cursor-pointer outline-none"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
-
-                        {isMenuOpen && (
-                          <div
-                            ref={dropdownRef}
-                            className={`absolute right-5 w-44 bg-white rounded-xl border border-[rgba(14,13,11,0.12)] shadow-xl py-1.5 z-50 text-left transition-all duration-100 ${
-                              isNearBottom ? "bottom-full mb-1 origin-bottom-right" : "top-full mt-1 origin-top-right"
-                            }`}
-                          >
-                            <button
-                              onClick={() => { setActiveMenuId(null); setActiveQuizForEdit(quizItem); }}
-                              className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
-                            >
-                              <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                              Xem & Chỉnh sửa
-                            </button>
-
-                            <button
-                              onClick={() => { setActiveMenuId(null); setActiveQuizForPreview(quizItem); }}
-                              className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                              Làm thử Quiz
-                            </button>
-
-                            {isPublished && (
-                              <button
-                                onClick={() => { setActiveMenuId(null); setPublishedQuizForShare(quizItem); }}
-                                className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
-                              >
-                                <Share2 className="w-3.5 h-3.5 text-indigo-600" />
-                                Lấy link chia sẻ
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        {isMenuOpen && renderActionMenu(quizItem, isPublished)}
                       </td>
                     </tr>
                   );
