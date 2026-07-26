@@ -26,8 +26,10 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
   const [toastMsg, setToastMsg] = useState("");
 
   const currentQ = questions[activeTab] || null;
+  const isPublished = quiz.status === "PUBLISHED";
 
   const handleUpdateQuestionText = (val: string) => {
+    if (isPublished) return;
     setQuestions(prev =>
       prev.map((q, idx) => (idx === activeTab ? { ...q, question: val } : q))
     );
@@ -35,6 +37,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
 
 
   const handleUpdateOptionText = (optionId: string, text: string) => {
+    if (isPublished) return;
     setQuestions(prev =>
       prev.map((q, idx) => {
         if (idx !== activeTab) return q;
@@ -47,6 +50,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
   };
 
   const handleSetCorrectOption = (optionId: string) => {
+    if (isPublished) return;
     setQuestions(prev =>
       prev.map((q, idx) =>
         idx === activeTab ? { ...q, correctOptionIds: [optionId] } : q
@@ -55,12 +59,14 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
   };
 
   const handleUpdateExplanation = (val: string) => {
+    if (isPublished) return;
     setQuestions(prev =>
       prev.map((q, idx) => (idx === activeTab ? { ...q, explanation: val } : q))
     );
   };
 
   const handleAddQuestion = () => {
+    if (isPublished) return;
     if (questions.length >= 10) {
       setError("Bộ Quiz chỉ tối đa 10 câu hỏi.");
       return;
@@ -87,6 +93,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
   };
 
   const handleDeleteQuestion = (indexToDelete: number) => {
+    if (isPublished) return;
     if (questions.length <= 1) {
       setError("Bộ Quiz phải có ít nhất 1 câu hỏi.");
       return;
@@ -97,6 +104,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
   };
 
   const handleSaveDraft = async () => {
+    if (isPublished) return;
     if (!title.trim()) {
       setError("Tiêu đề Quiz không được để trống.");
       return;
@@ -131,6 +139,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
   };
 
   const handlePublish = async () => {
+    if (isPublished) return;
     if (!title.trim()) {
       setError("Tiêu đề Quiz không được để trống.");
       return;
@@ -182,13 +191,13 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
             <div>
               <div className="flex items-center gap-2">
                 <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                  quiz.status === "PUBLISHED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+                  isPublished ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
                 }`}>
-                  {quiz.status === "PUBLISHED" ? "Đã công bố" : "Bản nháp"}
+                  {isPublished ? "Đã công bố" : "Bản nháp"}
                 </span>
                 <span className="text-[12px] text-[#AAAA9F] font-mono-label">#{quiz.id}</span>
               </div>
-              <p className="text-[12.5px] text-[#6B6963] mt-0.5">Biên tập nội dung ôn tập, câu hỏi, đáp án đúng và lời giải thích</p>
+              <p className="text-[12.5px] text-[#6B6963] mt-0.5">{isPublished ? "Xem nội dung ôn tập, câu hỏi, đáp án đúng và lời giải thích" : "Biên tập nội dung ôn tập, câu hỏi, đáp án đúng và lời giải thích"}</p>
             </div>
           </div>
 
@@ -212,13 +221,14 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
           <div className="w-72 min-h-0 border-r border-gray-100 bg-[#F8F7F4]/30 p-4 flex flex-col flex-shrink-0 overflow-y-auto space-y-3">
             <div>
               <label className="block text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
-                Tiêu đề Quiz *
+                {isPublished ? "Tiêu đề Quiz" : "Tiêu đề Quiz *"}
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="w-full h-9 border border-gray-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500"
+                readOnly={isPublished}
+                className="w-full h-9 border border-gray-200 rounded-lg px-2.5 text-[12.5px] font-semibold text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 read-only:bg-gray-50 read-only:text-gray-600"
               />
             </div>
 
@@ -229,9 +239,10 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
               <textarea
                 value={studyNotes}
                 onChange={e => setStudyNotes(e.target.value)}
+                readOnly={isPublished}
                 rows={3}
                 placeholder="Nhập nội dung tóm tắt cho sinh viên ôn tập..."
-                className="w-full border border-gray-200 rounded-lg p-2 text-[12px] text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 resize-none"
+                className="w-full border border-gray-200 rounded-lg p-2 text-[12px] text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 resize-none read-only:bg-gray-50 read-only:text-gray-600"
               />
             </div>
 
@@ -240,14 +251,16 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                 <span className="text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">
                   Câu hỏi ({questions.length}/10)
                 </span>
-                <button
-                  type="button"
-                  onClick={handleAddQuestion}
-                  className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 border-none bg-transparent cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Thêm
-                </button>
+                {!isPublished && (
+                  <button
+                    type="button"
+                    onClick={handleAddQuestion}
+                    className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 border-none bg-transparent cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Thêm
+                  </button>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -295,15 +308,16 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                       Câu {activeTab + 1} / {questions.length}
                     </span>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteQuestion(activeTab)}
-                    className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1 border-none bg-transparent cursor-pointer p-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Xóa câu này
-                  </button>
+                  {!isPublished && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteQuestion(activeTab)}
+                      className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1 border-none bg-transparent cursor-pointer p-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Xóa câu này
+                    </button>
+                  )}
                 </div>
 
                 {/* Question Input */}
@@ -314,15 +328,16 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                   <textarea
                     value={currentQ.question}
                     onChange={e => handleUpdateQuestionText(e.target.value)}
+                    readOnly={isPublished}
                     rows={3}
-                    className="w-full border border-gray-200 rounded-xl p-3 text-[13.5px] font-medium text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 leading-relaxed"
+                    className="w-full border border-gray-200 rounded-xl p-3 text-[13.5px] font-medium text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 leading-relaxed read-only:bg-gray-50 read-only:text-gray-600"
                   />
                 </div>
 
                 {/* Options List */}
                 <div className="space-y-3">
                   <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider">
-                    Lựa chọn đáp án (Bấm radio để chọn đáp án đúng)
+                    {isPublished ? "Lựa chọn đáp án" : "Lựa chọn đáp án (Bấm radio để chọn đáp án đúng)"}
                   </label>
 
                   <div className="grid grid-cols-1 gap-2.5">
@@ -343,7 +358,8 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                             name={`correct_${activeTab}`}
                             checked={isCorrect}
                             onChange={() => handleSetCorrectOption(opt.id)}
-                            className="w-4.5 h-4.5 accent-emerald-600 cursor-pointer"
+                            disabled={isPublished}
+                            className="w-4.5 h-4.5 accent-emerald-600 cursor-pointer disabled:cursor-not-allowed"
                           />
                           <span className={`w-6 h-6 rounded-lg font-bold text-[12px] flex items-center justify-center flex-shrink-0 ${
                             isCorrect ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-700"
@@ -354,7 +370,8 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                             type="text"
                             value={opt.text}
                             onChange={e => handleUpdateOptionText(opt.id, e.target.value)}
-                            className="flex-1 border-none bg-transparent text-[13.5px] font-medium text-[#0E0D0B] focus:outline-none"
+                            readOnly={isPublished}
+                            className="flex-1 border-none bg-transparent text-[13.5px] font-medium text-[#0E0D0B] focus:outline-none read-only:text-gray-600"
                           />
                           {isCorrect && (
                             <span className="text-[11.5px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
@@ -375,9 +392,10 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
                   <textarea
                     value={currentQ.explanation || ""}
                     onChange={e => handleUpdateExplanation(e.target.value)}
+                    readOnly={isPublished}
                     rows={2}
                     placeholder="Giải thích vì sao đáp án trên là chính xác..."
-                    className="w-full border border-gray-200 rounded-xl p-3 text-[13px] text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 leading-relaxed"
+                    className="w-full border border-gray-200 rounded-xl p-3 text-[13px] text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 leading-relaxed read-only:bg-gray-50 read-only:text-gray-600"
                   />
                 </div>
 
@@ -418,28 +436,29 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
           >
             Đóng
           </button>
+          {!isPublished && (
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={savingDraft || publishing}
+                className="h-10 px-4 border border-gray-300 rounded-xl text-[13px] font-semibold text-gray-800 bg-white hover:bg-gray-50 cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              >
+                <Save className="w-4 h-4 text-gray-600" />
+                <span>{savingDraft ? "Đang lưu..." : "Lưu nháp"}</span>
+              </button>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={savingDraft || publishing}
-              className="h-10 px-4 border border-gray-300 rounded-xl text-[13px] font-semibold text-gray-800 bg-white hover:bg-gray-50 cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
-            >
-              <Save className="w-4 h-4 text-gray-600" />
-              <span>{savingDraft ? "Đang lưu..." : "Lưu nháp"}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePublish}
-              disabled={publishing || savingDraft}
-              className="h-10 px-5 border-none rounded-xl text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-              <span>{publishing ? "Đang công bố..." : "Công bố Quiz"}</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={publishing || savingDraft}
+                className="h-10 px-5 border-none rounded-xl text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+                <span>{publishing ? "Đang công bố..." : "Công bố Quiz"}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>,

@@ -76,8 +76,12 @@ export function QuizManagementPage() {
           onClick={() => { closeActionMenu(); setActiveQuizForEdit(quizItem); }}
           className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
         >
-          <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-          Xem & Chỉnh sửa
+          {isPublished ? (
+            <FileText className="w-3.5 h-3.5 text-indigo-600" />
+          ) : (
+            <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+          )}
+          {isPublished ? "Xem chi tiết" : "Xem & Chỉnh sửa"}
         </button>
 
         <button
