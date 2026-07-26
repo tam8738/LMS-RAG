@@ -1,4 +1,4 @@
-"""Request/response contract for internal quiz draft generation."""
+"""Contract request/response cho tính năng sinh quiz draft nội bộ."""
 
 from typing import Literal
 
@@ -8,7 +8,7 @@ from app.core.config import settings
 
 
 class GenerateQuizRequest(BaseModel):
-    """Payload Backend sends after checking teacher permissions and document status."""
+    """Payload Backend gửi sau khi kiểm Teacher và document đã index."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -20,7 +20,7 @@ class GenerateQuizRequest(BaseModel):
     @field_validator("document_ids")
     @classmethod
     def document_ids_must_be_positive(cls, value: list[int]) -> list[int]:
-        """Keep request scope compact and deterministic for retrieval."""
+        """Bỏ duplicate IDs để context scope gọn và xác định."""
         cleaned: list[int] = []
         seen: set[int] = set()
         for document_id in value:
@@ -33,7 +33,7 @@ class GenerateQuizRequest(BaseModel):
 
 
 class QuizOption(BaseModel):
-    """One answer option in a generated quiz question."""
+    """Một lựa chọn A-D trong câu hỏi single-choice."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -50,7 +50,7 @@ class QuizOption(BaseModel):
 
 
 class QuizCitation(BaseModel):
-    """Source chunk used to ground a generated quiz question."""
+    """Chunk nguồn thật dùng để kiểm chứng câu hỏi được sinh."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -62,7 +62,7 @@ class QuizCitation(BaseModel):
 
 
 class QuizQuestion(BaseModel):
-    """A teacher-reviewable quiz question draft."""
+    """Câu hỏi draft mà Teacher có thể review/chỉnh sửa."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -91,7 +91,7 @@ class QuizQuestion(BaseModel):
 
 
 class GenerateQuizResult(BaseModel):
-    """Quiz draft returned to Backend for teacher review and persistence."""
+    """Quiz draft hoàn chỉnh để Backend persist và Teacher review."""
 
     model_config = ConfigDict(extra="forbid")
 

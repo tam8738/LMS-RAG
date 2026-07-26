@@ -1,4 +1,4 @@
-"""Root router combining internal API version 1 endpoints."""
+"""Router gốc gom toàn bộ endpoints dưới version prefix ``/v1``."""
 
 from fastapi import APIRouter
 
@@ -9,7 +9,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.index_document import router as index_document_router
 from app.api.routes.process_document import router as process_document_router
 
-# API version prefix is separate from the application package version.
+# Version của HTTP contract độc lập với version package/deployment của ứng dụng.
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(health_router)
 api_router.include_router(analyze_document_router)

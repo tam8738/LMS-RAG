@@ -1,4 +1,15 @@
-"""PostgreSQL/pgvector implementation của DocumentChunkRepository."""
+"""PostgreSQL/pgvector implementation của ``DocumentChunkRepository``.
+
+Repository có ba nhóm trách nhiệm:
+
+- atomic replace: re-index không làm mất chunks cũ nếu insert mới thất bại;
+- context sampling: lấy chunks rải đều để sinh quiz bao phủ tài liệu;
+- hybrid retrieval: vector search cho ngữ nghĩa và keyword search cho exact
+  phrase/định nghĩa, luôn giới hạn trong ``document_ids`` được Backend cho phép.
+
+Mọi giá trị động đều truyền qua SQL parameters. Chỉ các mảnh SQL do code tự
+tạo từ số lượng terms được nội suy; text người dùng không nối trực tiếp vào SQL.
+"""
 
 import math
 import re
@@ -35,6 +46,8 @@ INSERT INTO document_chunks (
 VALUES (%s, %s, %s, %s, %s, %s::vector)
 """
 
+# Quiz không có query để search. NTILE chia mỗi document thành các bucket theo
+# thứ tự chunk, rồi lấy một chunk/bucket để context không chỉ tập trung ở đầu.
 _GET_DOCUMENT_CHUNKS_SQL = """
 WITH sampled AS (
     SELECT DISTINCT ON (document_id, bucket)
@@ -70,6 +83,8 @@ ORDER BY document_id, chunk_index
 LIMIT %s
 """
 
+# Toán tử ``<=>`` của pgvector là cosine distance: càng nhỏ càng gần. ORDER BY
+# trực tiếp biểu thức này cho phép PostgreSQL dùng vector index khi có cấu hình.
 _SEARCH_SIMILAR_CHUNKS_SQL = """
 SELECT
     id,
@@ -88,6 +103,8 @@ LIMIT %s
 # Factory trả context manager connection; test thay bằng fake transaction DB.
 ConnectionFactory = Callable[[], AbstractContextManager[Any]]
 
+# Stopwords được normalize bỏ dấu trước khi so sánh, giữ từ mang nội dung và
+# bỏ từ hỏi chung như "là", "gì", "what".
 _KEYWORD_STOPWORDS = {
     "anh", "cac", "cho", "cua", "define", "dinh", "duoc", "gi", "hay", "is",
     "khai", "la", "nay", "nghia", "niem", "neu", "noi", "tai", "tai lieu",
@@ -120,7 +137,11 @@ _FRONT_MATTER_PATTERNS = (
 
 
 class PostgresDocumentChunkRepository(DocumentChunkRepository):
-    """Batch replace chunks trong một transaction PostgreSQL."""
+    """Persistence và retrieval cho bảng ``document_chunks``.
+
+    Service phía trên chỉ dùng interface repository và không biết chi tiết
+    psycopg, transaction hoặc toán tử pgvector.
+    """
 
     def __init__(
         self,
@@ -200,7 +221,10 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         document_ids: list[int],
         max_chunks: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Return representative chunks spread across each document."""
+        """Lấy context rải đều theo thứ tự chunks để sinh quiz.
+
+        Kết quả có score=1 vì đây là sampling, không phải relevance search.
+        """
         normalized_document_ids = self._validate_document_ids_and_top_k(
             document_ids,
             max_chunks,
@@ -234,23 +258,33 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
             ) from exc
 
         return [self._to_context_chunk(row) for row in rows]
+
     def search_keyword_chunks(
         self,
         document_ids: list[int],
         query: str,
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Return literal matches ranked by phrase, definition and front-matter signals."""
+        """Tìm literal match và xếp hạng bằng nhiều tín hiệu thủ công.
+
+        Ưu tiên definition signal -> exact phrase -> số term match, sau đó phạt
+        nhẹ mục lục/bìa. Chunk match còn kéo chunk kế tiếp vì phần giải thích
+        có thể nằm qua ranh giới chunk.
+        """
         normalized_document_ids = self._validate_keyword_search_input(
             document_ids,
             query,
             top_k,
         )
+        # Phrase chỉ được tách cho các mẫu định nghĩa như "X là gì"; terms là
+        # các từ nội dung còn lại sau khi bỏ stopword và duplicate.
         terms = self._extract_keyword_terms(query)
         phrases = self._extract_keyword_phrases(query)
         if not terms and not phrases:
             return []
 
+        # Exact phrase nặng 3 điểm, term đơn nặng 1 điểm. Các helper chỉ tạo
+        # placeholder SQL; giá trị thật vẫn nằm trong ``parameters`` phía dưới.
         phrase_sql = self._weighted_match_sql(phrases, weight=3)
         term_sql = self._weighted_match_sql(terms, weight=1)
         match_sql_parts = [part for part in (phrase_sql, term_sql) if part]
@@ -262,6 +296,9 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
         where_sql = " OR ".join("content ILIKE %s" for _ in where_patterns)
         candidate_limit = max(top_k * _KEYWORD_CANDIDATE_MULTIPLIER, _KEYWORD_MIN_CANDIDATES)
 
+        # matched: rank candidate thật sự match query.
+        # expanded: thêm chunk ngay sau candidate để giữ phần giải thích/ví dụ.
+        # deduped: một chunk có thể là neighbor của nhiều match nên loại trùng.
         sql = f"""
 WITH matched AS (
     SELECT
@@ -340,6 +377,8 @@ ORDER BY
     chunk_index
 LIMIT %s
 """
+        # Thứ tự list này phải khớp tuyệt đối thứ tự %s trong SQL được build ở
+        # trên. Unit test repository kiểm tra cả SQL lẫn parameter ordering.
         parameters = [
             *self._patterns(phrases),
             *self._patterns(terms),
@@ -380,7 +419,11 @@ LIMIT %s
         query_embedding: list[float],
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Return top-k nearest chunks filtered by Backend-authorized documents."""
+        """Lấy top-k vector gần nhất trong đúng document scope.
+
+        ``ANY(document_ids)`` là hàng rào dữ liệu cuối sau khi Backend đã kiểm
+        quyền; repository không tự mở rộng sang toàn thư viện.
+        """
         normalized_document_ids = self._validate_search_input(
             document_ids,
             query_embedding,
@@ -424,6 +467,7 @@ LIMIT %s
         query: str,
         top_k: int,
     ) -> list[int]:
+        """Validate query rồi dùng chung validation scope/top_k."""
         if not query.strip():
             raise self._invalid_input("query", "query must not be blank")
         return self._validate_document_ids_and_top_k(document_ids, top_k)
@@ -433,6 +477,7 @@ LIMIT %s
         document_ids: list[int],
         top_k: int,
     ) -> list[int]:
+        """Validate, loại duplicate IDs nhưng giữ thứ tự caller truyền."""
         if not document_ids:
             raise self._invalid_input(
                 "document_ids",
@@ -456,10 +501,12 @@ LIMIT %s
 
     @staticmethod
     def _patterns(values: list[str] | tuple[str, ...]) -> list[str]:
+        """Bọc literal bằng wildcard ILIKE, giữ pattern hằng đã có %."""
         return [value if "%" in value else f"%{value}%" for value in values]
 
     @staticmethod
     def _weighted_match_sql(values: list[str], weight: int) -> str:
+        """Tạo tổng CASE WHEN để tính điểm phrase/term trong PostgreSQL."""
         if not values:
             return ""
         return " + ".join(
@@ -478,6 +525,7 @@ LIMIT %s
 
     @staticmethod
     def _definition_boost_sql(phrases: list[str]) -> str:
+        """Boost khi chunk vừa chứa phrase vừa có tín hiệu định nghĩa."""
         if not phrases:
             return ""
         signal_sql = " OR ".join("content ILIKE %s" for _ in _DEFINITION_SIGNAL_PATTERNS)
@@ -502,6 +550,7 @@ LIMIT %s
 
     @classmethod
     def _extract_keyword_phrases(cls, query: str) -> list[str]:
+        """Rút tối đa hai cụm X từ câu hỏi dạng ``X là gì/define X``."""
         normalized = " ".join(query.casefold().strip().strip("?.!:;").split())
         candidates: list[str] = []
         patterns = (
@@ -532,6 +581,7 @@ LIMIT %s
 
     @classmethod
     def _clean_keyword_phrase(cls, phrase: str) -> str:
+        """Bỏ stopword khỏi phrase nhưng giữ nguyên chữ có dấu để ILIKE."""
         words = [word for word in re.findall(r"[\w]+", phrase, flags=re.UNICODE)]
         cleaned_words: list[str] = []
         for word in words:
@@ -543,6 +593,7 @@ LIMIT %s
 
     @classmethod
     def _extract_keyword_terms(cls, query: str) -> list[str]:
+        """Lấy tối đa sáu content terms, bỏ stopword và duplicate bỏ dấu."""
         raw_terms = re.findall(r"[\w]+", query.casefold(), flags=re.UNICODE)
         terms: list[str] = []
         seen: set[str] = set()
@@ -556,12 +607,14 @@ LIMIT %s
 
     @staticmethod
     def _normalize_keyword_term(term: str) -> str:
+        """Bỏ dấu để so stopword/deduplicate, không dùng làm text SQL."""
         decomposed = unicodedata.normalize("NFD", term.replace("\u0111", "d"))
         return "".join(
             character
             for character in decomposed
             if unicodedata.category(character) != "Mn"
         )
+
     def _validate_search_input(
         self,
         document_ids: list[int],
@@ -605,6 +658,7 @@ LIMIT %s
 
     @staticmethod
     def _to_context_chunk(row: tuple[Any, ...]) -> RetrievedDocumentChunk:
+        """Map row sampling; score 1.0 chỉ biểu thị context được chọn."""
         return RetrievedDocumentChunk(
             chunk_id=int(row[0]),
             document_id=int(row[1]),
@@ -615,8 +669,10 @@ LIMIT %s
             distance=0.0,
             score=1.0,
         )
+
     @staticmethod
     def _to_keyword_chunk(row: tuple[Any, ...], term_count: int) -> RetrievedDocumentChunk:
+        """Đổi match_count thành score chuẩn hóa để merge cùng vector result."""
         match_count = int(row[6])
         score = min(1.0, 0.70 + (match_count / max(term_count, 1)) * 0.30)
         return RetrievedDocumentChunk(
@@ -632,7 +688,11 @@ LIMIT %s
 
     @staticmethod
     def _to_retrieved_chunk(row: tuple[Any, ...]) -> RetrievedDocumentChunk:
-        """Map one SQL row to the retrieval model used by the RAG layer."""
+        """Đổi row vector-search thành model chung của tầng RAG.
+
+        pgvector trả cosine distance; service dùng ``score = 1 - distance`` để
+        score càng cao càng liên quan và dễ so với similarity threshold.
+        """
         distance = float(row[6])
         return RetrievedDocumentChunk(
             chunk_id=int(row[0]),

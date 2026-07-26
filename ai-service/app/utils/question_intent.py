@@ -1,4 +1,9 @@
-"""Helpers for classifying user question intent."""
+"""Heuristic nhẹ để nhận diện summary, follow-up và insufficient answer.
+
+Đây không phải mô hình ML. Text được lowercase, đổi ``đ`` thành ``d`` và bỏ
+dấu Unicode rồi so phrase. Cách này nhanh/deterministic cho MVP và hỗ trợ câu
+tiếng Việt có hoặc không dấu.
+"""
 
 import unicodedata
 
@@ -63,13 +68,15 @@ _INSUFFICIENT_ANSWER_PHRASES = (
 
 
 def is_summary_question(question: str) -> bool:
-    """Return True when a question asks for a document summary or main ideas."""
+    """Nhận diện yêu cầu tóm tắt để tăng top_k và output token budget."""
     normalized_question = _normalize_text(question)
     return any(phrase in normalized_question for phrase in _SUMMARY_INTENT_PHRASES)
 
 
 def is_follow_up_question(question: str) -> bool:
-    """Return True when a short question depends on the previous turn's topic."""
+    """Nhận diện câu ngắn phụ thuộc chủ đề lượt trước.
+
+    Kết quả quyết định có nối history vào retrieval query hay không."""
     normalized_question = _normalize_text(question)
     compact_question = " ".join(normalized_question.split())
     if any(phrase in compact_question for phrase in _FOLLOW_UP_INTENT_PHRASES):
@@ -82,12 +89,15 @@ def is_follow_up_question(question: str) -> bool:
 
 
 def is_insufficient_answer(answer: str) -> bool:
-    """Return True when the generated answer says the context has no answer."""
+    """Nhận diện khi LLM nói context không đủ.
+
+    Service dùng kết quả để trả ``not_found=true`` và bỏ citations."""
     normalized_answer = _normalize_text(answer)
     return any(phrase in normalized_answer for phrase in _INSUFFICIENT_ANSWER_PHRASES)
 
 
 def _normalize_text(value: str) -> str:
+    """Casefold và bỏ dấu để phrase matching không phụ thuộc cách gõ."""
     normalized_value = value.casefold().replace("đ", "d")
     decomposed = unicodedata.normalize("NFD", normalized_value)
     return "".join(

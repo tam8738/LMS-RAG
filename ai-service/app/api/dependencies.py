@@ -1,4 +1,9 @@
-"""Khởi tạo dependency production cho các FastAPI routes."""
+"""Composition root: lắp dependency production cho FastAPI routes.
+
+Service nhận dependency qua constructor để test thay provider/repository bằng
+fake. ``lru_cache(maxsize=1)`` tạo singleton lazy: OpenAI client chỉ khởi tạo
+khi endpoint cần, nên public health vẫn chạy khi local thiếu API key.
+"""
 
 from functools import lru_cache
 
@@ -55,7 +60,9 @@ def get_process_document_service() -> ProcessDocumentService:
 
 @lru_cache(maxsize=1)
 def get_answer_question_service() -> AnswerQuestionService:
-    """Assemble the RAG answer service lazily, same as document processing."""
+    """Lắp RAG service gồm embedding, generation và PostgreSQL repository.
+
+    AI stateless nên factory không chứa conversation store."""
     try:
         embedding_provider = OpenAIEmbeddingProvider()
         generation_provider = OpenAIGenerationProvider()
@@ -75,7 +82,7 @@ def get_answer_question_service() -> AnswerQuestionService:
 
 @lru_cache(maxsize=1)
 def get_generate_quiz_service() -> GenerateQuizService:
-    """Assemble quiz generation service lazily for Backend internal calls."""
+    """Lắp quiz service lazy; Backend là caller nội bộ duy nhất."""
     try:
         generation_provider = OpenAIGenerationProvider()
     except ValueError as exc:

@@ -1,4 +1,4 @@
-"""HTTP adapter for document-scoped RAG question answering."""
+"""HTTP adapter cho hỏi đáp RAG theo document scope."""
 
 from typing import Annotated
 
@@ -29,7 +29,7 @@ def answer_question(
         Depends(get_answer_question_service),
     ],
 ) -> SuccessResponse[AnswerQuestionResult]:
-    """Answer a question from Backend-authorized document chunks only."""
+    """Gọi use case sau khi dependency kiểm ``X-Internal-Key``."""
     result = service.answer(request)
     message = (
         "Không tìm thấy ngữ cảnh phù hợp"

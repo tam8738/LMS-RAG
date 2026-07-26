@@ -1,4 +1,9 @@
-"""Provider interface for grounded answer and quiz generation."""
+"""Interface tách nghiệp vụ generation khỏi OpenAI SDK.
+
+Service chỉ biết ``GenerationProvider``; implementation có thể là OpenAI hoặc
+fake provider trong test. Dataclass kết quả giữ dữ liệu đã validate, không để
+response object của SDK rò rỉ sang tầng application.
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -10,7 +15,7 @@ from app.schemas.generate_quiz import GenerateQuizResult
 
 @dataclass(frozen=True)
 class GeneratedAnswer:
-    """Text and usage returned by a generation provider."""
+    """Câu trả lời đã làm sạch cùng token usage để Backend lưu thống kê."""
 
     answer: str
     tokens_used: int
@@ -18,13 +23,13 @@ class GeneratedAnswer:
 
 @dataclass(frozen=True)
 class GeneratedQuiz:
-    """Structured quiz draft returned by a generation provider."""
+    """Quiz draft đã qua Pydantic validation và citation mapping."""
 
     quiz: GenerateQuizResult
 
 
 class GenerationProvider(ABC):
-    """Generate grounded text outputs from retrieved document context."""
+    """Sinh output grounded chỉ từ danh sách chunks caller cung cấp."""
 
     def __init__(self, model_name: str) -> None:
         if not model_name.strip():
@@ -40,7 +45,7 @@ class GenerationProvider(ABC):
         history: list[ConversationMessage],
         chunks: list[RetrievedDocumentChunk],
     ) -> GeneratedAnswer:
-        """Return an answer grounded only in the supplied chunks."""
+        """Sinh answer chỉ từ chunks và history stateless được truyền vào."""
 
     def generate_quiz(
         self,
@@ -50,5 +55,5 @@ class GenerationProvider(ABC):
         language: str,
         chunks: list[RetrievedDocumentChunk],
     ) -> GeneratedQuiz:
-        """Return a structured quiz draft grounded only in supplied chunks."""
+        """Sinh quiz JSON có cấu trúc chỉ từ chunks đã chọn."""
         raise NotImplementedError

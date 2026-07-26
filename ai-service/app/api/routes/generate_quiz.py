@@ -1,4 +1,4 @@
-"""HTTP adapter for document-scoped quiz draft generation."""
+"""HTTP adapter cho use case sinh quiz draft theo document scope."""
 
 from typing import Annotated
 
@@ -26,6 +26,6 @@ def generate_quiz(
         Depends(get_generate_quiz_service),
     ],
 ) -> SuccessResponse[GenerateQuizResult]:
-    """Generate a grounded quiz draft for Backend to persist after teacher review."""
+    """Sinh quiz grounded để Backend persist và Teacher review."""
     result = service.generate(request)
     return SuccessResponse(data=result, message="Sinh quiz draft thanh cong")

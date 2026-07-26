@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-unit-tests",
         action="store_true",
-        help="Bỏ qua 95 unit/API tests và chỉ kiểm tra tài liệu.",
+        help="Bỏ qua toàn bộ unit/API tests và chỉ kiểm tra tài liệu.",
     )
     parser.add_argument("--output", "-o", type=Path, help="File HTML kết quả.")
     return parser.parse_args()

@@ -1,4 +1,4 @@
-"""Request/response contract for the internal RAG question endpoint."""
+"""Contract request/response cho endpoint RAG nội bộ."""
 
 from typing import Literal
 
@@ -10,7 +10,7 @@ _MAX_HISTORY_CONTENT_CHARS = 2000
 
 
 class ConversationMessage(BaseModel):
-    """One previous chat turn supplied by Backend/Frontend for stateless multi-turn RAG."""
+    """Một lượt chat cũ Backend gửi sang để AI hiểu follow-up stateless."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -20,7 +20,7 @@ class ConversationMessage(BaseModel):
     @field_validator("content", mode="before")
     @classmethod
     def normalize_content(cls, value: str) -> str:
-        """Keep history useful without letting long previous answers reject a new question."""
+        """Trim/cắt history dài để câu hỏi mới không bị Pydantic từ chối."""
         if not isinstance(value, str):
             return value
         stripped = value.strip()
@@ -30,7 +30,7 @@ class ConversationMessage(BaseModel):
 
 
 class AnswerQuestionRequest(BaseModel):
-    """Payload Backend sends after it has checked document permissions."""
+    """Payload Backend gửi sau khi kiểm quyền và trạng thái document."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -43,7 +43,7 @@ class AnswerQuestionRequest(BaseModel):
     @field_validator("document_ids")
     @classmethod
     def document_ids_must_be_positive(cls, value: list[int]) -> list[int]:
-        """Keep order but remove duplicates because retrieval only needs each scope once."""
+        """Giữ thứ tự nhưng bỏ duplicate vì mỗi document chỉ cần search một lần."""
         cleaned: list[int] = []
         seen: set[int] = set()
         for document_id in value:
@@ -57,7 +57,7 @@ class AnswerQuestionRequest(BaseModel):
     @field_validator("question")
     @classmethod
     def question_must_not_be_blank(cls, value: str) -> str:
-        """Normalize outer whitespace and reject visually empty questions."""
+        """Trim whitespace ngoài và từ chối câu hỏi nhìn như rỗng."""
         stripped = value.strip()
         if not stripped:
             raise ValueError("question không được để trống")
@@ -65,7 +65,7 @@ class AnswerQuestionRequest(BaseModel):
 
 
 class AnswerCitation(BaseModel):
-    """A citation is always backed by a real row from document_chunks."""
+    """Citation luôn được tạo từ một row thật trong ``document_chunks``."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -78,7 +78,7 @@ class AnswerCitation(BaseModel):
 
 
 class AnswerQuestionResult(BaseModel):
-    """Response body consumed by Backend RAG proxy."""
+    """Kết quả Backend RAG proxy lưu vào conversation và trả Frontend."""
 
     model_config = ConfigDict(extra="forbid")
 

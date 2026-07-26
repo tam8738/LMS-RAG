@@ -23,7 +23,7 @@ class DocumentChunkRepository(ABC):
         document_ids: list[int],
         max_chunks: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Return representative chunks inside the authorized document scope."""
+        """Lấy chunks đại diện trong document scope để sinh quiz."""
         raise NotImplementedError
 
     @abstractmethod
@@ -33,7 +33,7 @@ class DocumentChunkRepository(ABC):
         query: str,
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Find chunks by literal terms inside the authorized document scope."""
+        """Tìm chunks theo từ/cụm từ trong document scope."""
         raise NotImplementedError
 
     @abstractmethod
@@ -43,5 +43,5 @@ class DocumentChunkRepository(ABC):
         query_embedding: list[float],
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
-        """Find nearest chunks inside the authorized document scope."""
+        """Tìm vector chunks gần nhất trong document scope."""
         raise NotImplementedError

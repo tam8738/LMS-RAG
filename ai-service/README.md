@@ -2,13 +2,15 @@
 
 AI Service là service FastAPI phụ trách các chức năng AI trong hệ thống quản lý tài liệu và hỗ trợ giảng dạy sử dụng RAG:
 
-- Xử lý tài liệu PDF/TXT.
-- Làm sạch và chia nhỏ nội dung tài liệu.
-- Sinh embedding.
-- Lưu và truy vấn vector bằng PostgreSQL/pgvector.
-- Trả lời câu hỏi bằng RAG.
-- Sinh summary tài liệu.
-- Sinh câu hỏi gợi ý từ tài liệu.
+- Phân tích nhanh PDF/TXT sau upload để xác định khả năng RAG.
+- Parse, clean, chunk theo token và sinh embedding sau khi Admin approve.
+- Atomic replace chunks và truy vấn vector bằng PostgreSQL/pgvector.
+- Hybrid retrieval (keyword + vector), grounded LLM answer và citations thật.
+- Nhận history stateless để hiểu câu hỏi nối tiếp; Backend lưu conversation.
+- Sinh quiz draft single-choice có đáp án, giải thích và citations thật.
+
+AI Service không kiểm JWT/user role, không quản lý trạng thái `documents`, không
+lưu conversation/quiz và không public link. Các trách nhiệm đó thuộc Backend.
 
 ## Yêu cầu môi trường
 
@@ -181,11 +183,46 @@ text layer vẫn chưa được hỗ trợ vì MVP không triển khai OCR.
 
 Backend chịu trách nhiệm gọi endpoint trong background, quản lý processing job và cập nhật trạng thái tài liệu.
 
+## Bản đồ endpoint và code
+
+| Endpoint | Khi nào gọi | Use case chính |
+|---|---|---|
+| `GET /v1/health` | Liveness | Không cần DB/OpenAI |
+| `GET /v1/health/pgvector` | Readiness nội bộ | Kiểm PostgreSQL + extension |
+| `POST /v1/analyze-document` | Sau upload | Parse/chunk estimate, không embedding |
+| `POST /v1/index-document` | Sau Admin approve | Chunk -> embed -> atomic replace |
+| `POST /v1/process-document` | Legacy compatibility | Dùng chung process service |
+| `POST /v1/answer-question` | Khi user hỏi | Hybrid retrieval -> grounded answer |
+| `POST /v1/generate-quiz` | Teacher sinh quiz | Sample chunks -> JSON -> citations |
+
+Thứ tự đọc code đề xuất:
+
+```txt
+api/routes
+-> api/dependencies.py
+-> schemas
+-> services
+-> embeddings/generation providers
+-> repositories/postgres_document_chunk_repository.py
+-> tests tương ứng
+```
+
+Giải thích chi tiết từng flow, model trung gian, SQL ranking, prompt và cách
+debug nằm tại `docs/AI_LEARNING_LOG.md`.
 
 ## Grounded answer generation
 
-`POST /v1/answer-question` now runs retrieval first, filters weak chunks by `RAG_SIMILARITY_THRESHOLD`, then calls `GENERATION_MODEL` through `OpenAIGenerationProvider` to produce a more natural answer.
-The model receives only the selected question, stateless `history`, and retrieved chunks. Citations are still generated from real `document_chunks` rows. If retrieval finds no suitable context, AI Service returns `not_found=true` without calling the generation model.
+`POST /v1/answer-question` chạy keyword và vector retrieval, lọc vector hit yếu
+bằng `RAG_SIMILARITY_THRESHOLD`, sau đó mới gọi `GENERATION_MODEL`. Model chỉ
+nhận question, history stateless và retrieved chunks. Citation vẫn được map từ
+row thật. Nếu không có context, service trả `not_found=true` mà không gọi LLM.
+
+## Quiz draft generation
+
+`POST /v1/generate-quiz` lấy chunks rải đều từ tài liệu đã index, yêu cầu model
+trả JSON single-choice và validate bằng Pydantic. Model chỉ trả
+`source_chunk_ids`; AI Service tự map IDs sang citation thật trước khi response
+về Backend. Quiz vẫn là draft cho Teacher review, không được AI tự publish.
 
 Generation runtime knobs:
 
@@ -238,7 +275,7 @@ python scripts/test_document.py "C:\duong-dan\tai-lieu-moi.pdf"
 Một command sẽ chạy:
 
 ```txt
-95 unit/API tests
+toàn bộ unit/API tests
 -> resolve đường dẫn
 -> validate file
 -> parse

@@ -1,4 +1,14 @@
-"""Application service for document-scoped RAG question answering."""
+"""Điều phối luồng hỏi đáp RAG trong phạm vi tài liệu Backend cho phép.
+
+Luồng chính: nhận scope đã kiểm quyền -> tạo retrieval query -> chạy vector và
+keyword retrieval -> gộp chunks -> gọi LLM -> tạo citations từ rows thật.
+
+Service này không kiểm JWT/ownership, không lưu conversation và không cho LLM
+tự tạo citation. Backend là source of truth cho quyền/history; citations luôn
+được map từ ``document_chunks``.
+
+Đọc method ``answer`` trước, rồi đi xuống helper theo đúng thứ tự gọi.
+"""
 
 import re
 
@@ -29,7 +39,7 @@ _CITATION_SENTENCE_BOUNDARY_RATIO = 0.55
 
 
 class AnswerQuestionService:
-    """Coordinate question embedding, vector retrieval and citation formatting."""
+    """Use case trung tâm nối retrieval, generation và citation formatting."""
 
     def __init__(
         self,
@@ -38,7 +48,10 @@ class AnswerQuestionService:
         generation_provider: GenerationProvider | None = None,
         similarity_threshold: float | None = None,
     ) -> None:
-        """Inject dependencies so tests can use deterministic mocks."""
+        """Inject dependency để unit test không cần OpenAI/PostgreSQL thật.
+
+        ``generation_provider`` optional để giữ extractive fallback cho test.
+        """
         self.embedding_provider = embedding_provider
         self.chunk_repository = chunk_repository
         self.generation_provider = generation_provider
@@ -51,14 +64,26 @@ class AnswerQuestionService:
             raise ValueError("similarity_threshold phai nam trong khoang 0.0 den 1.0")
 
     def answer(self, request: AnswerQuestionRequest) -> AnswerQuestionResult:
-        """Answer only from retrieved chunks inside Backend-authorized documents."""
+        """Trả lời chỉ từ chunks thuộc ``request.document_ids``.
+
+        Đây là bản tóm tắt executable của toàn bộ RAG answer flow.
+        """
+        # Summary cần context rộng hơn câu hỏi fact đơn lẻ.
         retrieval_top_k = self._select_retrieval_top_k(request)
+
+        # Chỉ nối history khi câu hiện tại là follow-up mơ hồ; câu độc lập giữ
+        # nguyên để history cũ không làm lệch retrieval.
         retrieval_query = self._build_retrieval_query(request.question, request.history)
+
+        # Vector search bắt gần nghĩa; keyword search bắt exact phrase/định nghĩa.
+        # Keyword đứng trước khi merge để ưu tiên match rõ ràng.
         vector_chunks = self._retrieve_chunks(request, retrieval_query, retrieval_top_k)
         keyword_chunks = self._retrieve_keyword_chunks(request, retrieval_query, retrieval_top_k)
         chunks = self._merge_retrieved_chunks(keyword_chunks, vector_chunks, retrieval_top_k)
 
         if not chunks:
+            # Không context -> không gọi LLM: tránh tốn chi phí và ngăn model
+            # dùng kiến thức ngoài tài liệu.
             return AnswerQuestionResult(
                 answer=self._not_found_answer(request.language),
                 not_found=True,
@@ -67,6 +92,8 @@ class AnswerQuestionService:
             )
 
         if self.generation_provider is not None:
+            # LLM chỉ nhận question/history/chunks. Citation được map riêng từ
+            # chunks thật, không lấy từ output do model tự viết.
             generated = self.generation_provider.generate_answer(
                 question=request.question,
                 language=request.language,
@@ -74,6 +101,8 @@ class AnswerQuestionService:
                 chunks=chunks,
             )
             if is_insufficient_answer(generated.answer):
+                # Retrieval có hit nhưng model tự nhận context chưa đủ: trả
+                # not_found và ẩn citation để UI không gây hiểu nhầm.
                 return AnswerQuestionResult(
                     answer=generated.answer,
                     not_found=True,
@@ -88,6 +117,7 @@ class AnswerQuestionService:
                 tokens_used=generated.tokens_used,
             )
 
+        # Fallback extractive chỉ dùng khi không inject generation provider.
         return AnswerQuestionResult(
             answer=self._compose_answer(chunks, request.language),
             not_found=False,
@@ -101,7 +131,11 @@ class AnswerQuestionService:
         question: str,
         history: list[ConversationMessage],
     ) -> str:
-        """Use history for ambiguous follow-ups, but keep standalone questions clean."""
+        """Dùng history cho follow-up mơ hồ, giữ câu hỏi độc lập sạch.
+
+        ``Chuẩn hóa dữ liệu là gì?`` giữ nguyên. ``Nói chi tiết hơn`` được nối
+        với câu hỏi và một phần answer trước để retrieval hiểu đúng chủ đề.
+        """
         current_question = question.strip()
         if not history or not is_follow_up_question(current_question):
             return current_question
@@ -122,6 +156,7 @@ class AnswerQuestionService:
         history: list[ConversationMessage],
         role: str,
     ) -> str | None:
+        """Lấy message gần nhất theo role vì nó sát chủ đề hiện tại nhất."""
         for message in reversed(history):
             if message.role == role:
                 return message.content.strip()
@@ -129,6 +164,7 @@ class AnswerQuestionService:
 
     @staticmethod
     def _truncate_for_retrieval(content: str) -> str:
+        """Giới hạn answer cũ để retrieval query không phình quá lớn."""
         normalized = " ".join(content.split())
         if len(normalized) <= _HISTORY_ANSWER_CONTEXT_LIMIT:
             return normalized
@@ -140,6 +176,7 @@ class AnswerQuestionService:
         retrieval_query: str,
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
+        """Vector retrieval: embed query -> cosine search -> lọc threshold."""
         query_embedding = self._embed_question(retrieval_query)
         chunks = self.chunk_repository.search_similar_chunks(
             request.document_ids,
@@ -154,6 +191,10 @@ class AnswerQuestionService:
         query: str,
         top_k: int,
     ) -> list[RetrievedDocumentChunk]:
+        """Keyword retrieval bổ sung exact phrase cho vector retrieval.
+
+        ``getattr`` giữ compatibility với fake repository cũ trong unit test.
+        """
         keyword_search = getattr(type(self.chunk_repository), "search_keyword_chunks", None)
         if keyword_search is None:
             return []
@@ -169,6 +210,7 @@ class AnswerQuestionService:
         secondary_chunks: list[RetrievedDocumentChunk],
         limit: int,
     ) -> list[RetrievedDocumentChunk]:
+        """Gộp hai ranking theo thứ tự ưu tiên và loại trùng bằng chunk_id."""
         merged: list[RetrievedDocumentChunk] = []
         seen: set[int] = set()
         for chunk in [*primary_chunks, *secondary_chunks]:
@@ -182,7 +224,7 @@ class AnswerQuestionService:
 
     @classmethod
     def _select_retrieval_top_k(cls, request: AnswerQuestionRequest) -> int:
-        """Use enough document context to avoid missing adjacent factual chunks."""
+        """Lấy đủ context để không bỏ sót chunk liền kề hoặc ý chính."""
         if is_summary_question(request.question):
             return max(request.top_k, _SUMMARY_TOP_K)
         return max(request.top_k, _DEFAULT_RETRIEVAL_TOP_K)
@@ -191,7 +233,10 @@ class AnswerQuestionService:
         self,
         chunks: list[RetrievedDocumentChunk],
     ) -> list[RetrievedDocumentChunk]:
-        """Drop weak retrieval hits so answers only use sufficiently relevant context."""
+        """Loại vector hit yếu trước khi đưa context sang model.
+
+        Keyword result đã có ranking/score riêng nên không qua filter này.
+        """
         return [
             chunk
             for chunk in chunks
@@ -199,7 +244,7 @@ class AnswerQuestionService:
         ]
 
     def _embed_question(self, question: str) -> list[float]:
-        """Embed a single retrieval query and validate the provider contract."""
+        """Embed đúng một query và kiểm tra provider trả đúng một vector."""
         vectors = self.embedding_provider.embed([question])
         if len(vectors) != 1:
             raise ServiceError(
@@ -220,7 +265,7 @@ class AnswerQuestionService:
         chunks: list[RetrievedDocumentChunk],
         language: str,
     ) -> str:
-        """Create a compact extractive answer from the highest-ranked chunks."""
+        """Fallback extractive khi không có generation provider."""
         context = "\n\n".join(chunk.content.strip() for chunk in chunks[:3])
         if language == "en":
             return f"Based on the selected document, the relevant content is:\n\n{context}"
@@ -228,14 +273,14 @@ class AnswerQuestionService:
 
     @staticmethod
     def _not_found_answer(language: str) -> str:
-        """Return the standard no-context answer without calling generation."""
+        """Câu trả lời chuẩn khi không có context; không gọi generation."""
         if language == "en":
             return "No relevant information was found in the selected document."
         return "Không tìm thấy thông tin này trong tài liệu đã chọn."
 
     @staticmethod
     def _to_citation(chunk: RetrievedDocumentChunk) -> AnswerCitation:
-        """Convert retrieved DB chunks into citation objects for Backend/Frontend."""
+        """Map DB chunk thật thành citation cho Backend/Frontend."""
         return AnswerCitation(
             chunk_id=chunk.chunk_id,
             document_id=chunk.document_id,
@@ -254,7 +299,7 @@ class AnswerQuestionService:
         limit: int = _CITATION_EXCERPT_LIMIT,
         page_number: int | None = None,
     ) -> str:
-        """Keep citation excerpts readable while preserving real source text."""
+        """Rút excerpt dễ đọc nhưng vẫn giữ nguyên nội dung nguồn thật."""
         normalized = " ".join(content.split()).strip()
         cleaned = AnswerQuestionService._clean_citation_prefix(normalized, page_number)
         if len(cleaned) <= limit:
@@ -268,7 +313,7 @@ class AnswerQuestionService:
 
     @staticmethod
     def _clean_citation_prefix(content: str, page_number: int | None) -> str:
-        """Remove extraction/page markers that are already shown as citation metadata."""
+        """Bỏ prefix page/chunk đã được UI hiển thị riêng trong metadata."""
         cleaned = content.strip(" \"'")
         if page_number is not None and page_number > 0:
             page_prefix = re.compile(

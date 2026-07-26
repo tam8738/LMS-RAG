@@ -1,4 +1,17 @@
-"""OpenAI chat implementation for grounded RAG answers and quiz drafts."""
+"""OpenAI implementation cho grounded answer và quiz draft.
+
+File này là ranh giới giữa code đáng tin cậy và output không hoàn toàn đáng tin
+cậy của LLM. Vì vậy provider làm đủ bốn việc:
+
+1. Build prompt chỉ chứa context đã retrieval trong scope cho phép.
+2. Gọi OpenAI với timeout/retry có giới hạn.
+3. Parse và validate output trước khi trả về application service.
+4. Làm sạch text và map citation về chunk thật trong database.
+
+Luồng answer trả plain text; citation được tạo bên ngoài provider từ retrieved
+chunks. Luồng quiz yêu cầu JSON có ``source_chunk_ids`` rồi provider tự map các
+ID đó về metadata nguồn thật. Model không được tự quyết định page/excerpt.
+"""
 
 import json
 import re
@@ -53,7 +66,7 @@ _RETRYABLE_EXCEPTIONS = (
 
 
 class _RawQuizQuestion(BaseModel):
-    """Minimal JSON shape requested from the LLM before citation mapping."""
+    """JSON thô yêu cầu từ LLM trước khi map source_chunk_ids."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -65,7 +78,7 @@ class _RawQuizQuestion(BaseModel):
 
 
 class _RawQuiz(BaseModel):
-    """LLM JSON response before conversion to the public AI contract."""
+    """Toàn bộ JSON thô trước khi chuyển sang contract GenerateQuizResult."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -75,7 +88,7 @@ class _RawQuiz(BaseModel):
 
 
 class OpenAIGenerationProvider(GenerationProvider):
-    """Generate concise grounded answers and structured quiz drafts."""
+    """Sinh answer grounded và quiz draft có cấu trúc qua OpenAI chat API."""
 
     def __init__(
         self,
@@ -91,6 +104,11 @@ class OpenAIGenerationProvider(GenerationProvider):
         quiz_max_tokens: int | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        """Khởi tạo bằng settings production hoặc dependency giả trong test.
+
+        ``sleep`` được inject để test exponential backoff mà không chờ thật.
+        Ba token limits tách answer thường, summary và quiz vì độ dài khác nhau.
+        """
         super().__init__(model_name or settings.generation_model)
         self.max_retries = (
             max_retries
@@ -126,11 +144,13 @@ class OpenAIGenerationProvider(GenerationProvider):
         self._sleep = sleep
 
         if client is not None:
+            # Unit test truyền MagicMock để không gọi mạng hoặc tốn token.
             self.client = client
         else:
             selected_api_key = api_key or settings.openai_api_key
             if not selected_api_key:
                 raise ValueError("OPENAI_API_KEY is not configured")
+            # Tắt retry của SDK vì provider đã tự quản lý retry/backoff.
             self.client = OpenAI(api_key=selected_api_key, max_retries=0)
 
     def generate_answer(
@@ -141,7 +161,7 @@ class OpenAIGenerationProvider(GenerationProvider):
         history: list[ConversationMessage],
         chunks: list[RetrievedDocumentChunk],
     ) -> GeneratedAnswer:
-        """Call OpenAI with retrieved context and return a validated answer."""
+        """Gọi OpenAI bằng context retrieval rồi parse answer an toàn."""
         if not question.strip():
             raise ServiceError(
                 ErrorCode.INVALID_INPUT,
@@ -171,7 +191,7 @@ class OpenAIGenerationProvider(GenerationProvider):
         language: str,
         chunks: list[RetrievedDocumentChunk],
     ) -> GeneratedQuiz:
-        """Call OpenAI and return a validated structured quiz draft."""
+        """Gọi OpenAI và trả quiz draft đã validate/citation mapping."""
         if not document_ids or any(document_id <= 0 for document_id in document_ids):
             raise ServiceError(
                 ErrorCode.INVALID_INPUT,
@@ -218,6 +238,7 @@ class OpenAIGenerationProvider(GenerationProvider):
         language: str,
         chunks: list[RetrievedDocumentChunk],
     ) -> Any:
+        """Gọi chat completion cho quiz với retry và JSON mode."""
         messages = self._build_quiz_messages(
             document_ids=document_ids,
             question_count=question_count,
@@ -232,6 +253,7 @@ class OpenAIGenerationProvider(GenerationProvider):
                     temperature=0.2,
                     max_tokens=self.quiz_max_tokens,
                     timeout=self.request_timeout_seconds,
+                    # JSON mode giảm lỗi parse nhưng vẫn phải validate Pydantic.
                     response_format={"type": "json_object"},
                 )
             except _RETRYABLE_EXCEPTIONS as exc:
@@ -260,6 +282,7 @@ class OpenAIGenerationProvider(GenerationProvider):
         history: list[ConversationMessage],
         chunks: list[RetrievedDocumentChunk],
     ) -> Any:
+        """Gọi chat completion cho answer với token limit theo intent."""
         messages = self._build_messages(
             question=question,
             language=language,
@@ -301,6 +324,11 @@ class OpenAIGenerationProvider(GenerationProvider):
         language: str,
         chunks: list[RetrievedDocumentChunk],
     ) -> list[dict[str, str]]:
+        """Build system/user prompt bắt model trả đúng quiz JSON schema.
+
+        Prompt chỉ cho model tham chiếu ``source_chunk_ids``. Metadata citation
+        thật sẽ được code Python map sau khi nhận response.
+        """
         language_name = "Vietnamese" if language == "vi" else "English"
         system_prompt = (
             "You are a teaching assistant for an LMS RAG system. "
@@ -347,6 +375,11 @@ class OpenAIGenerationProvider(GenerationProvider):
         history: list[ConversationMessage],
         chunks: list[RetrievedDocumentChunk],
     ) -> list[dict[str, str]]:
+        """Build prompt answer gồm history stateless, context và question.
+
+        System prompt khóa model vào context; user prompt chứa dữ liệu cụ thể
+        của request hiện tại. Tách hai phần giúp rule ít bị lẫn với tài liệu.
+        """
         language_name = "Vietnamese" if language == "vi" else "English"
         system_prompt = (
             "You are a teaching assistant for an LMS RAG system. "
@@ -376,12 +409,14 @@ class OpenAIGenerationProvider(GenerationProvider):
         ]
 
     def _select_max_tokens(self, question: str) -> int:
+        """Summary được budget dài hơn answer fact thông thường."""
         if is_summary_question(question):
             return self.summary_max_tokens
         return self.default_max_tokens
 
     @staticmethod
     def _format_history(history: list[ConversationMessage]) -> str:
+        """Đổi tối đa sáu messages thành text prompt; provider không lưu lại."""
         if not history:
             return "Conversation history:\n(none)"
 
@@ -393,6 +428,11 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _format_context(chunks: list[RetrievedDocumentChunk]) -> str:
+        """Đóng gói text cùng IDs nguồn để model hiểu và quiz trỏ lại chunk.
+
+        Context index ``[1]`` chỉ là số thứ tự trong prompt; ``chunk_id`` mới
+        là primary key thật. Parser quiz hỗ trợ cả hai để chịu lỗi model.
+        """
         lines = ["Document context:"]
         for index, chunk in enumerate(chunks, start=1):
             page = f", page={chunk.page_number}" if chunk.page_number else ""
@@ -413,6 +453,11 @@ class OpenAIGenerationProvider(GenerationProvider):
         question_count: int,
         chunks: list[RetrievedDocumentChunk],
     ) -> GenerateQuizResult:
+        """Parse response SDK -> JSON -> raw schema -> public quiz schema.
+
+        Hai lớp schema là chủ ý: raw schema phản ánh thứ model được phép trả;
+        public schema chứa citations đã được code map và text đã làm sạch.
+        """
         try:
             content = response.choices[0].message.content
             payload = json.loads(content)
@@ -479,6 +524,12 @@ class OpenAIGenerationProvider(GenerationProvider):
         chunk_by_context_index: dict[int, RetrievedDocumentChunk],
         fallback_chunk: RetrievedDocumentChunk,
     ) -> list[QuizCitation]:
+        """Map IDs model trả về sang chunks thật và loại citation trùng.
+
+        Model đôi khi trả số thứ tự ``[1]`` thay vì ``chunk_id`` nên thử cả
+        hai map. Nếu không ID nào hợp lệ, fallback một chunk thật để response
+        không chứa nguồn bịa; Teacher vẫn phải review draft trước publish.
+        """
         citations: list[QuizCitation] = []
         seen: set[int] = set()
 
@@ -497,6 +548,7 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _to_quiz_citation(chunk: RetrievedDocumentChunk) -> QuizCitation:
+        """Chỉ lấy metadata từ RetrievedDocumentChunk, không lấy từ LLM."""
         return QuizCitation(
             chunk_id=chunk.chunk_id,
             document_id=chunk.document_id,
@@ -507,6 +559,7 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _excerpt(content: str, limit: int = 300) -> str:
+        """Repair encoding, normalize whitespace và cắt excerpt citation."""
         repaired = OpenAIGenerationProvider._repair_mojibake(content)
         normalized = " ".join(repaired.split()).strip()
         if len(normalized) <= limit:
@@ -515,6 +568,7 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _parse_response(response: Any) -> GeneratedAnswer:
+        """Lấy answer/token usage và chặn response rỗng hoặc sai cấu trúc."""
         try:
             content = response.choices[0].message.content
             answer = OpenAIGenerationProvider._clean_answer_text(content)
@@ -541,6 +595,10 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _clean_answer_text(answer: str) -> str:
+        """Chuẩn hóa text ở output boundary trước khi trả Backend.
+
+        Chỉ bỏ heading/emphasis Markdown; numbered list plain text vẫn giữ.
+        """
         repaired = OpenAIGenerationProvider._repair_mojibake(answer)
         cleaned = _MARKDOWN_HEADING_PATTERN.sub("", repaired.strip())
         cleaned = _MARKDOWN_EMPHASIS_PATTERN.sub(r"\2", cleaned)
@@ -548,6 +606,7 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _clean_quiz_options(options: list[QuizOption]) -> list[QuizOption]:
+        """Áp dụng cùng cleanup cho từng lựa chọn A-D."""
         return [
             QuizOption(id=option.id, text=OpenAIGenerationProvider._clean_answer_text(option.text))
             for option in options
@@ -555,6 +614,11 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _repair_mojibake(text: str) -> str:
+        """Thử đảo lỗi UTF-8 bị decode nhầm Latin-1, tối đa hai vòng.
+
+        Hàm chỉ chấp nhận candidate không làm tăng ký tự replacement ``�``.
+        Đây là repair ở output boundary; raw chunks trong DB không bị sửa.
+        """
         if not text:
             return text
 
@@ -575,10 +639,12 @@ class OpenAIGenerationProvider(GenerationProvider):
 
     @staticmethod
     def _looks_like_mojibake(text: str) -> bool:
+        """Nhận diện marker phổ biến trước khi thử encode/decode có rủi ro."""
         has_control = any("\u0080" <= character <= "\u009f" for character in text)
         return has_control or any(marker in text for marker in _MOJIBAKE_MARKERS)
 
     def _validate_configuration(self) -> None:
+        """Fail fast khi retry/timeout/token budget không hợp lệ."""
         if self.max_retries < 0:
             raise ValueError("generation max_retries must not be negative")
         if self.retry_base_delay_seconds < 0:

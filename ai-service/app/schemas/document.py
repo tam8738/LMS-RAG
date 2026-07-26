@@ -101,7 +101,7 @@ class EmbeddedDocument(BaseModel):
 
 
 class RetrievedDocumentChunk(BaseModel):
-    """Chunk retrieved from pgvector for RAG answer and citation."""
+    """Chunk lấy từ pgvector/keyword search để answer, quiz và citation."""
 
     chunk_id: int = Field(gt=0)
     document_id: int = Field(gt=0)
