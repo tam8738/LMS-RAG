@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Users, Search, Filter, Plus, FileSpreadsheet, MoreVertical,
   Edit3, Key, ShieldAlert, CheckCircle2, X, Upload, RefreshCw,
@@ -29,6 +30,7 @@ export function AdminTeacherManagementPage() {
 
   // Active Kebab Menu Dropdown Row ID
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Modals state
@@ -90,11 +92,76 @@ export function AdminTeacherManagementPage() {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setActiveMenuId(null);
+        setMenuPosition(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const closeTeacherMenu = () => {
+    setActiveMenuId(null);
+    setMenuPosition(null);
+  };
+
+  const openTeacherMenu = (teacherId: number, trigger: HTMLButtonElement) => {
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = 176;
+    const menuHeight = 138;
+    const viewportPadding = 12;
+    const left = Math.min(
+      window.innerWidth - menuWidth - viewportPadding,
+      Math.max(viewportPadding, rect.right - menuWidth)
+    );
+    const shouldOpenUp = rect.bottom + menuHeight + viewportPadding > window.innerHeight;
+    const top = shouldOpenUp
+      ? Math.max(viewportPadding, rect.top - menuHeight - 8)
+      : Math.min(window.innerHeight - menuHeight - viewportPadding, rect.bottom + 8);
+
+    setActiveMenuId(teacherId);
+    setMenuPosition({ top, left });
+  };
+
+  const renderTeacherActionMenu = (teacher: TeacherResponse) => {
+    if (activeMenuId !== teacher.id || !menuPosition) return null;
+
+    const isActive = teacher.status === "ACTIVE";
+
+    return createPortal(
+      <div
+        ref={dropdownRef}
+        style={{ top: menuPosition.top, left: menuPosition.left }}
+        className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-[rgba(14,13,11,0.12)] bg-white py-1.5 text-left shadow-xl"
+      >
+        <button
+          onClick={() => { closeTeacherMenu(); setEditTeacher(teacher); }}
+          className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+        >
+          <Edit3 className="w-3.5 h-3.5 text-[#6B6963]" />
+          Chỉnh sửa
+        </button>
+
+        <button
+          onClick={() => { closeTeacherMenu(); setResetTeacher(teacher); }}
+          className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+        >
+          <Key className="w-3.5 h-3.5 text-amber-600" />
+          Đặt lại mật khẩu
+        </button>
+
+        <div className="my-1 border-t border-gray-100" />
+
+        <button
+          onClick={() => { closeTeacherMenu(); setToggleTeacher(teacher); }}
+          className={`w-full px-3.5 py-2 text-[13px] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left ${isActive ? "text-red-600 hover:bg-red-50" : "text-emerald-700 hover:bg-emerald-50"}`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          {isActive ? "Vô hiệu hóa" : "Kích hoạt"}
+        </button>
+      </div>,
+      document.body
+    );
+  };
 
   // Handler: Activate / Deactivate Toggle
   const handleToggleStatus = async () => {
@@ -286,10 +353,9 @@ export function AdminTeacherManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(14,13,11,0.05)] text-[13px]">
-                {teachers.map((teacher, index) => {
+                {teachers.map((teacher) => {
                   const isActive = teacher.status === "ACTIVE";
                   const isMenuOpen = activeMenuId === teacher.id;
-                  const isNearBottom = index > 0 && (teachers.length <= 3 || index >= teachers.length - 2);
                   const teacherAvatar = localStorage.getItem(`user_avatar_${teacher.id}`) || (teacher as any).avatarUrl;
 
                   const formatGender = (g?: string) => {
@@ -379,53 +445,21 @@ export function AdminTeacherManagementPage() {
                       </td>
 
                       {/* Actions Kebab Menu */}
-                      <td className="py-3.5 px-5 text-right relative">
+                      <td className="py-3.5 px-5 text-right">
                         <button
                           onClick={e => {
                             e.stopPropagation();
-                            setActiveMenuId(isMenuOpen ? null : teacher.id);
+                            if (isMenuOpen) {
+                              closeTeacherMenu();
+                              return;
+                            }
+                            openTeacherMenu(teacher.id, e.currentTarget);
                           }}
                           className="p-1.5 rounded-lg text-[#AAAA9F] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] transition-colors border-none bg-transparent cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
-
-                        {/* Dropdown Menu Popup - Smart positioning upward for bottom rows */}
-                        {isMenuOpen && (
-                          <div
-                            ref={dropdownRef}
-                            className={`absolute right-5 w-44 bg-white rounded-xl border border-[rgba(14,13,11,0.12)] shadow-xl py-1.5 z-50 text-left transition-all duration-100 ${
-                              isNearBottom ? "bottom-full mb-1 origin-bottom-right" : "top-full mt-1 origin-top-right"
-                            }`}
-                          >
-                            <button
-                              onClick={() => { setActiveMenuId(null); setEditTeacher(teacher); }}
-                              className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
-                            >
-                              <Edit3 className="w-3.5 h-3.5 text-[#6B6963]" />
-                              Chỉnh sửa
-                            </button>
-
-                            <button
-                              onClick={() => { setActiveMenuId(null); setResetTeacher(teacher); }}
-                              className="w-full px-3.5 py-2 text-[13px] text-[#0E0D0B] hover:bg-[#F8F7F4] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
-                            >
-                              <Key className="w-3.5 h-3.5 text-amber-600" />
-                              Đặt lại mật khẩu
-                            </button>
-
-                            <div className="my-1 border-t border-gray-100" />
-
-                            <button
-                              onClick={() => { setActiveMenuId(null); setToggleTeacher(teacher); }}
-                              className={`w-full px-3.5 py-2 text-[13px] flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left ${isActive ? "text-red-600 hover:bg-red-50" : "text-emerald-700 hover:bg-emerald-50"
-                                }`}
-                            >
-                              <ShieldAlert className="w-3.5 h-3.5" />
-                              {isActive ? "Vô hiệu hóa" : "Kích hoạt"}
-                            </button>
-                          </div>
-                        )}
+                        {renderTeacherActionMenu(teacher)}
                       </td>
                     </tr>
                   );
@@ -625,7 +659,7 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
       <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl relative z-50 text-left overflow-hidden">
@@ -746,7 +780,8 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -780,7 +815,7 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
       <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl relative z-50 text-left overflow-hidden">
@@ -883,7 +918,8 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -980,7 +1016,7 @@ function BatchCsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSu
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
       <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl relative z-50 text-left overflow-hidden max-h-[85vh] flex flex-col">
@@ -1108,6 +1144,7 @@ function BatchCsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSu
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
