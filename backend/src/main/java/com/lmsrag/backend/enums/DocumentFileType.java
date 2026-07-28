@@ -9,5 +9,8 @@ public enum DocumentFileType {
     PDF,
 
     /** File văn bản thuần (plain text). */
-    TXT
+    TXT,
+
+    /** File Microsoft Word (.docx). */
+    DOCX
 }

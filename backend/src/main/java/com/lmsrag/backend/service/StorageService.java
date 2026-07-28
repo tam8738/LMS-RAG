@@ -26,10 +26,11 @@ public class StorageService {
 
     private final StorageProperties storageProperties;
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "txt");
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "txt", "docx");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "application/pdf",
-            "text/plain"
+            "text/plain",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
 
     /**
@@ -164,6 +165,7 @@ public class StorageService {
         return switch (extension) {
             case "pdf" -> DocumentFileType.PDF;
             case "txt" -> DocumentFileType.TXT;
+            case "docx" -> DocumentFileType.DOCX;
             default -> throw new AppException(ErrorCode.FILE_INVALID_TYPE);
         };
     }
