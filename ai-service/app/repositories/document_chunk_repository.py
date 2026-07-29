@@ -27,6 +27,16 @@ class DocumentChunkRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_chapter_chunks(
+        self,
+        document_ids: list[int],
+        chapter_number: int,
+        max_chunks: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Lấy các chunks liên tục từ đầu chương đến trước chương kế tiếp."""
+        raise NotImplementedError
+
+    @abstractmethod
     def search_keyword_chunks(
         self,
         document_ids: list[int],

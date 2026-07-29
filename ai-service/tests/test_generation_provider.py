@@ -120,6 +120,23 @@ class OpenAIGenerationProviderTest(unittest.TestCase):
         self.assertEqual(call["max_tokens"], 1200)
         self.assertIn("cover all major ideas", call["messages"][0]["content"])
 
+    def test_chapter_overview_question_gets_summary_budget(self) -> None:
+        self.client.chat.completions.create.return_value = chat_response(
+            "Tong quan chuong 3.",
+            total_tokens=91,
+        )
+        provider = self._provider()
+
+        provider.generate_answer(
+            question="Ch\u01b0\u01a1ng 3 n\u00f3i v\u1ec1 \u0111i\u1ec1u g\u00ec?",
+            language="vi",
+            history=[],
+            chunks=[chunk("Noi dung chuong 3.")],
+        )
+
+        call = self.client.chat.completions.create.call_args.kwargs
+        self.assertEqual(call["max_tokens"], 1200)
+
     def test_retries_timeout_then_succeeds(self) -> None:
         timeout = APITimeoutError(request=httpx.Request("POST", "https://api.test"))
         self.client.chat.completions.create.side_effect = [

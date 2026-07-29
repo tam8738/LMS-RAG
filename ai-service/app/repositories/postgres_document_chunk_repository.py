@@ -100,6 +100,40 @@ ORDER BY embedding <=> %s::vector, document_id, chunk_index
 LIMIT %s
 """
 
+# Câu hỏi overview theo chương cần context liên tục thay vì top-k rời rạc.
+# Boundary đầu bỏ occurrence trong mục lục; boundary cuối là đầu chương kế tiếp.
+_GET_CHAPTER_CHUNKS_SQL = """
+WITH boundaries AS (
+    SELECT
+        document_id,
+        MIN(chunk_index) FILTER (
+            WHERE content ~* %s
+              AND NOT (content ILIKE ANY(%s::text[]))
+        ) AS chapter_start,
+        MIN(chunk_index) FILTER (
+            WHERE content ~* %s
+              AND NOT (content ILIKE ANY(%s::text[]))
+        ) AS next_chapter_start
+    FROM document_chunks
+    WHERE document_id = ANY(%s::bigint[])
+    GROUP BY document_id
+)
+SELECT
+    dc.id,
+    dc.document_id,
+    dc.page_number,
+    dc.chunk_index,
+    dc.content,
+    dc.token_count
+FROM document_chunks dc
+JOIN boundaries b ON b.document_id = dc.document_id
+WHERE b.chapter_start IS NOT NULL
+  AND dc.chunk_index >= b.chapter_start
+  AND (b.next_chapter_start IS NULL OR dc.chunk_index < b.next_chapter_start)
+ORDER BY dc.document_id, dc.chunk_index
+LIMIT %s
+"""
+
 # Factory trả context manager connection; test thay bằng fake transaction DB.
 ConnectionFactory = Callable[[], AbstractContextManager[Any]]
 
@@ -133,6 +167,13 @@ _FRONT_MATTER_PATTERNS = (
     "%b\u00e0i gi\u1ea3ng%",
     "%bai giang%",
     "%----------%",
+)
+_CHAPTER_BOUNDARY_FRONT_MATTER_PATTERNS = (
+    "%m\u1ee5c l\u1ee5c%",
+    "%muc luc%",
+    "%danh m\u1ee5c%",
+    "%danh muc%",
+    "%table of contents%",
 )
 
 
@@ -246,6 +287,59 @@ class PostgresDocumentChunkRepository(DocumentChunkRepository):
             raise ServiceError(
                 ErrorCode.RETRIEVAL_ERROR,
                 "Khong the doc document chunks tu PostgreSQL",
+                status_code=503,
+                details=[
+                    ErrorDetail(
+                        field="document_ids",
+                        message=",".join(
+                            str(value) for value in normalized_document_ids
+                        ),
+                    )
+                ],
+            ) from exc
+
+        return [self._to_context_chunk(row) for row in rows]
+
+    def get_chapter_chunks(
+        self,
+        document_ids: list[int],
+        chapter_number: int,
+        max_chunks: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Lấy context chương liên tục, bỏ occurrence nằm trong mục lục."""
+        normalized_document_ids = self._validate_document_ids_and_top_k(
+            document_ids,
+            max_chunks,
+        )
+        if chapter_number <= 0:
+            raise self._invalid_input(
+                "chapter_number",
+                "chapter_number must be greater than 0",
+            )
+
+        chapter_pattern = self._chapter_heading_pattern(chapter_number)
+        next_chapter_pattern = self._chapter_heading_pattern(chapter_number + 1)
+        front_matter_patterns = list(_CHAPTER_BOUNDARY_FRONT_MATTER_PATTERNS)
+
+        try:
+            with self.connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        _GET_CHAPTER_CHUNKS_SQL,
+                        (
+                            chapter_pattern,
+                            front_matter_patterns,
+                            next_chapter_pattern,
+                            front_matter_patterns,
+                            normalized_document_ids,
+                            max_chunks,
+                        ),
+                    )
+                    rows = cursor.fetchall()
+        except psycopg.Error as exc:
+            raise ServiceError(
+                ErrorCode.RETRIEVAL_ERROR,
+                "Khong the doc chapter chunks tu PostgreSQL",
                 status_code=503,
                 details=[
                     ErrorDetail(
@@ -548,11 +642,29 @@ LIMIT %s
         checks = " OR ".join("content ILIKE %s" for _ in _FRONT_MATTER_PATTERNS)
         return f"CASE WHEN {checks} THEN 1 ELSE 0 END"
 
+    @staticmethod
+    def _chapter_heading_pattern(chapter_number: int) -> str:
+        """Bắt đúng số chương để "chương 3" không match nhầm "chương 30"."""
+        return (
+            rf"(ch\u01b0\u01a1ng|chuong|chapter)[[:space:]]+"
+            rf"{chapter_number}([^[:digit:]]|$)"
+        )
+
     @classmethod
     def _extract_keyword_phrases(cls, query: str) -> list[str]:
         """Rút tối đa hai cụm X từ câu hỏi dạng ``X là gì/define X``."""
         normalized = " ".join(query.casefold().strip().strip("?.!:;").split())
-        candidates: list[str] = []
+        # A chapter number is a meaningful part of the phrase. Generic term
+        # extraction drops one-character tokens, so capture the full reference
+        # before processing broad patterns such as "X la gi".
+        chapter_pattern = (
+            r"\b(?:ch\u01b0\u01a1ng|chuong|chapter)\s+"
+            r"(?:\d{1,3}|[ivxlcdm]{1,8})\b"
+        )
+        candidates = [
+            match.group(0)
+            for match in re.finditer(chapter_pattern, normalized, flags=re.IGNORECASE)
+        ]
         patterns = (
             "^(?:hay|h\u00e3y|cho t\u00f4i bi\u1ebft|cho toi biet)?\\s*(.+?)\\s+l\u00e0\\s+g\u00ec$",
             "^(?:hay|hay|cho toi biet)?\\s*(.+?)\\s+la\\s+gi$",

@@ -25,6 +25,7 @@ from app.schemas.answer_question import (
 )
 from app.schemas.document import RetrievedDocumentChunk
 from app.utils.question_intent import (
+    extract_chapter_number,
     is_follow_up_question,
     is_insufficient_answer,
     is_summary_question,
@@ -33,6 +34,7 @@ from app.utils.question_intent import (
 
 _SUMMARY_TOP_K = 8
 _DEFAULT_RETRIEVAL_TOP_K = 8
+_CHAPTER_CONTEXT_MAX_CHUNKS = 64
 _HISTORY_ANSWER_CONTEXT_LIMIT = 500
 _CITATION_EXCERPT_LIMIT = 240
 _CITATION_SENTENCE_BOUNDARY_RATIO = 0.55
@@ -68,18 +70,17 @@ class AnswerQuestionService:
 
         Đây là bản tóm tắt executable của toàn bộ RAG answer flow.
         """
-        # Summary cần context rộng hơn câu hỏi fact đơn lẻ.
-        retrieval_top_k = self._select_retrieval_top_k(request)
-
-        # Chỉ nối history khi câu hiện tại là follow-up mơ hồ; câu độc lập giữ
-        # nguyên để history cũ không làm lệch retrieval.
-        retrieval_query = self._build_retrieval_query(request.question, request.history)
-
-        # Vector search bắt gần nghĩa; keyword search bắt exact phrase/định nghĩa.
-        # Keyword đứng trước khi merge để ưu tiên match rõ ràng.
-        vector_chunks = self._retrieve_chunks(request, retrieval_query, retrieval_top_k)
-        keyword_chunks = self._retrieve_keyword_chunks(request, retrieval_query, retrieval_top_k)
-        chunks = self._merge_retrieved_chunks(keyword_chunks, vector_chunks, retrieval_top_k)
+        chapter_number = extract_chapter_number(request.question)
+        chapter_chunks = (
+            self.chunk_repository.get_chapter_chunks(
+                request.document_ids,
+                chapter_number,
+                _CHAPTER_CONTEXT_MAX_CHUNKS,
+            )
+            if chapter_number is not None
+            else []
+        )
+        chunks = chapter_chunks or self._retrieve_hybrid_chunks(request)
 
         if not chunks:
             # Không context -> không gọi LLM: tránh tốn chi phí và ngăn model
@@ -123,6 +124,32 @@ class AnswerQuestionService:
             not_found=False,
             citations=[self._to_citation(chunk) for chunk in chunks],
             tokens_used=0,
+        )
+
+    def _retrieve_hybrid_chunks(
+        self,
+        request: AnswerQuestionRequest,
+    ) -> list[RetrievedDocumentChunk]:
+        """Chạy hybrid retrieval thông thường khi không có chapter range."""
+        retrieval_top_k = self._select_retrieval_top_k(request)
+        retrieval_query = self._build_retrieval_query(
+            request.question,
+            request.history,
+        )
+        vector_chunks = self._retrieve_chunks(
+            request,
+            retrieval_query,
+            retrieval_top_k,
+        )
+        keyword_chunks = self._retrieve_keyword_chunks(
+            request,
+            retrieval_query,
+            retrieval_top_k,
+        )
+        return self._merge_retrieved_chunks(
+            keyword_chunks,
+            vector_chunks,
+            retrieval_top_k,
         )
 
     @classmethod
