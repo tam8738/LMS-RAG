@@ -16,14 +16,14 @@ import { QuizPreviewModal } from "../components/QuizPreviewModal";
 import { PublishSuccessModal } from "../components/PublishSuccessModal";
 import { QuizResponse } from "../services/quizService";
 
-export function LibraryDocumentDetailPage({ 
+export function LibraryDocumentDetailPage({
   documentId: propDocId,
   user,
   onBack: propOnBack
-}: { 
+}: {
   documentId?: number,
   user?: User | null,
-  onBack?: () => void 
+  onBack?: () => void
 }) {
   const params = useParams<{ documentId: string }>();
   const navigate = useNavigate();
@@ -178,7 +178,7 @@ export function LibraryDocumentDetailPage({
 
       {/* Top Navigation Bar & Actions */}
       <div className="flex items-center justify-between mb-5">
-        <button 
+        <button
           onClick={handleBack}
           className="flex items-center gap-1.5 text-[13.5px] font-medium text-slate-500 hover:text-black transition-colors border-none bg-transparent cursor-pointer font-action"
         >
@@ -197,7 +197,7 @@ export function LibraryDocumentDetailPage({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
-        
+
         {/* Left Column: Metadata & Actions - 32-35% equivalent */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4.5 overflow-y-auto pr-1 scrollbar-hide">
           {/* 1. Document summary */}
@@ -238,17 +238,17 @@ export function LibraryDocumentDetailPage({
                 <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Cập nhật lần cuối</p>
                 <p className="text-[13.5px] text-[#0E0D0B] font-medium">{doc.updatedAt}</p>
               </div>
-              
+
               {/* File Information Actions: compact, side by side */}
               <div className="flex gap-3 pt-2.5">
-                <button 
+                <button
                   onClick={handlePreview}
                   disabled={isPreviewing}
                   className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
                 >
                   {isPreviewing ? "Đang tải..." : "Xem nội dung"}
                 </button>
-                <button 
+                <button
                   onClick={handleDownload}
                   className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action"
                 >
@@ -271,11 +271,41 @@ export function LibraryDocumentDetailPage({
           </div>
         </div>
 
-        {/* Right Column: Scoped RAG Chat - 65% equivalent */}
+        {/* Right Column: Scoped RAG Chat or Non-RAG Notice Card */}
         <div className="lg:col-span-7 xl:col-span-8 h-[520px] min-h-0 lg:h-full">
-          <RagChatPanel document={doc} isEligible={ragEligible} />
+          {ragEligible ? (
+            <RagChatPanel document={doc} isEligible={true} />
+          ) : (
+            <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-premium">
+              <div className="w-14 h-14 rounded-2xl bg-[#F4F3F0] flex items-center justify-center mb-4">
+                <FileText className="w-7 h-7 text-[#6B6963]" />
+              </div>
+              <h2 className="text-[19px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">
+                Tài liệu đọc & tải trực tiếp
+              </h2>
+              <p className="text-[14px] text-[#6B6963] max-w-[460px] leading-relaxed mb-6 font-sans">
+                Tài liệu này được lưu trữ trong Thư viện để phục vụ xem trực tuyến và tải về. Tính năng Hỏi đáp AI (RAG) không khả dụng đối với định dạng hoặc nội dung của tệp này.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={handlePreview}
+                  disabled={isPreviewing}
+                  className="h-10 px-5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13.5px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
+                >
+                  {isPreviewing ? "Đang tải..." : "Xem nội dung trực tuyến"}
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="h-10 px-5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Tải file gốc
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        
+
       </div>
 
 

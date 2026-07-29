@@ -217,7 +217,9 @@ export function RagChatPanel({
   isTimeout,
   onRetry,
   onBack,
-  isOwner
+  isOwner,
+  canSubmit,
+  onSubmitReview
 }: {
   document: Document | null;
   isEligible: boolean;
@@ -225,6 +227,8 @@ export function RagChatPanel({
   onRetry?: () => void;
   onBack?: () => void;
   isOwner?: boolean;
+  canSubmit?: boolean;
+  onSubmitReview?: () => void;
 }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -570,11 +574,11 @@ export function RagChatPanel({
     }
 
     if (pubStatus === "DRAFT") {
+      if (document.ragEligible === false || procStatus === "FAILED") {
+        return "Tài liệu này không chứa văn bản trích xuất được (ví dụ: PDF scan dạng ảnh hoặc tệp rỗng). Hệ thống dừng ở Bước 2 và không thể lập chỉ mục RAG. Tuy nhiên, bạn vẫn hoàn toàn có thể gửi duyệt để Admin phê duyệt thủ công vào Thư viện cho người dùng xem/tải trực tiếp.";
+      }
       if (procStatus === "ANALYZED") {
         return "Tài liệu đã phân tích xong và đang chờ bạn gửi duyệt.";
-      }
-      if (procStatus === "FAILED") {
-        return "Gặp sự cố khi phân tích cấu trúc tài liệu. Vui lòng thay file mới hoặc thử lại.";
       }
       return "Tài liệu đang được phân tích cấu trúc bài giảng.";
     }
@@ -584,6 +588,9 @@ export function RagChatPanel({
     }
 
     if (pubStatus === "PUBLISHED" || pubStatus === "ARCHIVED") {
+      if (document.ragEligible === false) {
+        return "Tài liệu đã được xuất bản ở chế độ đọc/tải trực tiếp (không hỗ trợ Hỏi đáp RAG).";
+      }
       if (procStatus === "PROCESSING" || procStatus === "ANALYZING") {
         return "Tài liệu đã xuất bản và đang được lập chỉ mục RAG.";
       }
@@ -689,7 +696,11 @@ export function RagChatPanel({
           !isEligible ? (
             <div className="m-auto text-center max-w-lg w-full p-8 bg-white border border-[#0E0D0B]/[0.06] rounded-2xl shadow-premium flex flex-col items-center">
               <Clock className="w-10 h-10 text-[#4F63D2] mb-4 animate-pulse" />
-              <h4 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans">Hỏi đáp AI chưa sẵn sàng</h4>
+              <h4 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans">
+                {document.ragEligible === false || document.processingStatus === "FAILED"
+                  ? "Tài liệu không hỗ trợ Hỏi đáp AI (RAG)"
+                  : "Hỏi đáp AI chưa sẵn sàng"}
+              </h4>
 
               <p className="text-[13.5px] text-[#6B6963] leading-relaxed mb-6 max-w-sm">
                 {getContextualExplanation()}

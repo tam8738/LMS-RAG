@@ -94,16 +94,6 @@ export function QuizManagementPage() {
           Làm thử Quiz
         </button>
 
-        {!isPublished && (
-          <button
-            onClick={() => { closeActionMenu(); setQuizToDelete(quizItem); }}
-            className="w-full px-3.5 py-2 text-[13px] text-red-600 hover:bg-red-50 flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-red-600" />
-            Xóa quiz
-          </button>
-        )}
-
         {isPublished && (
           <button
             onClick={() => { closeActionMenu(); setPublishedQuizForShare(quizItem); }}
@@ -113,6 +103,14 @@ export function QuizManagementPage() {
             Lấy link chia sẻ
           </button>
         )}
+
+        <button
+          onClick={() => { closeActionMenu(); setQuizToDelete(quizItem); }}
+          className="w-full px-3.5 py-2 text-[13px] text-red-600 hover:bg-red-50 flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer text-left"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-red-600" />
+          Xóa quiz
+        </button>
       </div>,
       document.body
     );
@@ -467,37 +465,66 @@ export function QuizManagementPage() {
           />
 
           <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 text-left shadow-2xl border border-red-100">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-[16px] font-bold text-[#0E0D0B]">Xác nhận xóa quiz</h3>
-                <p className="text-[13px] text-[#6B6963] leading-relaxed">
-                  Bạn đang xóa bản nháp <strong>{quizToDelete.title}</strong>. Hành động này sẽ xóa toàn bộ câu hỏi trong quiz và không thể hoàn tác.
-                </p>
-              </div>
-            </div>
+            {quizToDelete.status === "PUBLISHED" ? (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-[16px] font-bold text-[#0E0D0B]">Không thể xóa Quiz đã công bố</h3>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      Bộ Quiz <strong>{quizToDelete.title}</strong> đã được công bố cho sinh viên. 
+                      Hệ thống không cho phép xóa các bộ Quiz ở trạng thái <strong>Đã công bố</strong> để bảo vệ dữ liệu làm bài và kết quả học tập của sinh viên.
+                    </p>
+                  </div>
+                </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setQuizToDelete(null)}
-                disabled={deletingQuizId === quizToDelete.id}
-                className="h-10 px-4 rounded-xl border border-gray-300 bg-white text-[13px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteQuiz}
-                disabled={deletingQuizId === quizToDelete.id}
-                className="h-10 px-4 rounded-xl border-none bg-red-600 text-[13px] font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>{deletingQuizId === quizToDelete.id ? "Đang xóa..." : "Xóa quiz"}</span>
-              </button>
-            </div>
+                <div className="mt-6 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setQuizToDelete(null)}
+                    className="h-10 px-5 rounded-xl border-none bg-indigo-600 hover:bg-indigo-700 text-[13px] font-semibold text-white cursor-pointer transition-all shadow-sm"
+                  >
+                    Đã hiểu
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-[16px] font-bold text-[#0E0D0B]">Xác nhận xóa quiz</h3>
+                    <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                      Bạn đang xóa bản nháp <strong>{quizToDelete.title}</strong>. Hành động này sẽ xóa toàn bộ câu hỏi trong quiz và không thể hoàn tác.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setQuizToDelete(null)}
+                    disabled={deletingQuizId === quizToDelete.id}
+                    className="h-10 px-4 rounded-xl border border-gray-300 bg-white text-[13px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDeleteQuiz}
+                    disabled={deletingQuizId === quizToDelete.id}
+                    className="h-10 px-4 rounded-xl border-none bg-red-600 text-[13px] font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>{deletingQuizId === quizToDelete.id ? "Đang xóa..." : "Xóa quiz"}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body

@@ -10,12 +10,12 @@ interface DocumentCardProps {
   showDownloadAction?: boolean; // Only true for management pages
 }
 
-export function DocumentCard({ 
-  document: doc, 
-  viewMode, 
-  onClick, 
+export function DocumentCard({
+  document: doc,
+  viewMode,
+  onClick,
   onDownload,
-  showDownloadAction = false 
+  showDownloadAction = false
 }: DocumentCardProps) {
   const isAiReady = doc.ragEligible || doc.processingStatus === "PROCESSED";
 
@@ -39,9 +39,13 @@ export function DocumentCard({
               <span className="text-[#AAAA9F] font-semibold bg-[#F8F7F4] border border-[#0E0D0B]/[0.04] px-2 py-0.5 rounded-md">
                 {doc.fileType}
               </span>
-              {isAiReady && (
+              {isAiReady ? (
                 <span className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold border border-emerald-100">
                   <Brain className="w-3 h-3" /> AI Ready
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[#6B6963] bg-[#F4F3F0] px-2 py-0.5 rounded-md font-medium border border-[#0E0D0B]/[0.06]">
+                  <FileText className="w-3 h-3 text-[#6B6963]" /> Đọc trực tiếp
                 </span>
               )}
             </div>
@@ -113,9 +117,13 @@ export function DocumentCard({
           <span className="text-[10px] px-2.5 py-0.5 bg-white border border-[#0E0D0B]/[0.08] text-[#AAAA9F] rounded-lg font-semibold">
             {doc.fileType}
           </span>
-          {isAiReady && (
+          {isAiReady ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg shadow-2xs">
               <Sparkles className="w-2.5 h-2.5 text-emerald-600" /> AI Ready
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#6B6963] bg-[#F4F3F0] border border-[#0E0D0B]/[0.06] px-2 py-0.5 rounded-lg">
+              <FileText className="w-2.5 h-2.5 text-[#6B6963]" /> Đọc trực tiếp
             </span>
           )}
         </div>

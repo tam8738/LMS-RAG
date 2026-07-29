@@ -36,7 +36,13 @@ export function isProcessingFailed(status: ProcessingStatus): boolean {
  * back to DRAFT after that change, then they can be submitted again.
  */
 export function canSubmitDocumentForReview(document: DocumentStatusScope): boolean {
-  return document.processingStatus === "ANALYZED" && document.publicationStatus === "DRAFT";
+  return (
+    (document.processingStatus === "ANALYZED" ||
+     document.processingStatus === "FAILED" ||
+     document.processingStatus === "PROCESSED" ||
+     document.ragEligible === false) &&
+    document.publicationStatus === "DRAFT"
+  );
 }
 
 /**

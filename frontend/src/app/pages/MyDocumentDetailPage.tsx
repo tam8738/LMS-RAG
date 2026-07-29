@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Document, User } from "../types";
-import { DocumentMetadataPanel, DocumentStatusTimeline, ProcessingErrorBanner, RejectionReasonBanner } from "../components/DetailWidgets";
+import { DocumentMetadataPanel, DocumentStatusTimeline, ProcessingErrorBanner, RejectionReasonBanner, NonRagNoticeBanner } from "../components/DetailWidgets";
 import { RagChatPanel } from "../components/RagChatPanel";
 import { DualStatusBadge } from "../components/DualStatusBadge";
 import { PageLoading } from "../components/EmptyState";
@@ -689,14 +689,14 @@ export function MyDocumentDetailPage({
             <RejectionReasonBanner reason={doc.rejectReason} />
           )}
 
-          {/* 4. Metadata */}
+          {/* 5. Metadata */}
           <DocumentMetadataPanel doc={doc} isOwner={true} />
 
-          {/* 5. Processing/Publication Timeline */}
+          {/* 6. Processing/Publication Timeline */}
           <DocumentStatusTimeline processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
 
-          {/* 6. Processing Failure Details */}
-          {isProcessingFailed(aiStatus) && doc.failReason && (
+          {/* 7. Processing Failure Details */}
+          {isProcessingFailed(aiStatus) && doc.failReason && doc.ragEligible !== false && (
             <ProcessingErrorBanner reason={doc.failReason} onRetry={handleRetryCheck} />
           )}
         </div>
@@ -710,6 +710,8 @@ export function MyDocumentDetailPage({
             onRetry={handleRetryCheck}
             onBack={handleBack}
             isOwner={true}
+            canSubmit={canSubmit}
+            onSubmitReview={() => setIsConfirmOpen(true)}
           />
         </div>
 

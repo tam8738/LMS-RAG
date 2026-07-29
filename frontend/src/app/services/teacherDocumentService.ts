@@ -222,46 +222,72 @@ export const teacherDocumentService = {
    * Preview document file in browser inline
    */
   async previewDocumentFile(documentId: number): Promise<void> {
-    const token = localStorage.getItem("token");
-    const headers = new Headers();
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-    const response = await fetch(`/api/v1/documents/${documentId}/content`, {
-      method: "GET",
-      headers,
-    });
-    if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        window.dispatchEvent(new Event("auth-unauthorized"));
-        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      }
-      let errorMsg = `Lỗi hệ thống (${response.status})`;
-      try {
-        const errJson = await response.json();
-        errorMsg = errJson.error?.message || errJson.message || errorMsg;
-      } catch (e) {
-        try {
-          const text = await response.text();
-          if (text) errorMsg = text;
-        } catch (e2) { }
-      }
-      throw new Error(errorMsg);
-    }
-    let blob = await response.blob();
-    if (blob.type.startsWith("text/")) {
-      blob = new Blob([blob], { type: `${blob.type};charset=utf-8` });
-    }
-    const url = window.URL.createObjectURL(blob);
-    const newTab = window.open(url, "_blank", "noopener,noreferrer");
-    if (!newTab) {
-      window.URL.revokeObjectURL(url);
+    const previewTab = window.open("", "_blank");
+    if (!previewTab) {
       throw new Error("Trình duyệt đã chặn cửa sổ Pop-up. Vui lòng cấp quyền mở Pop-up và thử lại.");
     }
-    setTimeout(() => {
-      window.URL.revokeObjectURL(url);
-    }, 10000);
+    previewTab.opener = null;
+
+    try {
+      previewTab.document.write(`
+        <!DOCTYPE html>
+        <html lang="vi">
+          <head>
+            <meta charset="utf-8" />
+            <title>Đang tải tài liệu...</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #F8F7F4; color: #0E0D0B; }
+              .loader { text-align: center; }
+            </style>
+          </head>
+          <body>
+            <div class="loader">
+              <p style="font-size: 15px; font-weight: 500;">Đang tải nội dung tài liệu, vui lòng chờ...</p>
+            </div>
+          </body>
+        </html>
+      `);
+
+      const token = localStorage.getItem("token");
+      const headers = new Headers();
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      const response = await fetch(`/api/v1/documents/${documentId}/content`, {
+        method: "GET",
+        headers,
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          window.dispatchEvent(new Event("auth-unauthorized"));
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        let errorMsg = `Lỗi hệ thống (${response.status})`;
+        try {
+          const errJson = await response.json();
+          errorMsg = errJson.error?.message || errJson.message || errorMsg;
+        } catch (e) {
+          try {
+            const text = await response.text();
+            if (text) errorMsg = text;
+          } catch (e2) { }
+        }
+        throw new Error(errorMsg);
+      }
+      let blob = await response.blob();
+      if (blob.type.startsWith("text/")) {
+        blob = new Blob([blob], { type: `${blob.type};charset=utf-8` });
+      }
+      const url = window.URL.createObjectURL(blob);
+      previewTab.location.href = url;
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 10000);
+    } catch (error) {
+      previewTab.close();
+      throw error;
+    }
   },
 
   /**

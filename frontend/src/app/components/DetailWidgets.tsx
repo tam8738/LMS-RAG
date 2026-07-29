@@ -1,6 +1,48 @@
 import React from "react";
-import { AlertTriangle, FileText, CheckCircle2, Clock, XCircle, UploadCloud, Archive } from "lucide-react";
+import { AlertTriangle, FileText, CheckCircle2, Clock, XCircle, UploadCloud, Archive, Info, Send } from "lucide-react";
 import { Document, ProcessingStatus, PublicationStatus } from "../types";
+
+export function NonRagNoticeBanner({
+  reason,
+  canSubmit,
+  onSubmit
+}: {
+  reason?: string;
+  canSubmit?: boolean;
+  onSubmit?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 p-4 bg-amber-50/90 border border-amber-200 rounded-xl mb-6 text-amber-900 text-left shadow-xs">
+      <div className="flex items-start gap-3">
+        <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h4 className="text-[14.5px] font-semibold text-amber-950">Tài liệu không hỗ trợ tính năng AI (Hỏi đáp & Sinh Quiz)</h4>
+            <span className="text-[11px] font-medium bg-amber-100/90 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200">
+              Đã xong Bước 2: Phân tích AI
+            </span>
+          </div>
+          <p className="text-[13.5px] leading-relaxed text-amber-800/90 mb-2.5">
+            Tài liệu dừng ở Bước 2 và không thể chuyển sang Bước 3 (Lập chỉ mục RAG) do nội dung tệp ở dạng <strong className="font-semibold text-amber-900">ảnh scan (không có văn bản chọn được)</strong>, file rỗng hoặc định dạng ngoài phạm vi trích xuất tự động của AI.
+          </p>
+          <div className="bg-white/80 border border-amber-200/80 rounded-lg p-3 text-[13px] text-amber-900 leading-normal">
+            💡 <span className="font-semibold text-amber-950">Lưu ý:</span> Bạn <strong className="font-semibold text-amber-950">vẫn hoàn toàn có thể gửi duyệt tài liệu này</strong> để Admin kiểm duyệt thủ công và đưa vào Thư viện nhằm chia sẻ cho người dùng khác đọc/tải file trực tiếp.
+          </div>
+        </div>
+      </div>
+      {canSubmit && onSubmit && (
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={onSubmit}
+            className="h-8.5 px-4 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border-none shadow-xs font-action"
+          >
+            <Send className="w-3.5 h-3.5" /> Gửi duyệt cho Admin
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ProcessingErrorBanner({ reason, onRetry }: { reason: string, onRetry?: () => void }) {
   return (
