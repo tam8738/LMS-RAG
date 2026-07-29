@@ -13,7 +13,8 @@ public enum AiProcessingStatus {
     ANALYZING,
 
     /**
-     * AI analyze xong, tài liệu đủ điều kiện để teacher submit review.
+     * Quá trình analyze đã hoàn tất (thành công hoặc thất bại). Tài liệu có thể submit review.
+     * Khả năng RAG thực tế được thể hiện qua ragEligible và errorCode/errorMessage.
      */
     ANALYZED,
 

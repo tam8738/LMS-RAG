@@ -104,7 +104,9 @@ public class AiValidationResultHandler {
             errorMessage = "AI Service analyze-document thất bại";
         }
 
-        document.setProcessingStatus(AiProcessingStatus.FAILED);
+        // Dù analyze thất bại, document vẫn được coi là "đã analyze xong" để teacher có thể submit review.
+        // Trạng thái thực sự của RAG được thể hiện qua ragEligible + errorCode/errorMessage.
+        document.setProcessingStatus(AiProcessingStatus.ANALYZED);
         document.setRagEligible(false);
         document.setAnalyzedAt(now);
         document.setErrorCode("AI_ANALYZE_FAILED");
