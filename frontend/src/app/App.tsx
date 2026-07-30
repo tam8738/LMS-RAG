@@ -40,12 +40,14 @@ function ProtectedRoute({
   authLoading,
   onLogout,
   onUpdateUser,
+  isPublic,
   children
 }: {
   user: User | null;
   authLoading: boolean;
   onLogout: () => void;
   onUpdateUser: (u: User) => void;
+  isPublic?: boolean;
   children: React.ReactNode;
 }) {
   const location = useLocation();
@@ -54,11 +56,11 @@ function ProtectedRoute({
     return <PageLoading />;
   }
 
-  if (!user) {
+  if (!user && !isPublic) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }
 
-  if (!isRouteAllowedForRole(user.role, location.pathname)) {
+  if (user && !isRouteAllowedForRole(user.role, location.pathname)) {
     return <Navigate to={getDefaultRouteForRole(user.role)} replace />;
   }
 
@@ -170,16 +172,16 @@ export default function App() {
             currentUser ? (
               <Navigate to={getDefaultRouteForRole(currentUser.role)} replace />
             ) : (
-              <Navigate to={ROUTES.LOGIN} replace />
+              <Navigate to={ROUTES.LIBRARY} replace />
             )
           }
         />
 
-        {/* Protected Application Routes */}
+        {/* Protected / Public Application Routes */}
         <Route
           path={ROUTES.LIBRARY}
           element={
-            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser} isPublic={true}>
               <LibraryPage />
             </ProtectedRoute>
           }
@@ -187,7 +189,7 @@ export default function App() {
         <Route
           path={ROUTES.LIBRARY_DETAIL}
           element={
-            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser} isPublic={true}>
               <LibraryDocumentDetailPage user={currentUser} />
             </ProtectedRoute>
           }

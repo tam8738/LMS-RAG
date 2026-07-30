@@ -57,11 +57,16 @@ export function UploadDocumentPage({
   };
 
   const validateAndSetFile = (f: File) => {
-    const validTypes = ["application/pdf", "text/plain"];
+    const validTypes = [
+      "application/pdf",
+      "text/plain",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword"
+    ];
     const fileExt = f.name.split(".").pop()?.toLowerCase();
 
-    if (!validTypes.includes(f.type) && fileExt !== "pdf" && fileExt !== "txt") {
-      setErrors({ file: "Chỉ hỗ trợ file PDF hoặc TXT." });
+    if (!validTypes.includes(f.type) && fileExt !== "pdf" && fileExt !== "txt" && fileExt !== "docx" && fileExt !== "doc") {
+      setErrors({ file: "Chỉ hỗ trợ file PDF, TXT hoặc DOCX." });
       return;
     }
     if (f.size > 20 * 1024 * 1024) {
@@ -198,11 +203,11 @@ export function UploadDocumentPage({
               <p className="text-[14.5px] font-semibold text-[#0E0D0B] mb-1">
                 Kéo thả file vào đây
               </p>
-              <p className="text-[13px] text-[#AAAA9F]">hoặc click để chọn file (PDF, TXT - Tối đa 20MB)</p>
+              <p className="text-[13px] text-[#AAAA9F]">hoặc click để chọn file (PDF, TXT, DOCX - Tối đa 20MB)</p>
             </div>
             <label className="mt-2 h-9 px-4 bg-[#F4F3F0] hover:bg-[#ECEAE4] text-[#0E0D0B] text-[13px] font-medium rounded-lg transition-colors flex items-center justify-center cursor-pointer font-sans-body border-none">
               Chọn file từ máy
-              <input type="file" accept=".pdf,.txt" className="hidden" onChange={e => {
+              <input type="file" accept=".pdf,.txt,.docx,.doc" className="hidden" onChange={e => {
                 if (e.target.files && e.target.files[0]) validateAndSetFile(e.target.files[0]);
               }} />
             </label>

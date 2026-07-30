@@ -25,6 +25,7 @@ export const mapBackendDocToFrontend = (doc: DocumentResponseDTO): Document => (
   publicationStatus: doc.publicationStatus || "DRAFT",
   rejectReason: doc.rejectionReason,
   failReason: doc.errorMessage,
+  unsupportedReason: doc.unsupportedReason,
   reviewedAt: formatDate(doc.reviewedAt),
   publishedAt: formatDate(doc.publishedAt),
   reviewedByName: doc.reviewerName,
