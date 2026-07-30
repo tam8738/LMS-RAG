@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { libraryDetailPath } from "../routes";
-import { LibraryDocument, LibraryQuery } from "../types";
+import { LibraryDocument, LibraryQuery, User } from "../types";
 import { DocumentCard } from "../components/DocumentCard";
 import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
 import { FilterDrawer, AdvancedFilterState } from "../components/FilterDrawer";
@@ -211,7 +211,13 @@ function SubjectShowcaseRow({
 }
 
 /* Master Library Page Component */
-export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavigateDetail?: (id: number) => void }) {
+export function LibraryPage({
+  onNavigateDetail: propOnNavigateDetail,
+  user
+}: {
+  onNavigateDetail?: (id: number) => void;
+  user?: User | null;
+}) {
   const navigate = useNavigate();
   const handleNavigateDetail = propOnNavigateDetail ?? ((id: number) => navigate(libraryDetailPath(id)));
   const onNavigateDetail = handleNavigateDetail;
@@ -494,12 +500,14 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
             {/* Quick Actions */}
             <div className="mt-8 flex flex-wrap justify-center items-center gap-3 text-[13px] font-semibold text-[#6B6963]">
               <span className="text-[#AAAA9F] uppercase tracking-wider text-[10.5px]">Lối tắt nhanh:</span>
-              <button
-                onClick={() => document.getElementById("ai-ready-shelf")?.scrollIntoView({ behavior: "smooth" })}
-                className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#4F63D2] transition-all cursor-pointer shadow-3xs"
-              >
-                🤖 Hỏi đáp AI
-              </button>
+              {user && (
+                <button
+                  onClick={() => document.getElementById("ai-ready-shelf")?.scrollIntoView({ behavior: "smooth" })}
+                  className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#4F63D2] transition-all cursor-pointer shadow-3xs"
+                >
+                  🤖 Hỏi đáp AI
+                </button>
+              )}
               <button
                 onClick={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
                 className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#0E0D0B] transition-all cursor-pointer shadow-3xs"
@@ -514,22 +522,22 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
             <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
               <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Chủ đề nổi bật</span>
               <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Thuật toán đường đi ngắn nhất</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Tìm hiểu cách giải bài toán Dijkstra, Bellman-Ford môn Toán rời rạc 2 qua tài liệu học liệu và hỏi đáp AI.</p>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Tìm hiểu cách giải bài toán Dijkstra, Bellman-Ford môn Toán rời rạc 2 qua tài liệu học liệu.</p>
             </div>
             <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
-              <span className="text-[10px] font-bold text-[#4F63D2] bg-[#4F63D2]/10 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Mẹo học tập AI</span>
-              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Hỏi AI tóm tắt tài liệu</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Sử dụng prompt mẫu "Tóm tắt tài liệu" hoặc "Tạo câu hỏi trắc nghiệm ôn tập" để tự đánh giá kiến thức nhanh chóng.</p>
+              <span className="text-[10px] font-bold text-[#4F63D2] bg-[#4F63D2]/10 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Tra cứu trực tuyến</span>
+              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Đọc & Tải file dễ dàng</h4>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Xem trực tiếp slide bài giảng PDF/Word ngay trên hệ thống hoặc tải file gốc phục vụ học tập.</p>
             </div>
             <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Mới lập chỉ mục</span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Học liệu chính thức</span>
               <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Lập trình hướng đối tượng</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Toàn bộ slide bài giảng OOP Java đã hoàn tất xử lý cấu trúc và sẵn sàng hỗ trợ tra cứu RAG AI đầy đủ.</p>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Toàn bộ slide bài giảng OOP Java đã được biên soạn và xuất bản phục vụ tra cứu học tập.</p>
             </div>
             <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
               <span className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Thông báo hệ thống</span>
-              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Độ chính xác Citation v2</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Mô hình grounded LLM đã nâng cấp giúp hiển thị trích dẫn chính xác kèm theo số trang tham chiếu trực quan.</p>
+              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Học liệu đã phê duyệt</h4>
+              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Tất cả tài liệu trong Thư viện đều đã trải qua quy trình kiểm duyệt chất lượng từ Ban Quản trị.</p>
             </div>
           </div>
         </div>
@@ -564,8 +572,8 @@ export function LibraryPage({ onNavigateDetail: propOnNavigateDetail }: { onNavi
         </div>
       )}
 
-      {/* 2. Sẵn sàng hỏi đáp AI (Hiển thị cố định dưới Blog và trên Bộ lọc môn học, độc lập với filter/search) */}
-      {!loading && aiReadyDocs.length > 0 && (
+      {/* 2. Sẵn sàng hỏi đáp AI (Chỉ hiển thị khi đã đăng nhập) */}
+      {user && !loading && aiReadyDocs.length > 0 && (
         <div id="ai-ready-shelf" className="animate-fadeIn">
           <SubjectShowcaseRow
             subjectName="Sẵn sàng hỏi đáp AI"

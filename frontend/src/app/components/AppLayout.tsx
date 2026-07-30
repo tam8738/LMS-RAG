@@ -8,7 +8,7 @@ import { authService } from "../services/authService";
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  user: User;
+  user: User | null;
   onLogout: () => void;
   onUpdateUser?: (user: User) => void;
 }
@@ -35,9 +35,9 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
   // Profile info states (mocked based on user details)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [fullName, setFullName] = useState(user.name);
+  const [fullName, setFullName] = useState(user?.name || "");
   const [faculty, setFaculty] = useState("Khoa Công nghệ Thông tin");
-  const [lecturerId] = useState(`GV-${user.role.toUpperCase()}-${user.id || 107}`);
+  const [lecturerId] = useState(user ? `GV-${user.role.toUpperCase()}-${user.id || 107}` : "");
   const [profileSavedMsg, setProfileSavedMsg] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -49,7 +49,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   const [securitySuccessMsg, setSecuritySuccessMsg] = useState("");
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
-  const navItems = getNavForRole(user.role);
+  const navItems = getNavForRole(user?.role);
 
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -80,6 +80,11 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
   // Sync user info and avatar on user change
   useEffect(() => {
+    if (!user) {
+      setFullName("");
+      setAvatarPreview(null);
+      return;
+    }
     setFullName(user.name);
     try {
       const savedAvatar = localStorage.getItem(`user_avatar_${user.id}`);
@@ -94,6 +99,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   }, [user]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -114,6 +120,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   };
 
   const handleSaveProfile = async () => {
+    if (!user) return;
     if (!fullName.trim()) {
       setProfileSavedMsg("Họ tên không được để trống!");
       return;
@@ -124,7 +131,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     try {
       const updatedUser = await authService.updateProfile(fullName.trim());
       setIsSavingProfile(false);
-      const userWithAvatar = {
+      const userWithAvatar: User = {
         ...updatedUser,
         avatarUrl: avatarPreview || user.avatarUrl || localStorage.getItem(`user_avatar_${user.id}`) || undefined
       };
@@ -289,55 +296,65 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
           {/* User Menu / Right Actions */}
           <div className="flex items-center gap-2 ml-auto">
-            {/* Profile Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-[#F4F3F0] transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-              >
-                {(avatarPreview || user.avatarUrl) ? (
-                  <img
-                    src={avatarPreview || user.avatarUrl}
-                    alt={user.name}
-                    className="w-6.5 h-6.5 rounded-full object-cover border border-indigo-200 shadow-xs"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
-                    <span className="text-white text-[11.5px] font-bold">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                    </span>
+            {user ? (
+              /* Profile Dropdown */
+              <div className="relative">
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-[#F4F3F0] transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                  {(avatarPreview || user.avatarUrl) ? (
+                    <img
+                      src={avatarPreview || user.avatarUrl}
+                      alt={user.name}
+                      className="w-6.5 h-6.5 rounded-full object-cover border border-indigo-200 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
+                      <span className="text-white text-[11.5px] font-bold">
+                        {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      </span>
+                    </div>
+                  )}
+                  <div className="hidden sm:flex flex-col text-left">
+                    <span className="text-[13.5px] text-[#0E0D0B] font-medium leading-none">{user.name}</span>
+                    <span className="text-[11px] text-[#AAAA9F] font-mono-label mt-1 leading-none uppercase">{user.role}</span>
+                  </div>
+                  <ChevronDown className={`w-3 h-3 text-[#AAAA9F] transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 top-10 w-48 bg-white rounded-xl border border-[rgba(14,13,11,0.08)] shadow-[0_8px_32px_rgba(14,13,11,0.12)] py-1.5 z-50 text-left">
+                    <div className="px-3.5 py-2 border-b border-[rgba(14,13,11,0.04)] mb-1">
+                      <p className="text-[13.5px] font-medium text-[#0E0D0B] truncate">{user.name}</p>
+                      <p className="text-[11.5px] text-[#AAAA9F] truncate">{user.email}</p>
+                    </div>
+                    <button
+                      onClick={handleAccountClick}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-[#F8F7F4]"
+                    >
+                      <UserIcon className="w-3.5 h-3.5 text-[#6B6963]" />
+                      Tài khoản
+                    </button>
+                    <button
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-red-600 hover:bg-red-50 transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-red-50"
+                      onClick={requestLogout}
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-red-500" />
+                      Đăng xuất
+                    </button>
                   </div>
                 )}
-                <div className="hidden sm:flex flex-col text-left">
-                  <span className="text-[13.5px] text-[#0E0D0B] font-medium leading-none">{user.name}</span>
-                  <span className="text-[11px] text-[#AAAA9F] font-mono-label mt-1 leading-none uppercase">{user.role}</span>
-                </div>
-                <ChevronDown className={`w-3 h-3 text-[#AAAA9F] transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate(ROUTES.LOGIN)}
+                className="h-8.5 px-4 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action flex items-center gap-1.5"
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                Đăng nhập
               </button>
-
-              {profileOpen && (
-                <div className="absolute right-0 top-10 w-48 bg-white rounded-xl border border-[rgba(14,13,11,0.08)] shadow-[0_8px_32px_rgba(14,13,11,0.12)] py-1.5 z-50 text-left">
-                  <div className="px-3.5 py-2 border-b border-[rgba(14,13,11,0.04)] mb-1">
-                    <p className="text-[13.5px] font-medium text-[#0E0D0B] truncate">{user.name}</p>
-                    <p className="text-[11.5px] text-[#AAAA9F] truncate">{user.email}</p>
-                  </div>
-                  <button
-                    onClick={handleAccountClick}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-[#F8F7F4]"
-                  >
-                    <UserIcon className="w-3.5 h-3.5 text-[#6B6963]" />
-                    Tài khoản
-                  </button>
-                  <button
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-red-600 hover:bg-red-50 transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-red-50"
-                    onClick={requestLogout}
-                  >
-                    <LogOut className="w-3.5 h-3.5 text-red-500" />
-                    Đăng xuất
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Hamburger Button (Mobile) */}
             <button
@@ -409,35 +426,50 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
             </nav>
 
             {/* Profile / Logout Section */}
-            <div className="border-t border-[rgba(14,13,11,0.07)] pt-6 mt-auto">
-              <div className="flex items-center gap-3 mb-4 px-2">
-                {(avatarPreview || user.avatarUrl) ? (
-                  <img
-                    src={avatarPreview || user.avatarUrl}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full object-cover border border-indigo-200 shadow-xs"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
-                    <span className="text-white text-[12px] font-bold">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                    </span>
+            {user ? (
+              <div className="border-t border-[rgba(14,13,11,0.07)] pt-6 mt-auto">
+                <div className="flex items-center gap-3 mb-4 px-2">
+                  {(avatarPreview || user.avatarUrl) ? (
+                    <img
+                      src={avatarPreview || user.avatarUrl}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full object-cover border border-indigo-200 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
+                      <span className="text-white text-[12px] font-bold">
+                        {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-col text-left">
+                    <span className="text-[13.5px] text-[#0E0D0B] font-medium truncate max-w-[130px]">{user.name}</span>
+                    <span className="text-[11px] text-[#AAAA9F] font-mono-label uppercase mt-0.5">{user.role}</span>
                   </div>
-                )}
-                <div className="flex flex-col text-left">
-                  <span className="text-[13.5px] text-[#0E0D0B] font-medium truncate max-w-[130px]">{user.name}</span>
-                  <span className="text-[11px] text-[#AAAA9F] font-mono-label uppercase mt-0.5">{user.role}</span>
                 </div>
-              </div>
 
-              <button
-                onClick={requestLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all border-none bg-transparent cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-red-500 outline-none"
-              >
-                <LogOut className="w-4 h-4 text-red-500" />
-                Đăng xuất
-              </button>
-            </div>
+                <button
+                  onClick={requestLogout}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all border-none bg-transparent cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-red-500 outline-none"
+                >
+                  <LogOut className="w-4 h-4 text-red-500" />
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <div className="border-t border-[rgba(14,13,11,0.07)] pt-6 mt-auto">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate(ROUTES.LOGIN);
+                  }}
+                  className="w-full h-10 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[14px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action flex items-center justify-center gap-2"
+                >
+                  <UserIcon className="w-4 h-4" />
+                  Đăng nhập
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -538,7 +570,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                   }`}
               >
                 <UserIcon className="w-3.5 h-3.5" />
-                Hồ sơ {user.role === "admin" ? "quản trị viên" : "giảng viên"}
+                Hồ sơ {user?.role === "admin" ? "quản trị viên" : "giảng viên"}
               </button>
               <button
                 onClick={() => setProfileTab("security")}
@@ -595,7 +627,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
                     <div className="text-left">
                       <h4 className="text-[14px] font-bold text-[#0E0D0B]">{fullName}</h4>
-                      <p className="text-[12px] text-[#6B6963]">{user.email}</p>
+                      <p className="text-[12px] text-[#6B6963]">{user?.email || ""}</p>
                       <label className="inline-block text-[11px] font-semibold text-[#4F63D2] hover:text-[#3D50B8] cursor-pointer mt-1">
                         Thay ảnh đại diện
                         <input
@@ -622,7 +654,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mã {user.role === "admin" ? "quản trị viên" : "giảng viên"}</label>
+                        <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mã {user?.role === "admin" ? "quản trị viên" : "giảng viên"}</label>
                         <input
                           type="text"
                           value={lecturerId}
@@ -634,7 +666,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Vai trò</label>
                         <input
                           type="text"
-                          value={user.role}
+                          value={user?.role || ""}
                           disabled
                           className="w-full h-10 border border-[#0E0D0B]/[0.08] rounded-xl px-3.5 text-[13.5px] text-[#AAAA9F] bg-[#F4F3F0] cursor-not-allowed outline-none"
                         />

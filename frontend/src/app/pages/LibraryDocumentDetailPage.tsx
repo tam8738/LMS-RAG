@@ -273,7 +273,26 @@ export function LibraryDocumentDetailPage({
 
         {/* Right Column: Scoped RAG Chat or Non-RAG Notice Card */}
         <div className="lg:col-span-7 xl:col-span-8 h-[520px] min-h-0 lg:h-full">
-          {ragEligible ? (
+          {!user ? (
+            <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-premium">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4 text-indigo-600">
+                <Sparkles className="w-7 h-7 animate-pulse" />
+              </div>
+              <h2 className="text-[19px] font-bold text-[#0E0D0B] mb-2 font-sans-body">
+                Trợ lý Hỏi đáp AI Workspace
+              </h2>
+              <p className="text-[14px] text-[#6B6963] max-w-[460px] leading-relaxed mb-6 font-sans">
+                Tính năng Hỏi đáp AI chuyên sâu và Trích xuất kiến thức tự động dành riêng cho tài khoản Giảng viên.
+              </p>
+              <button
+                onClick={() => navigate(ROUTES.LOGIN)}
+                className="h-10 px-6 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                Đăng nhập để sử dụng AI Workspace
+              </button>
+            </div>
+          ) : ragEligible ? (
             <RagChatPanel document={doc} isEligible={true} />
           ) : (
             <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-premium">

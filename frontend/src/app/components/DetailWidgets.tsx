@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, FileText, CheckCircle2, Clock, XCircle, UploadCloud, Archive, Info, Send } from "lucide-react";
+import { AlertTriangle, FileText, CheckCircle2, Clock, XCircle, UploadCloud, Archive, Info, Send, Edit2, Replace } from "lucide-react";
 import { Document, ProcessingStatus, PublicationStatus } from "../types";
 
 export function NonRagNoticeBanner({
@@ -68,13 +68,17 @@ export function ProcessingErrorBanner({ reason, onRetry }: { reason: string, onR
 
 export function RejectionReasonBanner({ reason }: { reason: string }) {
   return (
-    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-xl mb-6 text-red-800 text-left">
-      <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-      <div>
-        <h4 className="text-[14.5px] font-semibold mb-1">Tài liệu bị từ chối phê duyệt</h4>
-        <p className="text-[11.5px] font-mono-label uppercase tracking-widest text-red-500 mb-1">Lý do từ chối</p>
-        <p className="text-[14px] leading-relaxed">{reason}</p>
-        <p className="text-[13px] mt-2 text-red-700/80">Vui lòng chỉnh sửa thông tin hoặc thay thế file trước khi gửi duyệt lại.</p>
+    <div className="flex items-start gap-3.5 p-4 bg-red-50/90 border border-red-200 rounded-2xl mb-5 text-red-900 text-left shadow-xs">
+      <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <h4 className="text-[14.5px] font-semibold text-red-950 mb-1">Tài liệu bị từ chối phê duyệt</h4>
+        <p className="text-[11px] font-mono-label uppercase tracking-widest text-red-600 font-semibold mb-1">Lý do từ chối từ Admin</p>
+        <div className="p-3 bg-white/90 border border-red-200/90 rounded-xl text-[13.5px] text-red-900 font-medium leading-relaxed mb-2">
+          "{reason}"
+        </div>
+        <p className="text-[12.5px] text-red-800/85">
+          Vui lòng sử dụng nút <strong>Sửa thông tin</strong> hoặc <strong>Thay file</strong> ở thanh công cụ phía trên để chỉnh sửa và gửi duyệt lại.
+        </p>
       </div>
     </div>
   );

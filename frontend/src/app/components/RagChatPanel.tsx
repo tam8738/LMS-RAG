@@ -589,7 +589,7 @@ export function RagChatPanel({
     }
 
     if (pubStatus === "REJECTED") {
-      return "Tài liệu bị từ chối phê duyệt. Vui lòng xem lý do từ chối ở phần thông tin tài liệu, sau đó chỉnh sửa thông tin hoặc thay file trước khi gửi duyệt lại.";
+      return "Chức năng Hỏi đáp AI đang tạm khóa do tài liệu bị từ chối phê duyệt.";
     }
 
     return "Học liệu đang được xử lý chỉ mục RAG để sẵn sàng hỏi đáp.";
@@ -683,58 +683,18 @@ export function RagChatPanel({
           </div>
         ) : messages.length === 0 ? (
           !isEligible ? (
-            <div className="m-auto text-center max-w-lg w-full p-8 bg-white border border-[#0E0D0B]/[0.06] rounded-2xl shadow-premium flex flex-col items-center">
-              <Clock className="w-10 h-10 text-[#4F63D2] mb-4 animate-pulse" />
-              <h4 className="text-[17px] font-semibold text-[#0E0D0B] mb-2 font-sans">
-                {document.ragEligible === false || document.processingStatus === "FAILED"
-                  ? "Tài liệu không hỗ trợ Hỏi đáp AI (RAG)"
-                  : "Hỏi đáp AI chưa sẵn sàng"}
+            <div className="m-auto text-center max-w-sm w-full p-6 flex flex-col items-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#F4F3F0] flex items-center justify-center text-[#AAAA9F] mb-3">
+                <BrainCircuit className="w-6 h-6" />
+              </div>
+              <h4 className="text-[15px] font-bold text-[#0E0D0B] mb-1 font-sans">
+                AI Workspace Tạm khóa
               </h4>
-
-              <p className="text-[13.5px] text-[#6B6963] leading-relaxed mb-6 max-w-sm">
-                {getContextualExplanation()}
+              <p className="text-[13px] text-[#6B6963] leading-relaxed">
+                {isRejected
+                  ? "Tài liệu bị từ chối phê duyệt. Vui lòng xem lý do ở bảng thông tin bên trái."
+                  : getContextualExplanation()}
               </p>
-
-              {/* Milestones horizontal timeline bar */}
-              <div className="w-full flex items-center justify-between mb-6 relative px-2 pt-1">
-                {/* Horizontal line */}
-                <div className="absolute left-[36px] right-[36px] top-[14px] h-[2px] bg-[#0E0D0B]/[0.06] -z-10" />
-
-                {milestones.map((m, idx) => {
-                  const status = getMilestoneStatus(m.key);
-                  return (
-                    <div key={m.key} className="flex flex-col items-center gap-1.5 relative w-12">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 text-[10.5px] font-bold transition-all ${status === "completed" ? "bg-emerald-500 border-emerald-500 text-white" :
-                        status === "active" ? "bg-white border-[#4F63D2] text-[#4F63D2] animate-pulse" :
-                          status === "failed" ? "bg-red-500 border-red-500 text-white" :
-                            "bg-white border-[#0E0D0B]/[0.12] text-[#AAAA9F]"
-                        }`}>
-                        {idx + 1}
-                      </div>
-                      <span className={`text-[9.5px] font-bold uppercase tracking-tight text-center w-16 block leading-tight ${status === "active" ? "text-[#4F63D2]" :
-                        status === "failed" ? "text-red-655" :
-                          status === "completed" ? "text-[#0E0D0B]" : "text-[#AAAA9F]"
-                        }`}>
-                        {m.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Action Buttons if available */}
-              <div className="flex gap-2.5 w-full mt-2">
-                {onRetry && !isRejected && (
-                  <button onClick={onRetry} className="flex-1 h-9.5 bg-[#0E0D0B] text-white text-[13px] font-semibold rounded-xl hover:bg-[#1C1A17] transition-all border-none cursor-pointer font-action">
-                    Thử kiểm tra lại
-                  </button>
-                )}
-                {onBack && (
-                  <button onClick={onBack} className="flex-1 h-9.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] text-[13px] font-semibold rounded-xl hover:bg-[#F8F7F4] transition-colors cursor-pointer font-action">
-                    Trở về
-                  </button>
-                )}
-              </div>
             </div>
           ) : (
             // Concise Empty State with Prompts

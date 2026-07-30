@@ -195,6 +195,30 @@ class AnalyzeDocumentApiTest(unittest.TestCase):
             },
         )
 
+    def test_analyze_endpoint_accepts_docx_file_type(self) -> None:
+        self.service.analyze.return_value = AnalyzeDocumentResult(
+            document_id=12,
+            can_rag=True,
+            rag_status="READY_TO_PROCESS",
+            page_count=1,
+            estimated_token_count=25,
+            estimated_chunk_count=2,
+        )
+
+        response = self.client.post(
+            "/v1/analyze-document",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_id": 12,
+                "storage_key": "documents/12/v1/source.docx",
+                "file_type": "DOCX",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        request = self.service.analyze.call_args.args[0]
+        self.assertEqual(request.file_type, DocumentFileType.DOCX)
+
     def test_analyze_endpoint_requires_internal_key(self) -> None:
         response = self.client.post(
             "/v1/analyze-document",
@@ -219,7 +243,7 @@ class AnalyzeDocumentApiTest(unittest.TestCase):
             json={
                 "document_id": 0,
                 "storage_key": "   ",
-                "file_type": "DOCX",
+                "file_type": "PPTX",
             },
         )
 

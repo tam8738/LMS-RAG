@@ -22,31 +22,40 @@ export const ADMIN_NAV: NavItem[] = [
   { id: "admin-teachers", path: ROUTES.ADMIN_TEACHERS, label: "Quản lý giảng viên", icon: Users },
 ];
 
-export const getNavForRole = (role: Role): NavItem[] => {
-  return role === "admin" ? ADMIN_NAV : TEACHER_NAV;
+export const GUEST_NAV: NavItem[] = [
+  { id: "library", path: ROUTES.LIBRARY, label: "Thư viện", icon: Library },
+];
+
+export const getNavForRole = (role?: Role | null): NavItem[] => {
+  if (role === "admin") return ADMIN_NAV;
+  if (role === "teacher") return TEACHER_NAV;
+  return GUEST_NAV;
 };
 
-export const getDefaultRouteForRole = (role: Role): string => {
+export const getDefaultRouteForRole = (role?: Role | null): string => {
   return role === "admin" ? ROUTES.ADMIN_REVIEWS : ROUTES.LIBRARY;
 };
 
-export const isRouteAllowedForRole = (role: Role, pathname: string): boolean => {
-  if (pathname === ROUTES.LOGIN || pathname === ROUTES.HOME || pathname.startsWith("/quiz/public")) return true;
+export const isRouteAllowedForRole = (role: Role | null | undefined, pathname: string): boolean => {
+  if (
+    pathname === ROUTES.LOGIN ||
+    pathname === ROUTES.HOME ||
+    pathname.startsWith("/quiz/public") ||
+    pathname.startsWith(ROUTES.LIBRARY)
+  ) {
+    return true;
+  }
 
   if (role === "teacher") {
-    // Teacher allowed routes
     return (
-      pathname.startsWith(ROUTES.LIBRARY) ||
       pathname.startsWith(ROUTES.MY_DOCUMENTS) ||
       pathname.startsWith(ROUTES.QUIZZES) ||
       pathname.startsWith(ROUTES.UPLOAD)
     );
   } else if (role === "admin") {
-    // Admin allowed routes
     return (
       pathname.startsWith(ROUTES.ADMIN_REVIEWS) ||
-      pathname.startsWith(ROUTES.ADMIN_TEACHERS) ||
-      pathname.startsWith(ROUTES.LIBRARY)
+      pathname.startsWith(ROUTES.ADMIN_TEACHERS)
     );
   }
   return false;

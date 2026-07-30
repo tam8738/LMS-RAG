@@ -2,6 +2,7 @@
 
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
 from app.parsers.base import DocumentParser
+from app.parsers.docx import DocxDocumentParser
 from app.parsers.pdf import PdfDocumentParser
 from app.parsers.txt import TxtDocumentParser
 from app.schemas.document import DocumentFileType
@@ -13,6 +14,7 @@ class DocumentParserFactory:
     _parsers: dict[DocumentFileType, type[DocumentParser]] = {
         DocumentFileType.PDF: PdfDocumentParser,
         DocumentFileType.TXT: TxtDocumentParser,
+        DocumentFileType.DOCX: DocxDocumentParser,
     }
 
     @classmethod

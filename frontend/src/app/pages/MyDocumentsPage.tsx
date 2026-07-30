@@ -332,6 +332,16 @@ export function MyDocumentsPage({
       </div>
 
       {/* Notifications bar */}
+      {docs.some(d => d.publicationStatus === "REJECTED") && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-900 rounded-xl text-[13.5px] flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4.5 h-4.5 text-red-600 flex-shrink-0" />
+            <span>
+              Bạn có <strong className="font-semibold text-red-950">{docs.filter(d => d.publicationStatus === "REJECTED").length} tài liệu bị từ chối phê duyệt</strong>. Vui lòng nhấp vào tài liệu để xem lý do, chỉnh sửa thông tin hoặc thay file trước khi gửi duyệt lại.
+            </span>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -495,9 +505,15 @@ export function MyDocumentsPage({
                             <span className="font-semibold text-[#0E0D0B] text-[14.5px] line-clamp-1 group-hover:text-[#4F63D2] transition-colors">
                               {doc.title}
                             </span>
-                            <span className="text-[12px] text-[#AAAA9F] line-clamp-1 mt-0.5">
-                              {doc.description || "Không có mô tả."}
-                            </span>
+                            {doc.publicationStatus === "REJECTED" && doc.rejectReason ? (
+                              <span className="text-[12px] text-red-650 font-medium line-clamp-1 mt-0.5 flex items-center gap-1">
+                                ⚠️ Lý do từ chối: {doc.rejectReason}
+                              </span>
+                            ) : (
+                              <span className="text-[12px] text-[#AAAA9F] line-clamp-1 mt-0.5">
+                                {doc.description || "Không có mô tả."}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>

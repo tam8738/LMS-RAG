@@ -22,7 +22,7 @@ export interface Document {
   updatedAt: string;
   
   // UI-ready backend fields
-  fileType: "PDF" | "TXT";
+  fileType: "PDF" | "TXT" | "DOCX";
   fileSize: string;
   mimeType: string;
   storageKey?: string;
@@ -38,6 +38,7 @@ export interface Document {
   
   rejectReason?: string;
   failReason?: string;
+  unsupportedReason?: string;
   
   reviewedAt?: string;
   publishedAt?: string;
@@ -56,7 +57,7 @@ export interface DocumentResponseDTO {
   uploaderName?: string;
   createdAt: string;
   updatedAt: string;
-  fileType?: "PDF" | "TXT";
+  fileType?: "PDF" | "TXT" | "DOCX";
   fileSize: number;
   mimeType?: string;
   storageKey?: string;
@@ -68,6 +69,7 @@ export interface DocumentResponseDTO {
   publicationStatus?: PublicationStatus;
   rejectionReason?: string;
   errorMessage?: string;
+  unsupportedReason?: string;
   reviewedAt?: string;
   publishedAt?: string;
   reviewerName?: string;

@@ -327,8 +327,8 @@ export function MyDocumentDetailPage({
     if (!doc || !replaceFileSelected) return;
 
     const extension = replaceFileSelected.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'pdf' && extension !== 'txt') {
-      setReplaceError("Định dạng file không hợp lệ. Chỉ hỗ trợ .pdf hoặc .txt.");
+    if (extension !== 'pdf' && extension !== 'txt' && extension !== 'docx' && extension !== 'doc') {
+      setReplaceError("Định dạng file không hợp lệ. Chỉ hỗ trợ .pdf, .txt hoặc .docx.");
       return;
     }
     if (replaceFileSelected.size > 20 * 1024 * 1024) {
@@ -864,7 +864,7 @@ export function MyDocumentDetailPage({
               <div className="border-2 border-dashed border-[rgba(14,13,11,0.15)] rounded-xl p-6 text-center hover:bg-[#F8F7F4]/55 transition-colors relative cursor-pointer">
                 <input
                   type="file"
-                  accept=".pdf,.txt"
+                  accept=".pdf,.txt,.docx,.doc"
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
                       setReplaceFileSelected(e.target.files[0]);
@@ -881,7 +881,7 @@ export function MyDocumentDetailPage({
                   <span className="text-[11.5px] text-[#AAAA9F]">
                     {replaceFileSelected
                       ? `${(replaceFileSelected.size / (1024 * 1024)).toFixed(2)} MB`
-                      : "Chấp nhận định dạng .pdf hoặc .txt, tối đa 20MB"}
+                      : "Chấp nhận định dạng .pdf, .txt hoặc .docx, tối đa 20MB"}
                   </span>
                 </div>
               </div>
