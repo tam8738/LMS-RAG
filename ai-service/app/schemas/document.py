@@ -16,6 +16,7 @@ class DocumentFileType(str, Enum):
 
     PDF = "PDF"
     TXT = "TXT"
+    DOCX = "DOCX"
 
     @property
     def extension(self) -> str:
@@ -28,6 +29,10 @@ class DocumentFileType(str, Enum):
         media_types = {
             DocumentFileType.PDF: "application/pdf",
             DocumentFileType.TXT: "text/plain",
+            DocumentFileType.DOCX: (
+                "application/vnd.openxmlformats-officedocument"
+                ".wordprocessingml.document"
+            ),
         }
         return media_types[self]
 
