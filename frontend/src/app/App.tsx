@@ -182,7 +182,7 @@ export default function App() {
           path={ROUTES.LIBRARY}
           element={
             <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser} isPublic={true}>
-              <LibraryPage />
+              <LibraryPage user={currentUser} />
             </ProtectedRoute>
           }
         />
