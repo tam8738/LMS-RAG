@@ -3,6 +3,7 @@ import { X, Sparkles, BookOpen, Globe, Sliders, CheckCircle2, AlertCircle, Loade
 import { quizService, QuizResponse } from "../services/quizService";
 import { libraryService } from "../services/libraryService";
 import { LibraryDocument } from "../types";
+import { canUseDocumentRag } from "../utils/documentHelpers";
 
 interface GenerateQuizModalProps {
   initialDocumentId?: number;
@@ -28,9 +29,12 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
       setLoadingDocs(true);
       try {
         const res = await libraryService.getLibrary({ page: 0, size: 100 });
-        setDocuments(res.documents);
-        if (!selectedDocId && res.documents.length > 0) {
-          setSelectedDocId(res.documents[0].id);
+        const eligibleDocs = res.documents.filter(doc => canUseDocumentRag(doc));
+        setDocuments(eligibleDocs);
+        if (!selectedDocId && eligibleDocs.length > 0) {
+          setSelectedDocId(eligibleDocs[0].id);
+        } else if (selectedDocId && !eligibleDocs.some(d => d.id === selectedDocId)) {
+          setSelectedDocId(eligibleDocs.length > 0 ? eligibleDocs[0].id : undefined);
         }
       } catch (err) {
         console.error("Failed to load documents for quiz generation", err);
@@ -147,11 +151,15 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
             <div>
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Tài liệu nguồn</span>
+                <span>Tài liệu nguồn (Đã lập chỉ mục AI)</span>
               </label>
               {loadingDocs ? (
                 <div className="h-10 border border-gray-200 rounded-xl bg-gray-50 animate-pulse flex items-center px-3.5 text-[13px] text-gray-400">
                   Đang tải danh sách tài liệu...
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-[12.5px] text-amber-900 leading-relaxed font-medium">
+                  ⚠️ Chưa có tài liệu nào hỗ trợ AI (đã được xuất bản & lập chỉ mục RAG) trong Thư viện để sinh Quiz.
                 </div>
               ) : (
                 <select
@@ -169,29 +177,58 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
               )}
             </div>
 
-            {/* Question Count Slider & Counter */}
+            {/* Question Count Section: Range + Direct Input + Quick Presets */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Số lượng câu hỏi</span>
                 </label>
-                <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-[12px] font-bold">
-                  {questionCount} câu
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={questionCount}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10);
+                      setQuestionCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)));
+                    }}
+                    className="w-16 h-7.5 text-center text-[13px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans"
+                  />
+                  <span className="text-[12.5px] font-semibold text-[#6B6963]">câu</span>
+                </div>
               </div>
+
+              {/* Slider for smooth dragging */}
               <input
                 type="range"
                 min={1}
-                max={10}
-                value={questionCount}
+                max={30}
+                value={questionCount > 30 ? 30 : questionCount}
                 onChange={e => setQuestionCount(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 my-2"
               />
-              <div className="flex justify-between text-[11px] text-[#AAAA9F] mt-1 font-mono-label">
-                <span>1 câu</span>
-                <span>5 câu</span>
-                <span>10 câu (Tối đa)</span>
+
+              {/* Quick Presets */}
+              <div className="flex items-center justify-between gap-1.5 mt-1 text-[11.5px]">
+                <span className="text-[11px] text-[#AAAA9F] font-mono-label">Chọn nhanh:</span>
+                <div className="flex items-center gap-1.5">
+                  {[5, 10, 15, 20, 25].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setQuestionCount(num)}
+                      className={`px-2 py-0.5 rounded-md text-[11.5px] font-semibold transition-all cursor-pointer border ${
+                        questionCount === num
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                          : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      {num} câu
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
