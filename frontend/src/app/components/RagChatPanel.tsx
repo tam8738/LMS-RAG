@@ -501,6 +501,8 @@ export function RagChatPanel({
   }
 
   const isRejected = document.publicationStatus === "REJECTED";
+  const isAwaitingAnalysis = document.processingStatus === "UPLOADED";
+  const isAnalyzing = document.processingStatus === "ANALYZING";
 
   // Curated list of suggested prompts based on document context
   const suggestedPrompts = [
@@ -563,13 +565,22 @@ export function RagChatPanel({
     }
 
     if (pubStatus === "DRAFT") {
-      if (document.ragEligible === false || procStatus === "FAILED") {
-        return "Tài liệu này không chứa văn bản trích xuất được (ví dụ: PDF scan dạng ảnh hoặc tệp rỗng). Hệ thống dừng ở Bước 2 và không thể lập chỉ mục RAG. Tuy nhiên, bạn vẫn hoàn toàn có thể gửi duyệt để Admin phê duyệt thủ công vào Thư viện cho người dùng xem/tải trực tiếp.";
+      if (procStatus === "UPLOADED") {
+        return "Tài liệu đã tải lên và đang chờ hệ thống AI bắt đầu phân tích cấu trúc.";
+      }
+      if (procStatus === "ANALYZING") {
+        return "Tài liệu đang được AI phân tích cấu trúc. Hỏi đáp AI sẽ khả dụng sau khi tài liệu được duyệt và lập chỉ mục RAG.";
       }
       if (procStatus === "ANALYZED") {
+        if (document.ragEligible === false) {
+          return "Tài liệu đã phân tích xong nhưng không có đủ văn bản trích xuất để dùng Hỏi đáp RAG. Bạn vẫn có thể gửi duyệt để tài liệu được xem hoặc tải trực tiếp trong Thư viện.";
+        }
         return "Tài liệu đã phân tích xong và đang chờ bạn gửi duyệt.";
       }
-      return "Tài liệu đang được phân tích cấu trúc bài giảng.";
+      if (procStatus === "FAILED") {
+        return "Quá trình phân tích AI thất bại. Bạn có thể kiểm tra lỗi xử lý hoặc thay thế file trước khi gửi duyệt lại.";
+      }
+      return "Tài liệu đang được chuẩn bị để xử lý AI.";
     }
 
     if (pubStatus === "PENDING_REVIEW") {
@@ -577,11 +588,14 @@ export function RagChatPanel({
     }
 
     if (pubStatus === "PUBLISHED" || pubStatus === "ARCHIVED") {
+      if (procStatus === "UPLOADED" || procStatus === "ANALYZING") {
+        return "Tài liệu đã công bố nhưng vẫn đang chờ AI phân tích nội dung. Hỏi đáp AI sẽ mở sau khi quá trình xử lý hoàn tất.";
+      }
+      if (procStatus === "PROCESSING") {
+        return "Tài liệu đã xuất bản và đang được lập chỉ mục RAG.";
+      }
       if (document.ragEligible === false) {
         return "Tài liệu đã được xuất bản ở chế độ đọc/tải trực tiếp (không hỗ trợ Hỏi đáp RAG).";
-      }
-      if (procStatus === "PROCESSING" || procStatus === "ANALYZING") {
-        return "Tài liệu đã xuất bản và đang được lập chỉ mục RAG.";
       }
       if (procStatus === "FAILED") {
         return "Lập chỉ mục RAG thất bại. Giảng viên có thể thử xử lý lại.";
@@ -595,6 +609,21 @@ export function RagChatPanel({
     return "Học liệu đang được xử lý chỉ mục RAG để sẵn sàng hỏi đáp.";
   };
 
+  const getWorkspaceUnavailableTitle = () => {
+    if (isRejected) return "AI Workspace Tạm khóa";
+    if (isAwaitingAnalysis) return "AI Workspace chờ phân tích";
+    if (isAnalyzing) return "AI Workspace đang phân tích";
+    if (document.processingStatus === "PROCESSING") return "AI Workspace đang lập chỉ mục";
+    return "AI Workspace chưa sẵn sàng";
+  };
+
+  const getLockedInputMessage = () => {
+    if (isRejected) return "Chức năng hỏi đáp AI đang bị khóa do tài liệu bị từ chối phê duyệt.";
+    if (isAwaitingAnalysis || isAnalyzing) return "Hỏi đáp AI sẽ mở sau khi tài liệu được phân tích, duyệt công bố và lập chỉ mục RAG.";
+    if (document.processingStatus === "PROCESSING") return "Hỏi đáp AI sẽ mở sau khi quá trình lập chỉ mục RAG hoàn tất.";
+    if (document.ragEligible === false) return "Tài liệu này không hỗ trợ Hỏi đáp RAG, nhưng vẫn có thể xem hoặc tải trực tiếp nếu đã được công bố.";
+    return "Chức năng hỏi đáp AI đang bị khóa cho đến khi học liệu sẵn sàng hoặc được duyệt công bố.";
+  };
   const chatInputDisabled = loading || historyLoading || historyClearing || !conversationId;
   const chatInputPlaceholder = historyLoading
     ? "Đang tải lịch sử hỏi đáp..."
@@ -688,7 +717,7 @@ export function RagChatPanel({
                 <BrainCircuit className="w-6 h-6" />
               </div>
               <h4 className="text-[15px] font-bold text-[#0E0D0B] mb-1 font-sans">
-                AI Workspace Tạm khóa
+                {getWorkspaceUnavailableTitle()}
               </h4>
               <p className="text-[13px] text-[#6B6963] leading-relaxed">
                 {isRejected
@@ -848,7 +877,7 @@ export function RagChatPanel({
       <div className="p-3.5 sm:px-6 sm:py-4 bg-[#FDFDFB] border-t border-[#0E0D0B]/[0.06] flex-shrink-0 sticky bottom-0 z-10">
         {!isEligible ? (
           <div className="max-w-[760px] mx-auto text-center p-3 rounded-2xl text-[13px] bg-[#F8F7F4]/60 text-[#6B6963] border border-[#0E0D0B]/[0.06] font-medium leading-relaxed">
-            Chức năng hỏi đáp AI đang bị khóa cho đến khi học liệu sẵn sàng hoặc được duyệt công bố.
+            {getLockedInputMessage()}
           </div>
         ) : (
           <div className="max-w-[760px] mx-auto relative flex items-end bg-[#F4F3F0] rounded-2xl border border-[#0E0D0B]/[0.08] focus-within:border-[#4F63D2]/40 focus-within:bg-white focus-within:ring-4 focus-within:ring-[#4F63D2]/10 shadow-[0_2px_12px_rgba(14,13,11,0.04)] transition-all">
