@@ -293,10 +293,10 @@ export const teacherDocumentService = {
       let blob = await response.blob();
       const contentType = (response.headers.get("Content-Type") || blob.type || "").toLowerCase();
       const isDocx = contentType.includes("wordprocessingml") ||
-                     contentType.includes("msword") ||
-                     contentType.includes("officedocument") ||
-                     detectedFilename.endsWith(".docx") ||
-                     detectedFilename.endsWith(".doc");
+        contentType.includes("msword") ||
+        contentType.includes("officedocument") ||
+        detectedFilename.endsWith(".docx") ||
+        detectedFilename.endsWith(".doc");
 
       const url = window.URL.createObjectURL(blob);
 
@@ -379,9 +379,15 @@ export const teacherDocumentService = {
     });
     if (!response.ok) {
       if (response.status === 401) {
-        localStorage.removeItem("token");
-        window.dispatchEvent(new Event("auth-unauthorized"));
-        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        if (token) {
+          localStorage.removeItem("token");
+          window.dispatchEvent(new Event("auth-unauthorized"));
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        throw new Error("Vui lòng đăng nhập tài khoản để thực hiện việc tải tệp gốc.");
+      }
+      if (response.status === 403) {
+        throw new Error("Tính năng tải tệp gốc chỉ dành cho Giảng viên và Quản trị viên.");
       }
       let errorMsg = `Tải xuống thất bại (${response.status})`;
       try {

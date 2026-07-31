@@ -219,10 +219,19 @@ export const libraryService = {
       headers,
     });
     if (!response.ok) {
+      // Nếu có token nhưng 401 => token đã hết hạn
       if (response.status === 401) {
-        localStorage.removeItem("token");
-        window.dispatchEvent(new Event("auth-unauthorized"));
-        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        if (token) {
+          localStorage.removeItem("token");
+          window.dispatchEvent(new Event("auth-unauthorized"));
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        // Nếu chưa đăng nhập (Public/Guest) => yêu cầu đăng nhập
+        throw new Error("Vui lòng đăng nhập tài khoản để thực hiện việc tải tệp gốc.");
+      }
+      // 403: Cấm truy cập (Tài liệu chưa được công bố)
+      if (response.status === 403) {
+        throw new Error("Tính năng tải tệp gốc chỉ dành cho Giảng viên và Quản trị viên.");
       }
       let errorMsg = `Tải xuống thất bại (${response.status})`;
       try {
