@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   BookOpen,
   Sparkles,
   Mail,
@@ -14,8 +16,10 @@ import {
 
 import { User } from "../types";
 import { authService } from "../services/authService";
+import { ROUTES } from "../routes";
 
 export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -102,18 +106,23 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         <div className="w-[250px] h-[250px] rounded-full bg-sky-500/20 blur-[80px] absolute top-[40%] right-[10%] pointer-events-none" />
 
         {/* Top Header Logo */}
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="w-10 h-10 bg-indigo-600/20 border border-indigo-500/30 rounded-xl flex items-center justify-center backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => navigate(ROUTES.LIBRARY)}
+          className="flex items-center gap-3 relative z-10 cursor-pointer group bg-transparent border-none p-0 text-left self-start"
+          title="Quay lại Thư viện công cộng"
+        >
+          <div className="w-10 h-10 bg-indigo-600/20 border border-indigo-500/30 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:bg-indigo-600/30 transition">
             <BookOpen className="w-5 h-5 text-indigo-400" />
           </div>
           <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-indigo-100 to-white bg-clip-text text-transparent">EduRAG</span>
-        </div>
+        </button>
 
         {/* Middle Visual Showcase */}
         <div className="my-auto relative z-10 flex flex-col gap-6">
           <div className="inline-flex self-start items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-2">
             <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs text-indigo-300 font-medium">Hệ thống thư viện thông minh tích hợp AI & RAG</span>
+            <span className="text-xs text-indigo-300 font-medium">Hệ thống quản lý học liệu tích hợp AI & RAG</span>
           </div>
 
           <div>
@@ -121,8 +130,8 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
               Nâng tầm giảng dạy <br />
               <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">và quản lý học liệu bằng AI</span>
             </h1>
-            <p className="text-slate-400 max-w-lg leading-relaxed font-sans-body text-[15px]" style={{ lineHeight: 1.5 }}>
-              Hỗ trợ tự động hóa việc trích xuất kiến thức, tóm tắt bài học, và cung cấp chatbot thông minh truy xuất trực tiếp nguồn tài liệu môn học.
+            <p className="text-slate-400 max-w-lg leading-relaxed font-sans-body text-[14px]" style={{ lineHeight: 1.5 }}>
+              Hỗ trợ giảng viên quản lý, phân tích và xuất bản học liệu; đồng thời khai thác RAG AI để tóm tắt, tra cứu và hỏi đáp dựa trên nguồn học liệu chính xác
             </p>
           </div>
 
@@ -188,8 +197,23 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         )}
 
         <div className="w-full max-w-md relative z-10">
+          {/* Back button to public library */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.LIBRARY)}
+              className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-slate-500 hover:text-indigo-600 transition-colors border-none bg-transparent cursor-pointer group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span>Quay lại Thư viện</span>
+            </button>
+          </div>
+
           {/* Logo on mobile only */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden justify-center">
+          <div
+            onClick={() => navigate(ROUTES.LIBRARY)}
+            className="flex items-center gap-2 mb-6 lg:hidden justify-center cursor-pointer"
+          >
             <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-200">
               <BookOpen className="w-5 h-5 text-white" />
             </div>

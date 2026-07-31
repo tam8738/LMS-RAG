@@ -5,6 +5,7 @@ import { LibraryDocument, LibraryQuery, User } from "../types";
 import { DocumentCard } from "../components/DocumentCard";
 import { EmptyState, LoadingSkeleton, ErrorState } from "../components/EmptyState";
 import { FilterDrawer, AdvancedFilterState } from "../components/FilterDrawer";
+import { PublicLibraryHero } from "../components/library/PublicLibraryHero";
 import {
   Search,
   Filter,
@@ -141,45 +142,89 @@ function SubjectShowcaseRow({
   return (
     <div className="space-y-4 text-left">
       {/* Row Header */}
-      <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.04] pb-2">
-        <div className="flex items-center gap-2 border-l-3 border-[#0E0D0B] pl-3">
-          <h3 className="text-[17px] font-extrabold text-[#0E0D0B] tracking-tight">{subjectName}</h3>
-          <span className="text-[11.5px] text-[#AAAA9F] font-bold">({docs.length} tài liệu)</span>
-        </div>
-
-        {/* Carousel Navigation Buttons placed in header */}
-        {!isMobile && maxIndex > 0 && (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-              aria-label={`Trước - ${subjectName}`}
-              className="w-8 h-8 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-3xs hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={currentIndex >= maxIndex}
-              aria-label={`Tiếp - ${subjectName}`}
-              className="w-8 h-8 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-3xs hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+      {isAiReadyRow ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3 mb-2 text-left">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <Sparkles className="w-4.5 h-4.5" />
+              </div>
+              <h3 className="text-[19px] font-bold text-slate-900 tracking-tight font-heading">
+                Sẵn sàng hỏi đáp AI
+              </h3>
+              <span className="text-[12px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
+                {docs.length} tài liệu
+              </span>
+            </div>
+            <p className="text-[13px] text-slate-500 mt-1 font-sans">
+              Các tài liệu đã xuất bản và hoàn tất lập chỉ mục RAG.
+            </p>
           </div>
-        )}
-      </div>
+
+          {/* Carousel Navigation Controls */}
+          {!isMobile && maxIndex > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrev}
+                disabled={currentIndex === 0}
+                aria-label="Trước"
+                className="w-8.5 h-8.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all shadow-3xs"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={currentIndex >= maxIndex}
+                aria-label="Tiếp"
+                className="w-8.5 h-8.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all shadow-3xs"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.04] pb-2">
+          <div className="flex items-center gap-2 border-l-3 border-[#0E0D0B] pl-3">
+            <h3 className="text-[17px] font-extrabold text-[#0E0D0B] tracking-tight">{subjectName}</h3>
+            <span className="text-[11.5px] text-[#AAAA9F] font-bold">({docs.length} tài liệu)</span>
+          </div>
+
+          {!isMobile && maxIndex > 0 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handlePrev}
+                disabled={currentIndex === 0}
+                aria-label={`Trước - ${subjectName}`}
+                className="w-8 h-8 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-3xs hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={currentIndex >= maxIndex}
+                aria-label={`Tiếp - ${subjectName}`}
+                className="w-8 h-8 rounded-xl border border-[#0E0D0B]/[0.08] bg-white shadow-3xs hover:bg-[#F4F3F0] text-[#6B6963] disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Desktop/Tablet side-by-side versus Mobile stacked layout */}
       <div className="flex flex-col md:flex-row gap-5 items-stretch relative">
 
-        {/* Fixed Subject Lead Card */}
-        <SubjectLeadCard
-          subjectName={subjectName}
-          docCount={docs.length}
-          onSelect={handleSelect}
-          isAiReadyRow={isAiReadyRow}
-        />
+        {/* Fixed Subject Lead Card (Only for standard rows, hidden for AI Ready shelf) */}
+        {!isAiReadyRow && (
+          <SubjectLeadCard
+            subjectName={subjectName}
+            docCount={docs.length}
+            onSelect={handleSelect}
+            isAiReadyRow={isAiReadyRow}
+          />
+        )}
 
         {/* Viewport wrapper */}
         <div
@@ -448,99 +493,13 @@ export function LibraryPage({
         </div>
       )}
 
-      {/* 1. AI Learning Hero Section (Only show when not filtering/searching) */}
+      {/* 1. Public Library Hero Section (Agromind-style, shown when not searching/filtering) */}
       {!isFilteringOrSearching ? (
-        <div className="space-y-8 animate-fadeIn">
-          <div className="py-12 px-6 rounded-3xl bg-gradient-to-br from-[#F8F7F4]/90 via-[#FDFDFB] to-[#F4F3F0]/50 border border-[#0E0D0B]/[0.06] text-center relative overflow-hidden shadow-premium">
-            {/* Background glowing blobs */}
-            <div className="absolute -left-20 -top-20 w-64 h-64 bg-[#4F63D2]/5 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#4F63D2]/10 text-[#4F63D2] text-[12px] font-bold mb-4">
-              <Sparkles className="w-3.5 h-3.5" /> AI-POWERED WORKSPACE
-            </div>
-
-            <h1 className="text-[34px] sm:text-[40px] font-bold text-[#0E0D0B] tracking-tight leading-none max-w-3xl mx-auto">
-              EduRAG AI Learning Hub
-            </h1>
-            <p className="text-[14.5px] text-[#6B6963] max-w-xl mx-auto mt-3 mb-8 leading-relaxed">
-              Khám phá kho tàng tài liệu học liệu được số hóa và trò chuyện cùng Trợ lý RAG AI dựa trên nguồn tri thức chính xác.
-            </p>
-
-            {/* Large Centered Search Box */}
-            <div className="relative max-w-2xl mx-auto shadow-md rounded-2xl">
-              <Search className="absolute left-4.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#AAAA9F]" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchVal}
-                onChange={e => handleSearchChange(e.target.value)}
-                placeholder="Đặt câu hỏi hoặc tìm kiếm tài liệu, môn học, chủ đề..."
-                className="w-full h-14 pl-12 pr-24 bg-white border border-[#0E0D0B]/[0.1] rounded-2xl text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/8 focus:border-[#4F63D2] transition-all"
-              />
-              <div className="absolute right-4.5 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                {searchVal && (
-                  <button
-                    onClick={() => {
-                      setSearchVal("");
-                      setPage(0);
-                    }}
-                    className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
-                    title="Xóa tìm kiếm"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-[#0E0D0B]/[0.06] bg-[#F8F7F4] text-[10.5px] text-[#AAAA9F] select-none shadow-3xs font-semibold">
-                  Ctrl + K
-                </kbd>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="mt-8 flex flex-wrap justify-center items-center gap-3 text-[13px] font-semibold text-[#6B6963]">
-              <span className="text-[#AAAA9F] uppercase tracking-wider text-[10.5px]">Lối tắt nhanh:</span>
-              {user && (
-                <button
-                  onClick={() => document.getElementById("ai-ready-shelf")?.scrollIntoView({ behavior: "smooth" })}
-                  className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#4F63D2] transition-all cursor-pointer shadow-3xs"
-                >
-                  🤖 Hỏi đáp AI
-                </button>
-              )}
-              <button
-                onClick={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
-                className="h-8.5 px-4 bg-white border border-[#0E0D0B]/[0.08] rounded-xl hover:bg-[#F8F7F4] hover:text-[#0E0D0B] transition-all cursor-pointer shadow-3xs"
-              >
-                📚 Duyệt theo môn học
-              </button>
-            </div>
-          </div>
-
-          {/* AI Highlights Area */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
-              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Chủ đề nổi bật</span>
-              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Thuật toán đường đi ngắn nhất</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Tìm hiểu cách giải bài toán Dijkstra, Bellman-Ford môn Toán rời rạc 2 qua tài liệu học liệu.</p>
-            </div>
-            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
-              <span className="text-[10px] font-bold text-[#4F63D2] bg-[#4F63D2]/10 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Tra cứu trực tuyến</span>
-              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Đọc & Tải file dễ dàng</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Xem trực tiếp slide bài giảng PDF/Word ngay trên hệ thống hoặc tải file gốc phục vụ học tập.</p>
-            </div>
-            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Học liệu chính thức</span>
-              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Lập trình hướng đối tượng</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Toàn bộ slide bài giảng OOP Java đã được biên soạn và xuất bản phục vụ tra cứu học tập.</p>
-            </div>
-            <div className="bg-white border border-[#0E0D0B]/[0.06] p-5 rounded-2xl shadow-premium text-left">
-              <span className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2 inline-block">Thông báo hệ thống</span>
-              <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug mb-1">Học liệu đã phê duyệt</h4>
-              <p className="text-[12.5px] text-[#6B6963] leading-relaxed font-sans">Tất cả tài liệu trong Thư viện đều đã trải qua quy trình kiểm duyệt chất lượng từ Ban Quản trị.</p>
-            </div>
-          </div>
-        </div>
+        <PublicLibraryHero
+          user={user}
+          featuredDocument={aiReadyDocs[0] || documents[0]}
+          onExplore={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
+        />
       ) : (
         /* If searching/filtering, show a simpler compact search header bar */
         <div className="py-6 px-6 rounded-2xl bg-[#F8F7F4]/55 border border-[#0E0D0B]/[0.06] shadow-xs animate-fadeIn">
@@ -574,7 +533,7 @@ export function LibraryPage({
 
       {/* 2. Sẵn sàng hỏi đáp AI (Chỉ hiển thị khi đã đăng nhập) */}
       {user && !loading && aiReadyDocs.length > 0 && (
-        <div id="ai-ready-shelf" className="animate-fadeIn">
+        <div id="ai-ready-shelf" className="my-8 sm:my-10 animate-fadeIn">
           <SubjectShowcaseRow
             subjectName="Sẵn sàng hỏi đáp AI"
             docs={aiReadyDocs}
