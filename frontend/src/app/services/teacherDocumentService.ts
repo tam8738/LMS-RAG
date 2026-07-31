@@ -277,7 +277,7 @@ export const teacherDocumentService = {
       }
 
       const disposition = response.headers.get("Content-Disposition");
-      let detectedFilename = "document.docx";
+      let detectedFilename = "";
       if (disposition) {
         const filenameStarMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
         if (filenameStarMatch && filenameStarMatch[1]) {
@@ -285,18 +285,19 @@ export const teacherDocumentService = {
         } else {
           const filenameMatch = disposition.match(/filename="([^"]+)"/i) || disposition.match(/filename=([^;]+)/i);
           if (filenameMatch && filenameMatch[1]) {
-            detectedFilename = filenameMatch[1];
+            detectedFilename = filenameMatch[1].trim();
           }
         }
       }
 
       let blob = await response.blob();
       const contentType = (response.headers.get("Content-Type") || blob.type || "").toLowerCase();
-      const isDocx = contentType.includes("wordprocessingml") ||
-        contentType.includes("msword") ||
-        contentType.includes("officedocument") ||
-        detectedFilename.endsWith(".docx") ||
-        detectedFilename.endsWith(".doc");
+      const isDocx = (contentType.includes("wordprocessingml") ||
+                     contentType.includes("msword") ||
+                     contentType.includes("officedocument") ||
+                     detectedFilename.endsWith(".docx") ||
+                     detectedFilename.endsWith(".doc")) &&
+                     !contentType.includes("pdf");
 
       const url = window.URL.createObjectURL(blob);
 

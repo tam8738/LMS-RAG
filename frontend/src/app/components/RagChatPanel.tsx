@@ -164,17 +164,6 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
       return;
     }
 
-    const numberedHeadingMatch = trimmed.match(/^(\d+\.\s+[A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ].*)$/);
-    if (numberedHeadingMatch && !trimmed.includes(":")) {
-      flushList(`${idx}`);
-      elements.push(
-        <h4 key={idx} className="text-[15.5px] font-bold text-[#0E0D0B] mt-4 mb-2 first:mt-0 font-sans tracking-tight">
-          {parseInlineMarkdown(trimmed)}
-        </h4>
-      );
-      return;
-    }
-
     const bulletMatch = trimmed.match(/^[\-\*•]\s+(.+)$/);
     if (bulletMatch) {
       inUnorderedList = true;
@@ -187,7 +176,7 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
     }
 
     const numberedListMatch = trimmed.match(/^(\d+)[\.\)]\s+(.+)$/);
-    if (numberedListMatch && (trimmed.includes(":") || trimmed.length > 50)) {
+    if (numberedListMatch) {
       flushList(`${idx}`);
       elements.push(
         <div key={idx} className="my-2 text-[14.5px] leading-[1.75] text-[#1F1E1B] flex items-start gap-2">

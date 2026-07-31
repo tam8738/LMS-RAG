@@ -99,6 +99,11 @@ services:
       # ========= Spring =========
       SPRING_PROFILES_ACTIVE: docker
 
+      # ========= CORS =========
+      # Cần bao gồm URL public của frontend khi triển khai thực tế,
+      # ví dụ: http://14.225.172.55:5173
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:4200}
+
     ports:
       # Truy cập API
       - "8081:8080"
@@ -106,6 +111,31 @@ services:
     volumes:
       # Shared storage với AI Service
       - uploads:/storage/uploads
+
+    networks:
+      - lms-network
+
+
+  # =====================================================
+  # Frontend (React + Vite)
+  # http://localhost:5173
+  # =====================================================
+  frontend:
+
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: lms-rag-frontend
+
+    restart: unless-stopped
+
+    depends_on:
+      backend:
+        condition: service_started
+
+    ports:
+      - "5173:80"
 
     networks:
       - lms-network
