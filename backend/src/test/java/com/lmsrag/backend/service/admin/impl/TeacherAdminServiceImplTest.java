@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Optional;
@@ -41,6 +42,9 @@ class TeacherAdminServiceImplTest {
     @Mock
     private TeacherAccountWriter accountWriter;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private TeacherAdminServiceImpl teacherAdminService;
 
     @BeforeEach
@@ -48,7 +52,8 @@ class TeacherAdminServiceImplTest {
         teacherAdminService = new TeacherAdminServiceImpl(
                 userRepository,
                 passwordEncoder,
-                accountWriter
+                accountWriter,
+                eventPublisher
         );
     }
 

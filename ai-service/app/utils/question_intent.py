@@ -5,6 +5,7 @@ dấu Unicode rồi so phrase. Cách này nhanh/deterministic cho MVP và hỗ t
 tiếng Việt có hoặc không dấu.
 """
 
+import re
 import unicodedata
 
 
@@ -70,7 +71,26 @@ _INSUFFICIENT_ANSWER_PHRASES = (
 def is_summary_question(question: str) -> bool:
     """Nhận diện yêu cầu tóm tắt để tăng top_k và output token budget."""
     normalized_question = _normalize_text(question)
-    return any(phrase in normalized_question for phrase in _SUMMARY_INTENT_PHRASES)
+    if any(phrase in normalized_question for phrase in _SUMMARY_INTENT_PHRASES):
+        return True
+
+    # "Chương 3 nói về điều gì?" là yêu cầu overview dù không có từ "tóm tắt",
+    # vì vậy vẫn cấp output budget rộng như các câu hỏi summary khác.
+    return extract_chapter_number(question) is not None and any(
+        phrase in normalized_question
+        for phrase in ("noi ve dieu gi", "noi ve gi", "what is chapter", "chapter about")
+    )
+
+
+def extract_chapter_number(question: str) -> int | None:
+    """Trả số chương dương được nhắc rõ bằng chữ số, hỗ trợ Việt/Anh."""
+    normalized_question = _normalize_text(question)
+    match = re.search(r"\b(?:chuong|chapter)\s+(\d{1,3})\b", normalized_question)
+    if match is None:
+        return None
+
+    chapter_number = int(match.group(1))
+    return chapter_number if chapter_number > 0 else None
 
 
 def is_follow_up_question(question: str) -> bool:

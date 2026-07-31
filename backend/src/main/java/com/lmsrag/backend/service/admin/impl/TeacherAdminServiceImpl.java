@@ -15,10 +15,12 @@ import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.mapper.TeacherMapper;
 import com.lmsrag.backend.repository.UserRepository;
+import com.lmsrag.backend.event.TeacherPasswordResetEvent;
 import com.lmsrag.backend.service.admin.TeacherAdminService;
 import com.lmsrag.backend.service.admin.support.TeacherAccountWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +49,7 @@ public class TeacherAdminServiceImpl implements TeacherAdminService {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final TeacherAccountWriter teacherAccountWriter;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PageResponse<TeacherResponse> searchTeachers(TeacherSearchRequest request) {
@@ -189,13 +192,18 @@ public class TeacherAdminServiceImpl implements TeacherAdminService {
         teacher.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(teacher);
 
-        // Hệ thống hiện tại chưa tích hợp email service; đặt emailSent=false.
-        // Mật khẩu mới không được trả về trong response theo quy tắc bảo mật.
-        log.info("[ADMIN] Reset password for teacher id={} emailSent=false", teacher.getId());
+        eventPublisher.publishEvent(new TeacherPasswordResetEvent(
+                teacher.getId(),
+                teacher.getName(),
+                teacher.getEmail(),
+                newPassword
+        ));
+
+        log.info("[ADMIN] Reset password for teacher id={} emailSent=true", teacher.getId());
 
         return TeacherResetPasswordResponse.builder()
                 .teacherId(teacher.getId())
-                .emailSent(false)
+                .emailSent(true)
                 .resetAt(Instant.now())
                 .build();
     }

@@ -31,7 +31,7 @@ class FakeCursor:
 
     def execute(self, query: str, parameters: tuple) -> None:
         self.connection.events.append(("execute", query, parameters))
-        if "embedding <=>" in query or "definition_boost" in query:
+        if "embedding <=>" in query or "definition_boost" in query or "chapter_start" in query:
             if self.connection.fail_search:
                 raise psycopg.DatabaseError("search failed")
             self.connection.last_result = list(self.connection.search_rows)
@@ -379,6 +379,51 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             PostgresDocumentChunkRepository(expected_dimensions=0)
 
+    def test_get_chapter_chunks_uses_contiguous_boundaries_and_ignores_toc(self) -> None:
+        connection = FakeConnection(
+            search_rows=[
+                (501, 9, 23, 28, "Chuong 3 start", 120),
+                (502, 9, 24, 29, "Chuong 3 continuation", 110),
+            ]
+        )
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        results = repository.get_chapter_chunks([9, 9], 3, 64)
+
+        self.assertEqual([chunk.chunk_id for chunk in results], [501, 502])
+        self.assertEqual([chunk.chunk_index for chunk in results], [28, 29])
+        execute_event = next(
+            event
+            for event in connection.events
+            if isinstance(event, tuple) and event[0] == "execute"
+        )
+        query = execute_event[1]
+        parameters = execute_event[2]
+        self.assertIn("chapter_start", query)
+        self.assertIn("next_chapter_start", query)
+        self.assertIn("ILIKE ANY", query)
+        self.assertIn("3([^[:digit:]]|$)", parameters[0])
+        self.assertIn("4([^[:digit:]]|$)", parameters[2])
+        self.assertEqual(parameters[4], [9])
+        self.assertEqual(parameters[5], 64)
+
+    def test_get_chapter_chunks_rejects_non_positive_chapter(self) -> None:
+        factory = FakeConnectionFactory(FakeConnection())
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=factory,
+            expected_dimensions=3,
+        )
+
+        with self.assertRaises(ServiceError) as context:
+            repository.get_chapter_chunks([9], 0, 64)
+
+        self.assertEqual(context.exception.code, ErrorCode.INVALID_INPUT)
+        self.assertEqual(context.exception.details[0].field, "chapter_number")
+        self.assertEqual(factory.calls, 0)
+
     def test_search_similar_chunks_maps_rows_and_deduplicates_scope(self) -> None:
         connection = FakeConnection(
             search_rows=[
@@ -508,6 +553,36 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
         )
         self.assertGreater(parameters[-2], 8)
         self.assertEqual(parameters[-1], 8)
+
+    def test_keyword_search_preserves_exact_chapter_number_phrase(self) -> None:
+        connection = FakeConnection(search_rows=[])
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        repository.search_keyword_chunks(
+            [9],
+            "N\u1ed9i dung ch\u00ednh ch\u01b0\u01a1ng 3 l\u00e0 g\u00ec?",
+            8,
+        )
+
+        execute_events = [
+            event
+            for event in connection.events
+            if isinstance(event, tuple) and event[0] == "execute"
+        ]
+        parameters = execute_events[0][2]
+
+        self.assertEqual(
+            repository._extract_keyword_phrases("n\u1ed9i dung c\u1ee7a ch\u01b0\u01a1ng 3"),
+            ["ch\u01b0\u01a1ng 3"],
+        )
+        phrases = repository._extract_keyword_phrases(
+            "N\u1ed9i dung ch\u00ednh ch\u01b0\u01a1ng 3 l\u00e0 g\u00ec?"
+        )
+        self.assertEqual(phrases[0], "ch\u01b0\u01a1ng 3")
+        self.assertIn("%ch\u01b0\u01a1ng 3%", parameters)
 
     def test_search_similar_chunks_wraps_database_error(self) -> None:
         connection = FakeConnection(fail_search=True)

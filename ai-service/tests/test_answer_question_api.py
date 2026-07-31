@@ -76,6 +76,7 @@ class AnswerQuestionServiceTest(unittest.TestCase):
             embedding_provider=self.embedding_provider,
             chunk_repository=self.repository,
         )
+        self.repository.get_chapter_chunks.return_value = []
 
     def test_embeds_question_retrieves_chunks_and_returns_citations(self) -> None:
         self.repository.search_similar_chunks.return_value = [retrieved_chunk()]
@@ -142,6 +143,32 @@ class AnswerQuestionServiceTest(unittest.TestCase):
             [0.1, 0.2, 0.3],
             8,
         )
+
+    def test_chapter_question_uses_contiguous_chapter_context(self) -> None:
+        chapter_chunks = [
+            retrieved_chunk(chunk_id=501, page_number=23, chunk_index=28, content="Chapter start"),
+            retrieved_chunk(chunk_id=502, page_number=24, chunk_index=29, content="Chapter continuation"),
+        ]
+        self.repository.get_chapter_chunks.return_value = chapter_chunks
+        generation_provider = FakeGenerationProvider(answer="Chapter overview.")
+        service = AnswerQuestionService(
+            embedding_provider=self.embedding_provider,
+            chunk_repository=self.repository,
+            generation_provider=generation_provider,
+        )
+
+        result = service.answer(
+            AnswerQuestionRequest(
+                document_ids=[12],
+                question="Ch\u01b0\u01a1ng 3 n\u00f3i v\u1ec1 \u0111i\u1ec1u g\u00ec?",
+            )
+        )
+
+        self.repository.get_chapter_chunks.assert_called_once_with([12], 3, 64)
+        self.repository.search_similar_chunks.assert_not_called()
+        self.assertEqual(generation_provider.calls[0]["chunks"], chapter_chunks)
+        self.assertEqual([citation.chunk_id for citation in result.citations], [501, 502])
+        self.assertEqual(result.answer, "Chapter overview.")
 
     def test_returns_not_found_without_generation_when_no_chunks(self) -> None:
         self.repository.search_similar_chunks.return_value = []
