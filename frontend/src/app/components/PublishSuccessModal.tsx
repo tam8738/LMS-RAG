@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { X, CheckCircle2, Copy, Check, ExternalLink, Share2, Sparkles, BookOpen } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CheckCircle2, Copy, Check, ExternalLink, Share2 } from "lucide-react";
 import { QuizResponse, getPublicQuizUrl } from "../services/quizService";
 
 interface PublishSuccessModalProps {
@@ -21,7 +22,7 @@ export function PublishSuccessModal({ quiz, onClose }: PublishSuccessModalProps)
     window.open(publicUrl, "_blank");
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/50 backdrop-blur-sm" />
 
@@ -107,6 +108,8 @@ export function PublishSuccessModal({ quiz, onClose }: PublishSuccessModalProps)
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
+
