@@ -2,12 +2,14 @@
 
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pymupdf
 
 from app.core.errors import ErrorCode, ServiceError
+from app.parsers.docx import DocxDocumentParser
 from app.parsers.factory import DocumentParserFactory
 from app.parsers.pdf import PdfDocumentParser
 from app.parsers.txt import TxtDocumentParser
@@ -98,6 +100,41 @@ class ParserTestCase(unittest.TestCase):
         self._assert_parser_error(
             lambda: TxtDocumentParser().parse(document),
             ErrorCode.PARSER_ERROR,
+        )
+
+    def test_docx_parser_extracts_paragraphs_and_tables(self) -> None:
+        path = self._write_docx(
+            "source.docx",
+            """
+            <w:p><w:r><w:t>Gioi thieu DOCX</w:t></w:r></w:p>
+            <w:tbl>
+              <w:tr>
+                <w:tc><w:p><w:r><w:t>Thuat ngu</w:t></w:r></w:p></w:tc>
+                <w:tc><w:p><w:r><w:t>Dinh nghia</w:t></w:r></w:p></w:tc>
+              </w:tr>
+            </w:tbl>
+            <w:p><w:r><w:t>Dong mot</w:t></w:r><w:r><w:br/></w:r><w:r><w:t>Dong hai</w:t></w:r></w:p>
+            """,
+        )
+        document = self._validated_document(path, DocumentFileType.DOCX)
+
+        result = DocxDocumentParser().parse(document)
+
+        self.assertEqual(result.file_type, DocumentFileType.DOCX)
+        self.assertEqual(result.page_count, 1)
+        self.assertIsNone(result.pages[0].page_number)
+        self.assertEqual(
+            result.pages[0].content,
+            "Gioi thieu DOCX\n\nThuat ngu | Dinh nghia\n\nDong mot\nDong hai",
+        )
+
+    def test_docx_parser_rejects_document_without_text(self) -> None:
+        path = self._write_docx("empty.docx", "<w:p />")
+        document = self._validated_document(path, DocumentFileType.DOCX)
+
+        self._assert_parser_error(
+            lambda: DocxDocumentParser().parse(document),
+            ErrorCode.EMPTY_DOCUMENT,
         )
 
     def test_parser_interface_rejects_mismatched_file_type(self) -> None:
@@ -238,15 +275,31 @@ class ParserTestCase(unittest.TestCase):
 
         self.assertIsInstance(parser, TxtDocumentParser)
 
+    def test_factory_creates_docx_parser(self) -> None:
+        parser = DocumentParserFactory.create(DocumentFileType.DOCX)
+
+        self.assertIsInstance(parser, DocxDocumentParser)
+
     def test_factory_rejects_unsupported_file_type(self) -> None:
         self._assert_parser_error(
-            lambda: DocumentParserFactory.create("DOCX"),  # type: ignore[arg-type]
+            lambda: DocumentParserFactory.create("PPTX"),  # type: ignore[arg-type]
             ErrorCode.UNSUPPORTED_FILE_TYPE,
         )
 
     def _write_bytes(self, name: str, content: bytes) -> Path:
         path = self.root / name
         path.write_bytes(content)
+        return path
+
+    def _write_docx(self, name: str, body_xml: str) -> Path:
+        path = self.root / name
+        document_xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>{body_xml}</w:body>
+</w:document>'''
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("[Content_Types].xml", "<Types />")
+            archive.writestr("word/document.xml", document_xml)
         return path
 
     @staticmethod

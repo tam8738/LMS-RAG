@@ -1,6 +1,7 @@
 """Kiểm tra file trước khi chuyển cho PDF/TXT parser."""
 
 from pathlib import Path
+import zipfile
 
 from app.core.config import settings
 from app.core.errors import ErrorCode, ErrorDetail, ServiceError
@@ -8,6 +9,7 @@ from app.schemas.document import DocumentFileType, ValidatedDocument
 
 # Header chuẩn ở đầu file PDF. Chỉ đổi extension thành .pdf không tạo header này.
 PDF_SIGNATURE = b"%PDF-"
+DOCX_REQUIRED_ENTRIES = frozenset({"[Content_Types].xml", "word/document.xml"})
 
 
 class DocumentValidator:
@@ -75,6 +77,8 @@ class DocumentValidator:
             self._validate_pdf(path)
         elif file_type is DocumentFileType.TXT:
             self._validate_txt(path)
+        elif file_type is DocumentFileType.DOCX:
+            self._validate_docx(path)
 
         return ValidatedDocument(
             storage_key=storage_key,
@@ -118,6 +122,28 @@ class DocumentValidator:
                 "Học liệu không có nội dung văn bản",
                 status_code=422,
             )
+
+    def _validate_docx(self, path: Path) -> None:
+        """Xac nhan DOCX la ZIP OpenXML va co main document XML."""
+        if not zipfile.is_zipfile(path):
+            raise self._unsupported_type(
+                "File DOCX phai la goi OpenXML hop le"
+            )
+
+        try:
+            with zipfile.ZipFile(path) as archive:
+                names = set(archive.namelist())
+                missing_entries = DOCX_REQUIRED_ENTRIES - names
+                if missing_entries:
+                    raise self._unsupported_type(
+                        "File DOCX thieu cau truc OpenXML bat buoc: "
+                        + ", ".join(sorted(missing_entries))
+                    )
+                archive.read("word/document.xml")
+        except zipfile.BadZipFile as exc:
+            raise self._unsupported_type(
+                "File DOCX khong doc duoc noi dung OpenXML"
+            ) from exc
 
     @staticmethod
     def _unsupported_type(message: str) -> ServiceError:

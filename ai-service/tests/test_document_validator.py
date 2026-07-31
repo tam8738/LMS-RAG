@@ -2,6 +2,7 @@
 
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from app.core.errors import ErrorCode, ServiceError
@@ -42,6 +43,22 @@ class DocumentValidatorTest(unittest.TestCase):
         )
 
         self.assertEqual(result.media_type, "text/plain")
+
+    def test_accepts_valid_docx_package(self) -> None:
+        path = self._write_docx("source.docx")
+        validator = DocumentValidator(max_file_size_bytes=4096)
+
+        result = validator.validate(
+            path,
+            "documents/12/v1/source.docx",
+            DocumentFileType.DOCX,
+        )
+
+        self.assertEqual(result.file_type, DocumentFileType.DOCX)
+        self.assertEqual(
+            result.media_type,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
     def test_rejects_missing_file(self) -> None:
         self._assert_error(
@@ -135,9 +152,44 @@ class DocumentValidatorTest(unittest.TestCase):
             422,
         )
 
+    def test_rejects_invalid_docx_zip(self) -> None:
+        path = self._write_bytes("source.docx", b"not a zip package")
+        self._assert_error(
+            path,
+            DocumentFileType.DOCX,
+            ErrorCode.UNSUPPORTED_FILE_TYPE,
+            422,
+        )
+
+    def test_rejects_docx_missing_required_entries(self) -> None:
+        path = self.root / "source.docx"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("word/styles.xml", "<styles />")
+
+        with self.assertRaises(ServiceError) as context:
+            DocumentValidator(max_file_size_bytes=4096).validate(
+                path,
+                "documents/12/v1/source.docx",
+                DocumentFileType.DOCX,
+            )
+
+        self.assertEqual(context.exception.code, ErrorCode.UNSUPPORTED_FILE_TYPE)
+        self.assertEqual(context.exception.status_code, 422)
+
     def _write_bytes(self, name: str, content: bytes) -> Path:
         path = self.root / name
         path.write_bytes(content)
+        return path
+
+    def _write_docx(self, name: str) -> Path:
+        path = self.root / name
+        document_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:p><w:r><w:t>DOCX content</w:t></w:r></w:p></w:body>
+</w:document>'''
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("[Content_Types].xml", "<Types />")
+            archive.writestr("word/document.xml", document_xml)
         return path
 
     def _assert_error(

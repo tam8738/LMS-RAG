@@ -367,6 +367,29 @@ class ProcessDocumentApiTest(unittest.TestCase):
         self.assertEqual(request.metadata.topic, "Chuẩn hóa dữ liệu")
         self.assertEqual(request.metadata.tags, ["database", "normalization"])
 
+    def test_process_document_accepts_docx_file_type(self) -> None:
+        self.service.process.return_value = ProcessDocumentResult(
+            document_id=12,
+            page_count=1,
+            chunk_count=4,
+        )
+
+        response = self.client.post(
+            "/v1/process-document",
+            headers={"X-Internal-Key": "test-secret"},
+            json={
+                "document_id": 12,
+                "storage_key": "documents/12/v1/source.docx",
+                "file_type": "DOCX",
+                "reprocess": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        request = self.service.process.call_args.args[0]
+        self.assertEqual(request.file_type, DocumentFileType.DOCX)
+        self.assertTrue(request.reprocess)
+
     def test_index_document_returns_contract_response(self) -> None:
         self.service.process.return_value = ProcessDocumentResult(
             document_id=12,
@@ -411,7 +434,7 @@ class ProcessDocumentApiTest(unittest.TestCase):
             json={
                 "document_id": 0,
                 "storage_key": "  ",
-                "file_type": "DOCX",
+                "file_type": "PPTX",
             },
         )
 
