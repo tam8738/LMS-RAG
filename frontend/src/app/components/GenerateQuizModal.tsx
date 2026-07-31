@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Sparkles, BookOpen, Globe, Sliders, CheckCircle2, AlertCircle, Loader2, Shuffle } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { libraryService } from "../services/libraryService";
@@ -84,7 +85,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
       <div onClick={generating ? undefined : onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
 
@@ -303,6 +304,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
