@@ -117,6 +117,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(origins.stream().map(String::trim).toList());
         configuration.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
         configuration.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
+        configuration.setExposedHeaders(List.of("Content-Disposition"));
         configuration.setAllowCredentials(allowCredentials);
         configuration.setMaxAge(3600L);
 
