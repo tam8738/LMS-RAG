@@ -112,6 +112,31 @@ services:
 
 
   # =====================================================
+  # Frontend (React + Vite)
+  # http://localhost:5173
+  # =====================================================
+  frontend:
+
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: lms-rag-frontend
+
+    restart: unless-stopped
+
+    depends_on:
+      backend:
+        condition: service_started
+
+    ports:
+      - "5173:80"
+
+    networks:
+      - lms-network
+
+
+  # =====================================================
   # AI Service
   # =====================================================
   ai-service:
