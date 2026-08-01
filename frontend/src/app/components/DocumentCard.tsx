@@ -41,7 +41,7 @@ export function DocumentCard({
               </span>
               {isAiReady ? (
                 <span className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold border border-emerald-100">
-                  <Brain className="w-3 h-3" /> AI Ready
+                  <Brain className="w-3 h-3 text-emerald-600" /> RAG sẵn sàng
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[#6B6963] bg-[#F4F3F0] px-2 py-0.5 rounded-md font-medium border border-[#0E0D0B]/[0.06]">
@@ -87,8 +87,8 @@ export function DocumentCard({
             )}
             <div className="flex items-center gap-1 text-[13px] font-bold text-[#6B6963] group-hover:text-[#4F63D2] transition-colors duration-300">
               {isAiReady ? (
-                <span className="flex items-center gap-1">
-                  Hỏi AI <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+                <span className="flex items-center gap-1 text-indigo-600">
+                  Hỏi tài liệu <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
                 </span>
               ) : (
                 <span className="flex items-center gap-1">
@@ -106,7 +106,7 @@ export function DocumentCard({
   return (
     <div
       onClick={() => onClick(doc.id)}
-      className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] p-5 cursor-pointer flex flex-col justify-between shadow-premium hover:shadow-premium-hover hover:border-[#0E0D0B]/[0.12] hover:scale-[1.02] transition-all duration-300 group h-[260px] relative overflow-hidden"
+      className="bg-white rounded-2xl border border-[#0E0D0B]/[0.06] hover:border-indigo-200 p-5 cursor-pointer flex flex-col justify-between shadow-premium hover:shadow-premium-hover hover:scale-[1.01] transition-all duration-300 group h-[260px] relative overflow-hidden"
     >
       {/* 1. File icon + type badge + AI readiness */}
       <div className="flex items-center justify-between flex-shrink-0">
@@ -119,7 +119,7 @@ export function DocumentCard({
           </span>
           {isAiReady ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg shadow-2xs">
-              <Sparkles className="w-2.5 h-2.5 text-emerald-600" /> AI Ready
+              <Sparkles className="w-2.5 h-2.5 text-emerald-600" /> RAG sẵn sàng
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#6B6963] bg-[#F4F3F0] border border-[#0E0D0B]/[0.06] px-2 py-0.5 rounded-lg">
@@ -173,7 +173,7 @@ export function DocumentCard({
           <div className="flex items-center gap-1.5 text-[12.5px] font-bold transition-all duration-300">
             {isAiReady ? (
               <span className="text-[#4F63D2] flex items-center gap-1">
-                Hỏi AI <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+                Hỏi tài liệu <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
               </span>
             ) : (
               <span className="text-[#6B6963] flex items-center gap-1">
