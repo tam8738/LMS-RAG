@@ -63,7 +63,7 @@ Teacher A login
 
 | Thành phần | Công nghệ | Trách nhiệm chính |
 |---|---|---|
-| Frontend | React + Vite | Library, My Documents, Admin Review, RAG UI |
+| Frontend | React + Vite | Library, My Documents, Admin Documents/Review, RAG UI, Quiz UI |
 | Backend | Spring Boot | JWT, Teacher accounts, upload, review, Library, RAG proxy/history, quiz lifecycle |
 | AI Service | FastAPI | Parse, chunk, embedding, retrieval, RAG answer, sinh quiz draft |
 | Database | PostgreSQL + pgvector | Nghiệp vụ, quiz, RAG history và vector storage |
@@ -371,6 +371,8 @@ GET    /api/v1/documents/{documentId}/download
 #### Admin
 
 ```txt
+GET  /api/v1/admin/documents
+GET  /api/v1/admin/documents/{documentId}
 GET  /api/v1/admin/reviews
 GET  /api/v1/admin/reviews/{documentId}
 POST /api/v1/admin/reviews/{documentId}/approve

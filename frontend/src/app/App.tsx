@@ -14,6 +14,8 @@ import { LibraryDocumentDetailPage } from "./pages/LibraryDocumentDetailPage";
 import { MyDocumentDetailPage } from "./pages/MyDocumentDetailPage";
 import { AdminReviewQueuePage } from "./pages/AdminReviewQueuePage";
 import { AdminReviewDetailPage } from "./pages/AdminReviewDetailPage";
+import { AdminDocumentManagementPage } from "./pages/AdminDocumentManagementPage";
+import { AdminDocumentDetailPage } from "./pages/AdminDocumentDetailPage";
 import { AdminTeacherManagementPage } from "./pages/AdminTeacherManagementPage";
 import { QuizManagementPage } from "./pages/QuizManagementPage";
 import { PublicQuizPage } from "./pages/PublicQuizPage";
@@ -232,6 +234,22 @@ export default function App() {
         {/* Public Student Quiz Route (accessible via shareable link) */}
         <Route path={ROUTES.PUBLIC_QUIZ} element={<PublicQuizPage />} />
 
+        <Route
+          path={ROUTES.ADMIN_DOCUMENTS}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <AdminDocumentManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN_DOCUMENT_DETAIL}
+          element={
+            <ProtectedRoute user={currentUser} authLoading={authLoading} onLogout={handleLogout} onUpdateUser={setCurrentUser}>
+              <AdminDocumentDetailPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path={ROUTES.ADMIN_REVIEWS}
           element={

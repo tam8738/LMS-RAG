@@ -97,22 +97,25 @@ Body đổi mật khẩu:
 
 | Trạng thái document | Owner | Admin | Teacher khác | Public |
 |---------------------|-------|-------|--------------|--------|
-| `DRAFT` | Content/download | Không | Không | Không |
-| `PENDING_REVIEW` | Content/download | Content | Không | Không |
+| `DRAFT` | Content/download | Content/download | Không | Không |
+| `PENDING_REVIEW` | Content/download | Content/download | Không | Không |
 | `PUBLISHED` | Content/download | Content/download | Content/download | Content only nếu endpoint cho phép |
-| `REJECTED` | Content/download | Không | Không | Không |
-| `ARCHIVED` | Content/download tùy rule service | Content/download tùy rule service | Không | Không |
+| `REJECTED` | Content/download | Content/download | Không | Không |
+| `ARCHIVED` | Content/download tùy rule service | Content/download | Không | Không |
 
-## 3. Admin Reviews (`/api/v1/admin`)
+Admin được xem và tải file gốc ở mọi trạng thái để phục vụ quản trị, kiểm duyệt và xử lý lưu trữ tài liệu.
+
+## 3. Admin Documents & Reviews (`/api/v1/admin`)
 
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|-------|
+| `GET` | `/api/v1/admin/documents` | `ADMIN` | Lấy danh sách toàn bộ tài liệu trong hệ thống, có phân trang và bộ lọc |
+| `GET` | `/api/v1/admin/documents/{documentId}` | `ADMIN` | Lấy chi tiết một tài liệu bất kỳ trong hệ thống |
 | `GET` | `/api/v1/admin/reviews` | `ADMIN` | Lấy danh sách tài liệu chờ duyệt |
 | `GET` | `/api/v1/admin/reviews/{documentId}` | `ADMIN` | Lấy chi tiết tài liệu chờ duyệt |
 | `POST` | `/api/v1/admin/reviews/{documentId}/approve` | `ADMIN` | Duyệt tài liệu, kích hoạt index RAG |
 | `POST` | `/api/v1/admin/reviews/{documentId}/reject` | `ADMIN` | Từ chối tài liệu kèm lý do |
-| `POST` | `/api/v1/admin/documents/{documentId}/archive` | `ADMIN` | Archive tài liệu đã công bố |
-
+| `POST` | `/api/v1/admin/documents/{documentId}/archive` | `ADMIN` | Lưu trữ tài liệu đã công bố |
 ## 4. Library (`/api/v1/library`)
 
 | Method | Endpoint | Role | Mô tả |

@@ -1,32 +1,33 @@
 # Information Architecture Review - LMS-RAG
 
-**Phiên bản:** 1.0
-**Cập nhật:** 11/07/2026
-**Nguồn:** Grill Step 11, đối chiếu với 01_PROJECT_PRD.md Section 9 và 02_MVP_IMPLEMENTATION_PLAN.md
+**Phiên bản:** 1.1  
+**Cập nhật:** 01/08/2026  
+**Nguồn:** Đối chiếu với route và màn hình FE hiện tại
 
 ---
 
-## 1. Navigation Structure (GAP - chưa có trong docs)
+## 1. Navigation Structure
 
-Docs chỉ liệt kê routes, chưa định nghĩa navigation structure. Cần bổ sung theo chuẩn web:
-
-### Sidebar (phân quyền theo role)
+### Navigation theo role
 
 **Teacher:**
-- Library (`/library`)
-- My Documents (`/my-documents`)
+- Thư viện (`/library`)
+- Tài liệu của tôi (`/my-documents`)
+- Quản lý Quiz (`/quizzes`)
+- Tải lên (`/upload`)
 
 **Admin:**
-- Library (`/library`) - xem
-- Reviews (`/admin/reviews`)
-- Teachers (`/admin/teachers`) - Should-have
+- Quản lý tài liệu (`/admin/documents`)
+- Hàng chờ duyệt (`/admin/reviews`)
+- Quản lý giảng viên (`/admin/teachers`)
 
-### Topbar (chung cho cả 2 role)
-- User info (name, role)
-- Logout button
+**Guest/Public:**
+- Thư viện (`/library`)
+- Link quiz public (`/quiz/public/:quizId`) nếu có đường dẫn chia sẻ
 
-### Breadcrumb
-- Theo route hierarchy, ví dụ: Library > Chi tiết tài liệu
+### Ghi chú điều hướng
+
+Admin không dùng giao diện thư viện chung làm màn hình chính. Thay vào đó, Admin có trang quản lý toàn bộ tài liệu trong hệ thống để xem danh sách, lọc/tìm, mở chi tiết, tải file gốc và lưu trữ tài liệu đã công bố. Thư viện `/library` vẫn là không gian xem tài liệu đã công bố cho Teacher/Guest.
 
 ---
 
@@ -34,51 +35,43 @@ Docs chỉ liệt kê routes, chưa định nghĩa navigation structure. Cần b
 
 | Route | Component | Ghi chú |
 |---|---|---|
-| `/login` | LoginPage | |
-| `/library` | LibraryListPage | Filter/search, pagination |
-| `/library/:documentId` | DocumentDetailPage (shared) | Metadata + Download + RAG. `isOwner=false` |
-| `/my-documents` | MyDocumentsPage | List + status filters |
-| `/my-documents/upload` | UploadDocumentPage | Multipart form, metadata |
-| `/my-documents/:documentId` | DocumentDetailPage (shared) | Metadata + RAG + Edit/Submit/Reprocess/Delete. `isOwner=true` |
-| `/admin/reviews` | AdminReviewQueuePage | PENDING_REVIEW list |
-| `/admin/reviews/:documentId` | AdminReviewDetailPage | Approve/Reject |
-| `/admin/teachers` | AdminTeachersPage | Should-have |
-
-### Quyết định: Shared DocumentDetailPage
-
-`/library/:documentId` và `/my-documents/:documentId` dùng **chung một component**. Khác biệt:
-- **Owner**: hiển thị thêm nút Edit Metadata, Submit Review, Reprocess, Delete (theo permission từng status)
-- **Non-owner**: chỉ Download + RAG
-
-Component nhận `document` data + `isOwner` flag.
+| `/login` | LoginPage | Đăng nhập Teacher/Admin |
+| `/library` | LibraryPage | Danh sách tài liệu đã công bố |
+| `/library/:documentId` | LibraryDocumentDetailPage | Chi tiết tài liệu đã công bố + AI workspace nếu đủ điều kiện |
+| `/my-documents` | MyDocumentsPage | Teacher quản lý tài liệu cá nhân |
+| `/upload` | UploadDocumentPage | Teacher tải tài liệu lên |
+| `/my-documents/:documentId` | MyDocumentDetailPage | Teacher xem/sửa/gửi duyệt tài liệu của mình |
+| `/admin/documents` | AdminDocumentManagementPage | Admin quản lý toàn bộ tài liệu hệ thống |
+| `/admin/documents/:documentId` | AdminDocumentDetailPage | Admin xem chi tiết, tải file, duyệt/từ chối nếu đang chờ duyệt, lưu trữ nếu đã công bố |
+| `/admin/reviews` | AdminReviewQueuePage | Danh sách tài liệu đang chờ duyệt |
+| `/admin/reviews/:documentId` | AdminReviewDetailPage | Luồng duyệt/từ chối tài liệu chờ duyệt |
+| `/admin/teachers` | AdminTeacherManagementPage | Admin quản lý tài khoản giảng viên |
+| `/quizzes` | QuizManagementPage | Teacher sinh, chỉnh sửa, công bố và lấy link quiz |
+| `/quiz/public/:quizId` | PublicQuizPage | Người học làm quiz qua link chia sẻ |
 
 ---
 
-## 3. Admin Navigation (đã chốt)
+## 3. Quyết Định IA Hiện Tại
 
-Admin **không** upload tài liệu. Admin không có workspace cá nhân.
-- Không có route `/my-documents` cho Admin
-- Không có nút Upload
-- Navigation Admin: Library (xem) + Reviews + Teachers
+- Hệ thống đi theo hướng document-centric: tài liệu là trung tâm của upload, duyệt, công bố, hỏi đáp AI và sinh quiz.
+- Teacher có workspace tài liệu cá nhân và workspace quiz.
+- Admin có không gian quản trị riêng, tách khỏi thư viện người dùng.
+- Admin không upload tài liệu thay Teacher và không có `/my-documents`.
+- Hàng chờ duyệt vẫn giữ riêng để Admin xử lý nhanh các tài liệu `PENDING_REVIEW`.
+- Trang quản lý tài liệu Admin dùng cho việc nhìn toàn cục và thao tác nhanh với tất cả trạng thái tài liệu.
 
 ---
 
-## 4. Gaps phát hiện
+## 4. Gaps Còn Cần Theo Dõi
 
-| # | Gap | Mức độ | Action |
+| # | Gap | Mức độ | Ghi chú |
 |---|---|---|---|
-| IA1 | Thiếu navigation structure (sidebar, topbar, breadcrumb) trong docs FE | Medium | Bổ sung vào FE implementation plan |
-| IA2 | Thiếu API `GET /api/v1/users/teachers` - trả list `{id, name}` Teacher có document PUBLISHED, để FE render dropdown filter `uploaded_by` trong Library | Medium | Thêm API vào Backend contract |
-| IA3 | BE-05 `GET /api/v1/my/documents` thiếu query params `processing_status` và `publication_status` để FE filter trong My Documents list | Medium | Cập nhật API contract |
-| IA4 | Tags input: free-text, comma-separated. Không có autocomplete. Đã khớp docs | None | Đúng, không cần sửa |
+| IA1 | Breadcrumb chi tiết giữa các khu vực chưa thống nhất hoàn toàn | Low | Có thể bổ sung sau khi ổn định báo cáo/demo |
+| IA2 | Admin document list mới có lọc cơ bản theo trạng thái và từ khóa | Low | Nếu cần báo cáo/thống kê sâu có thể bổ sung filter theo giảng viên/môn học |
+| IA3 | Một số màn cũ vẫn dùng wording Library thay vì Thư viện/Tài liệu tùy ngữ cảnh | Low | Dọn dần khi hoàn thiện UI copy |
 
 ---
 
-## 5. Tổng kết
+## 5. Tổng Kết
 
-| Loại | Số lượng |
-|---|---|
-| Quyết định IA đã chốt | 6 |
-| Shared component | 1 (DocumentDetailPage) |
-| Gaps mới | 3 (IA1, IA2, IA3) |
-| Đúng docs | 1 (IA4) |
+IA hiện tại đã tách rõ ba không gian chính: Teacher quản lý tài liệu cá nhân, Admin quản lý tài liệu hệ thống và thư viện công bố cho người dùng xem. Cách tách này phù hợp với MVP hiện tại vì Admin cần thao tác quản trị toàn cục, còn Teacher cần tập trung vào tài liệu của mình và các chức năng AI/Quiz đi kèm.

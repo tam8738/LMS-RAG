@@ -1,5 +1,5 @@
 import { Role } from "./types";
-import { Library, Files, Upload, ListChecks, Users, HelpCircle } from "lucide-react";
+import { Library, Files, Upload, ListChecks, Users, HelpCircle, FileText } from "lucide-react";
 import { ROUTES } from "./routes";
 
 export interface NavItem {
@@ -17,7 +17,7 @@ export const TEACHER_NAV: NavItem[] = [
 ];
 
 export const ADMIN_NAV: NavItem[] = [
-  { id: "library", path: ROUTES.LIBRARY, label: "Thư viện", icon: Library },
+  { id: "admin-documents", path: ROUTES.ADMIN_DOCUMENTS, label: "Quản lý tài liệu", icon: FileText },
   { id: "admin-review-queue", path: ROUTES.ADMIN_REVIEWS, label: "Hàng chờ duyệt", icon: ListChecks },
   { id: "admin-teachers", path: ROUTES.ADMIN_TEACHERS, label: "Quản lý giảng viên", icon: Users },
 ];
@@ -33,7 +33,7 @@ export const getNavForRole = (role?: Role | null): NavItem[] => {
 };
 
 export const getDefaultRouteForRole = (role?: Role | null): string => {
-  return role === "admin" ? ROUTES.ADMIN_REVIEWS : ROUTES.LIBRARY;
+  return role === "admin" ? ROUTES.ADMIN_DOCUMENTS : ROUTES.LIBRARY;
 };
 
 export const isRouteAllowedForRole = (role: Role | null | undefined, pathname: string): boolean => {
@@ -52,11 +52,15 @@ export const isRouteAllowedForRole = (role: Role | null | undefined, pathname: s
       pathname.startsWith(ROUTES.QUIZZES) ||
       pathname.startsWith(ROUTES.UPLOAD)
     );
-  } else if (role === "admin") {
+  }
+
+  if (role === "admin") {
     return (
+      pathname.startsWith(ROUTES.ADMIN_DOCUMENTS) ||
       pathname.startsWith(ROUTES.ADMIN_REVIEWS) ||
       pathname.startsWith(ROUTES.ADMIN_TEACHERS)
     );
   }
+
   return false;
 };

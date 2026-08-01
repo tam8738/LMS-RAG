@@ -1,5 +1,6 @@
 package com.lmsrag.backend.service;
 
+import com.lmsrag.backend.dto.document.AdminDocumentFilterRequest;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
@@ -461,7 +462,35 @@ public class DocumentService {
         return DocumentMapper.toResponse(documentRepository.save(document));
     }
 
-    // ===== ADMIN REVIEW =====
+    // ===== ADMIN DOCUMENTS =====
+    @Transactional(readOnly = true)
+    public Page<DocumentResponse> getAdminDocuments(AdminDocumentFilterRequest filter, Pageable pageable) {
+        String processingStatusStr = filter.getProcessingStatus() != null
+                ? filter.getProcessingStatus().name()
+                : null;
+        String publicationStatusStr = filter.getPublicationStatus() != null
+                ? filter.getPublicationStatus().name()
+                : null;
+
+        return documentRepository.findAdminDocuments(
+                normalizeFilter(filter.getQ()),
+                processingStatusStr,
+                publicationStatusStr,
+                normalizeFilter(filter.getSubject()),
+                normalizeFilter(filter.getTopic()),
+                normalizeFilter(filter.getChapter()),
+                filter.getUploadedBy(),
+                normalizeTags(filter.getTags()),
+                toNativePageable(pageable)
+        ).map(DocumentMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentResponse getAdminDocument(Long id) {
+        return DocumentMapper.toResponse(requireDocument(id));
+    }
+
+    // ===== ADMIN REVIEW QUEUE =====
     @Transactional(readOnly = true)
     public List<DocumentResponse> getReviewQueue() {
         return documentRepository.findByPublicationStatusOrderByUpdatedAtAsc(PublicationStatus.PENDING_REVIEW)
@@ -797,33 +826,27 @@ public class DocumentService {
     }
 
     private boolean canViewDocumentContent(Document document, User currentUser) {
-        // Owner: xem mọi trạng thái
         if (currentUser != null && document.getUploadedBy().getId().equals(currentUser.getId())) {
             return true;
         }
 
-        // PUBLISHED: ai cũng xem được
-        if (document.getPublicationStatus() == PublicationStatus.PUBLISHED) {
+        if (currentUser != null && currentUser.getRole() == UserRole.ADMIN) {
             return true;
         }
 
-        // Admin: xem PUBLISHED (đã check ở trên) và PENDING_REVIEW
-        if (currentUser != null && currentUser.getRole() == UserRole.ADMIN
-                && document.getPublicationStatus() == PublicationStatus.PENDING_REVIEW) {
-            return true;
-        }
-
-        return false;
+        return document.getPublicationStatus() == PublicationStatus.PUBLISHED;
     }
 
     private boolean canDownloadDocument(Document document, User currentUser) {
-        // Owner: download mọi trạng thái
         if (document.getUploadedBy().getId().equals(currentUser.getId())) {
             return true;
         }
 
-        // Admin / Teacher khác: chỉ download PUBLISHED
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+
         return document.getPublicationStatus() == PublicationStatus.PUBLISHED
-                && (currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.TEACHER);
+                && currentUser.getRole() == UserRole.TEACHER;
     }
 }

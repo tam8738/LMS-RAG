@@ -72,6 +72,57 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
             Pageable pageable
     );
 
+    // ===== ADMIN DOCUMENTS =====
+
+    @Query(value = """
+        SELECT d.* FROM documents d
+        LEFT JOIN users u ON u.id = d.uploaded_by
+        WHERE (:q IS NULL OR d.title       ILIKE CONCAT('%', :q, '%')
+                        OR d.description ILIKE CONCAT('%', :q, '%')
+                        OR d.subject     ILIKE CONCAT('%', :q, '%')
+                        OR d.topic       ILIKE CONCAT('%', :q, '%')
+                        OR d.chapter     ILIKE CONCAT('%', :q, '%')
+                        OR u.name        ILIKE CONCAT('%', :q, '%')
+                        OR u.email       ILIKE CONCAT('%', :q, '%'))
+          AND (:processingStatus IS NULL OR d.processing_status = :processingStatus)
+          AND (:publicationStatus IS NULL OR d.publication_status = :publicationStatus)
+          AND (:subject IS NULL OR d.subject = :subject)
+          AND (:topic IS NULL OR d.topic ILIKE CONCAT('%', :topic, '%'))
+          AND (:chapter IS NULL OR d.chapter ILIKE CONCAT('%', :chapter, '%'))
+          AND (:uploadedBy IS NULL OR d.uploaded_by = :uploadedBy)
+          AND (:tags IS NULL OR d.tags @> CAST(:tags AS jsonb))
+        """,
+        countQuery = """
+        SELECT COUNT(*) FROM documents d
+        LEFT JOIN users u ON u.id = d.uploaded_by
+        WHERE (:q IS NULL OR d.title       ILIKE CONCAT('%', :q, '%')
+                        OR d.description ILIKE CONCAT('%', :q, '%')
+                        OR d.subject     ILIKE CONCAT('%', :q, '%')
+                        OR d.topic       ILIKE CONCAT('%', :q, '%')
+                        OR d.chapter     ILIKE CONCAT('%', :q, '%')
+                        OR u.name        ILIKE CONCAT('%', :q, '%')
+                        OR u.email       ILIKE CONCAT('%', :q, '%'))
+          AND (:processingStatus IS NULL OR d.processing_status = :processingStatus)
+          AND (:publicationStatus IS NULL OR d.publication_status = :publicationStatus)
+          AND (:subject IS NULL OR d.subject = :subject)
+          AND (:topic IS NULL OR d.topic ILIKE CONCAT('%', :topic, '%'))
+          AND (:chapter IS NULL OR d.chapter ILIKE CONCAT('%', :chapter, '%'))
+          AND (:uploadedBy IS NULL OR d.uploaded_by = :uploadedBy)
+          AND (:tags IS NULL OR d.tags @> CAST(:tags AS jsonb))
+        """,
+        nativeQuery = true)
+    Page<Document> findAdminDocuments(
+            @Param("q") String q,
+            @Param("processingStatus") String processingStatus,
+            @Param("publicationStatus") String publicationStatus,
+            @Param("subject") String subject,
+            @Param("topic") String topic,
+            @Param("chapter") String chapter,
+            @Param("uploadedBy") Long uploadedBy,
+            @Param("tags") String tags,
+            Pageable pageable
+    );
+
     // ===== MY DOCUMENTS (Teacher) =====
 
     /**

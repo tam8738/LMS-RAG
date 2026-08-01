@@ -725,6 +725,8 @@ Acceptance criteria:
 Endpoints:
 
 ```txt
+GET  /api/v1/admin/documents
+GET  /api/v1/admin/documents/{documentId}
 GET  /api/v1/admin/reviews
 GET  /api/v1/admin/reviews/{documentId}
 POST /api/v1/admin/reviews/{documentId}/approve
@@ -926,6 +928,8 @@ Routes tối thiểu:
 /my-documents
 /my-documents/upload
 /my-documents/:documentId
+/admin/documents
+/admin/documents/:documentId
 /admin/reviews
 /admin/reviews/:documentId
 /admin/teachers
@@ -961,7 +965,7 @@ Flow:
 POST /api/v1/auth/login
 -> save token/user
 -> Teacher redirect /library
--> Admin redirect /admin/reviews hoặc /library
+-> Admin redirect /admin/documents
 ```
 
 Acceptance criteria:
@@ -1551,6 +1555,8 @@ GET    /api/v1/documents/{documentId}/download
 ### Admin
 
 ```txt
+GET  /api/v1/admin/documents
+GET  /api/v1/admin/documents/{documentId}
 GET  /api/v1/admin/reviews
 GET  /api/v1/admin/reviews/{documentId}
 POST /api/v1/admin/reviews/{documentId}/approve
