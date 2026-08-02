@@ -15,6 +15,8 @@ import {
   Clock,
   UserCheck,
   AlertCircle,
+  Search,
+  X,
 } from "lucide-react";
 import { LibraryDocument, User, Document } from "../../types";
 import { LibraryProcessDialog } from "./LibraryProcessDialog";
@@ -24,10 +26,20 @@ import { teacherDocumentService } from "../../services/teacherDocumentService";
 interface PublicLibraryHeroProps {
   user?: User | null;
   featuredDocument?: LibraryDocument | null;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  searchInputRef?: React.RefObject<HTMLInputElement>;
   onExplore: () => void;
 }
 
-export function PublicLibraryHero({ user, featuredDocument, onExplore }: PublicLibraryHeroProps) {
+export function PublicLibraryHero({
+  user,
+  featuredDocument,
+  searchValue,
+  onSearchChange,
+  searchInputRef,
+  onExplore,
+}: PublicLibraryHeroProps) {
   const navigate = useNavigate();
   const [isProcessOpen, setIsProcessOpen] = useState(false);
 
@@ -167,6 +179,34 @@ export function PublicLibraryHero({ user, featuredDocument, onExplore }: PublicL
               </p>
             )}
 
+            {/* Hero Search */}
+            <div className="relative max-w-2xl shadow-md rounded-2xl">
+              <Search className="absolute left-4.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#AAAA9F]" />
+              <input
+                id="library-hero-search"
+                ref={searchInputRef}
+                type="text"
+                value={searchValue}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder="Đặt câu hỏi hoặc tìm kiếm tài liệu, môn học, chủ đề..."
+                className="w-full h-14 pl-12 pr-24 bg-white border border-[#0E0D0B]/[0.1] rounded-2xl text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/8 focus:border-[#4F63D2] transition-all"
+              />
+              <div className="absolute right-4.5 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                {searchValue && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange("")}
+                    className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
+                    title="Xóa tìm kiếm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-[#0E0D0B]/[0.06] bg-[#F8F7F4] text-[10.5px] text-[#AAAA9F] select-none shadow-3xs font-semibold">
+                  Ctrl + K
+                </kbd>
+              </div>
+            </div>
             {/* CTA Buttons */}
             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
               {isTeacher ? (

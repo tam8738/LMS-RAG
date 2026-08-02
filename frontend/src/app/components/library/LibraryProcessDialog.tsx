@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Upload, Sparkles, ShieldCheck, Database, ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface LibraryProcessDialogProps {
@@ -9,15 +10,18 @@ interface LibraryProcessDialogProps {
 export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogProps) {
   // ESC key to close modal
   useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
-    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
@@ -63,10 +67,10 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
     },
   ];
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/60 backdrop-blur-md transition-all duration-300 font-sans"
+      className="fixed inset-0 z-[160] flex items-center justify-center p-3 sm:p-5 bg-slate-950/60 backdrop-blur-md transition-all duration-300 font-sans"
     >
       <style>{`
         @keyframes modalEnter {
@@ -176,6 +180,7 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

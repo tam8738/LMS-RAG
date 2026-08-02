@@ -53,6 +53,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
 
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Reset inputs when modal is closed or opened
   const handleAccountClick = () => {
@@ -177,6 +178,32 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     }
   };
 
+  // Close profile dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!profileOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!profileMenuRef.current) return;
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileOpen]);
+
   // Disable background scrolling when mobile menu is open
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -298,7 +325,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
           <div className="flex items-center gap-2 ml-auto">
             {user ? (
               /* Profile Dropdown */
-              <div className="relative">
+              <div ref={profileMenuRef} className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
                   className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-[#F4F3F0] transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"

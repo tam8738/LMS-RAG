@@ -498,6 +498,9 @@ export function LibraryPage({
         <PublicLibraryHero
           user={user}
           featuredDocument={aiReadyDocs[0] || documents[0]}
+          searchValue={searchVal}
+          onSearchChange={handleSearchChange}
+          searchInputRef={searchInputRef}
           onExplore={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
         />
       ) : (
