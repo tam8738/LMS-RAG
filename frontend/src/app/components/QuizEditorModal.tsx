@@ -74,8 +74,8 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
 
   const handleAddQuestion = () => {
     if (isPublished) return;
-    if (questions.length >= 10) {
-      setError("Bộ Quiz chỉ tối đa 10 câu hỏi.");
+    if (questions.length >= 20) {
+      setError("Bộ Quiz chỉ tối đa 20 câu hỏi.");
       return;
     }
     const newQId = Date.now();
@@ -250,7 +250,7 @@ export function QuizEditorModal({ quiz, onClose, onSuccess, onPreview, onPublish
             <div className="border-t border-gray-200 pt-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">
-                  Câu hỏi ({questions.length}/10)
+                  Câu hỏi ({questions.length}/20)
                 </span>
                 {!isPublished && (
                   <button

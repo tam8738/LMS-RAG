@@ -14,8 +14,8 @@ public class QuizGenerateRequest {
     private Long documentId;
 
     @NotNull(message = "Số câu hỏi không được để trống")
-    @Min(value = 1, message = "Số câu hỏi phải từ 1 đến 10")
-    @Max(value = 10, message = "Số câu hỏi phải từ 1 đến 10")
+    @Min(value = 1, message = "Số câu hỏi phải từ 1 đến 20")
+    @Max(value = 20, message = "Số câu hỏi phải từ 1 đến 20")
     private Integer questionCount = 5;
 
     @NotNull(message = "Ngôn ngữ không được để trống")

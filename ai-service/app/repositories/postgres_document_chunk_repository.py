@@ -46,30 +46,31 @@ INSERT INTO document_chunks (
 VALUES (%s, %s, %s, %s, %s, %s::vector)
 """
 
-# Quiz không có query để search. NTILE chia mỗi document thành các bucket theo
-# thứ tự chunk, rồi lấy một chunk/bucket để context không chỉ tập trung ở đầu.
+# Quiz không có query để search. NTILE chia toàn bộ scope thành các bucket theo
+# thứ tự tài liệu/chunk, rồi lấy chunk giàu nội dung nhất trong mỗi bucket để
+# context vừa phủ từ đầu tới cuối vừa tránh chọn nhầm heading/mục lục quá ngắn.
 _GET_DOCUMENT_CHUNKS_SQL = """
-WITH sampled AS (
-    SELECT DISTINCT ON (document_id, bucket)
+WITH ranked AS (
+    SELECT
+        id,
+        document_id,
+        page_number,
+        chunk_index,
+        content,
+        token_count,
+        NTILE(%s) OVER (ORDER BY document_id, chunk_index) AS bucket
+    FROM document_chunks
+    WHERE document_id = ANY(%s::bigint[])
+), sampled AS (
+    SELECT DISTINCT ON (bucket)
         id,
         document_id,
         page_number,
         chunk_index,
         content,
         token_count
-    FROM (
-        SELECT
-            id,
-            document_id,
-            page_number,
-            chunk_index,
-            content,
-            token_count,
-            NTILE(%s) OVER (PARTITION BY document_id ORDER BY chunk_index) AS bucket
-        FROM document_chunks
-        WHERE document_id = ANY(%s::bigint[])
-    ) ranked
-    ORDER BY document_id, bucket, chunk_index
+    FROM ranked
+    ORDER BY bucket, token_count DESC, chunk_index
 )
 SELECT
     id,

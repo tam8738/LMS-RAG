@@ -31,7 +31,12 @@ class FakeCursor:
 
     def execute(self, query: str, parameters: tuple) -> None:
         self.connection.events.append(("execute", query, parameters))
-        if "embedding <=>" in query or "definition_boost" in query or "chapter_start" in query:
+        if (
+            "embedding <=>" in query
+            or "definition_boost" in query
+            or "chapter_start" in query
+            or "NTILE" in query
+        ):
             if self.connection.fail_search:
                 raise psycopg.DatabaseError("search failed")
             self.connection.last_result = list(self.connection.search_rows)
@@ -378,6 +383,34 @@ class PostgresDocumentChunkRepositoryTest(unittest.TestCase):
     def test_rejects_invalid_expected_dimensions(self) -> None:
         with self.assertRaises(ValueError):
             PostgresDocumentChunkRepository(expected_dimensions=0)
+
+    def test_get_document_chunks_samples_content_rich_representatives(self) -> None:
+        connection = FakeConnection(
+            search_rows=[
+                (201, 7, 2, 4, "Middle concept", 80),
+                (202, 8, 9, 18, "Later concept", 90),
+            ]
+        )
+        repository = PostgresDocumentChunkRepository(
+            connection_factory=FakeConnectionFactory(connection),
+            expected_dimensions=3,
+        )
+
+        results = repository.get_document_chunks([7, 7, 8], 20)
+
+        self.assertEqual([chunk.chunk_id for chunk in results], [201, 202])
+        self.assertEqual([chunk.document_id for chunk in results], [7, 8])
+        execute_event = next(
+            event
+            for event in connection.events
+            if isinstance(event, tuple) and event[0] == "execute"
+        )
+        query = execute_event[1]
+        parameters = execute_event[2]
+        self.assertIn("NTILE(%s) OVER (ORDER BY document_id, chunk_index)", query)
+        self.assertIn("ORDER BY bucket, token_count DESC, chunk_index", query)
+        self.assertNotIn("PARTITION BY document_id", query)
+        self.assertEqual(parameters, (20, [7, 8], 20))
 
     def test_get_chapter_chunks_uses_contiguous_boundaries_and_ignores_toc(self) -> None:
         connection = FakeConnection(

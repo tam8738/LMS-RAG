@@ -216,7 +216,7 @@ Body sinh quiz:
 
 Quy tắc:
 
-- `questionCount` từ 1 đến 10, mặc định 5; `language` nhận `vi` hoặc `en`, mặc định `vi`.
+- `questionCount` từ 1 đến 20, mặc định 5; `language` nhận `vi` hoặc `en`, mặc định `vi`.
 - Mỗi Teacher có thể sinh quiz từ bất kỳ document nào đã `PUBLISHED + PROCESSED`; quiz mới ghi `createdById` là Teacher hiện tại.
 - Chỉ owner được xem, sửa, xóa draft hoặc publish quiz. Chỉ quiz `DRAFT` được sửa/xóa/publish.
 - Endpoint public chỉ trả quiz đã `PUBLISHED`; nếu quiz chưa công bố, Backend trả lỗi `QUIZ_NOT_PUBLISHED`.

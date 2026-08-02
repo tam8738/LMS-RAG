@@ -195,7 +195,7 @@ Quy ước trạng thái:
 | AI-RAG-HIST-03 - AI docs handoff update | Khánh | P1 | AI-RAG-HIST-01 | DONE | `04_AI_API_CONTRACT.md`, `06_AI_PIPELINE.md` và `AI_LEARNING_LOG.md` đã mô tả AI stateless, không lưu conversation |
 
 | AI-09 - Grounded LLM answer generation | Khanh | P0 | AI-03, AI-08 | DONE | Current AI-05 working task: added `GenerationProvider` + `OpenAIGenerationProvider`; after retrieval/threshold AI calls `GENERATION_MODEL` for natural grounded answers; no generation call when `not_found`; AI regression pass 81 tests. |
-| AI-QUIZ-01 - Quiz draft generation endpoint | Khánh | P1 | AI-04, AI-09 | DONE | Thêm `/v1/generate-quiz` nhận `document_ids`, `question_count`, `language`, lấy chunks đại diện từ `document_chunks`, gọi grounded LLM trả JSON quiz draft `single_choice` kèm explanation và citations thật; AI chỉ sinh draft, không lưu/public/chấm điểm; `pytest tests/test_generate_quiz_api.py tests/test_generation_provider.py` pass 19 tests |
+| AI-QUIZ-01 - Quiz draft generation endpoint | Khánh | P1 | AI-04, AI-09 | DONE | Thêm `/v1/generate-quiz` nhận `document_ids`, `question_count`, `language`, lấy chunks đại diện phủ rộng từ `document_chunks` bằng sampling theo toàn tài liệu, gọi grounded LLM trả JSON quiz draft `single_choice` kèm explanation và citations thật; prompt ưu tiên câu hỏi theo ý học tập lớn; AI chỉ sinh draft, không lưu/public/chấm điểm; `pytest tests/test_generate_quiz_api.py tests/test_document_chunk_repository.py` pass 29 tests |
 
 ### 6.4. Infra, integration và QA tasks
 

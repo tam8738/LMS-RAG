@@ -96,7 +96,7 @@ class GenerateQuizServiceTest(unittest.TestCase):
         result = self.service.generate(request)
 
         self.assertEqual(result.title, "Cau hoi on tap")
-        self.repository.get_document_chunks.assert_called_once_with([12], 12)
+        self.repository.get_document_chunks.assert_called_once_with([12], request.max_context_chunks)
         self.assertEqual(self.provider.calls[0]["document_ids"], [12])
         self.assertEqual(self.provider.calls[0]["question_count"], 1)
         self.assertEqual(self.provider.calls[0]["language"], "vi")
@@ -218,6 +218,8 @@ class OpenAIQuizGenerationProviderTest(unittest.TestCase):
         self.assertEqual(call["response_format"], {"type": "json_object"})
         self.assertEqual(call["max_tokens"], 900)
         self.assertIn("source_chunk_ids", call["messages"][0]["content"])
+        self.assertIn("major learning objectives", call["messages"][0]["content"])
+        self.assertIn("Coverage rules", call["messages"][1]["content"])
 
     def test_accepts_context_index_when_model_does_not_copy_chunk_id(self) -> None:
         payload = {

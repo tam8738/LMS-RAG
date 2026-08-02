@@ -222,14 +222,15 @@ Input chính:
 
 ```txt
 document_ids: 1-10 IDs
-question_count: mặc định 5, tối đa 10
+question_count: mặc định 5, tối đa 20
 language: vi/en
-max_context_chunks: mặc định QUIZ_CONTEXT_CHUNKS, tối đa 24
+max_context_chunks: mặc định QUIZ_CONTEXT_CHUNKS=20, tối đa 24
 ```
 
 Quy tắc:
 
 - V1 chỉ sinh `single_choice` để BE/FE dễ lưu, review và chấm điểm.
+- Context sinh quiz được lấy theo sampling phủ rộng: chia toàn bộ document scope thành các bucket theo thứ tự tài liệu/chunk, chọn chunk giàu nội dung hơn trong mỗi bucket, rồi prompt yêu cầu phân bổ câu hỏi theo các ý/chủ đề chính.
 - Mỗi câu cần có 4 options A-D, một đáp án đúng và explanation ngắn dựa trên tài liệu.
 - LLM không được tự tạo citation metadata. Provider chỉ cho model trả `source_chunk_ids`, sau đó AI Service map lại thành `chunk_id`, `document_id`, `page_number`, `chunk_index`, `excerpt` từ chunk thật.
 - Nếu tài liệu chưa có chunks, trả `NO_CHUNKS_FOUND` và không gọi generation provider.

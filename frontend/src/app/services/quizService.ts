@@ -2,7 +2,7 @@ import { apiFetch } from "./apiClient";
 
 export interface QuizGenerateRequest {
   documentId: number;
-  questionCount?: number; // 1 to 10, default 5
+  questionCount?: number; // 1 to 20, default 5
   language?: "vi" | "en";
   shuffleAnswers?: boolean;
 }

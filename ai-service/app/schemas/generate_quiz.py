@@ -13,7 +13,7 @@ class GenerateQuizRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     document_ids: list[int] = Field(min_length=1, max_length=10)
-    question_count: int = Field(default=5, ge=1, le=10)
+    question_count: int = Field(default=5, ge=1, le=20)
     language: Literal["vi", "en"] = "vi"
     max_context_chunks: int = Field(default_factory=lambda: settings.quiz_context_chunks, ge=3, le=24)
 
@@ -97,7 +97,7 @@ class GenerateQuizResult(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1, max_length=1000)
-    questions: list[QuizQuestion] = Field(min_length=1, max_length=10)
+    questions: list[QuizQuestion] = Field(min_length=1, max_length=20)
     tokens_used: int = Field(ge=0)
 
     @field_validator("title", "description")

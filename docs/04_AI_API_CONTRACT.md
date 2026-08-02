@@ -333,16 +333,18 @@ Request:
   "document_ids": [12],
   "question_count": 5,
   "language": "vi",
-  "max_context_chunks": 12
+  "max_context_chunks": 20
 }
 ```
 
 | Field | Required | Quy định |
 |---|---:|---|
 | `document_ids` | Yes | 1-10 positive BIGINT IDs, Backend phải kiểm quyền trước |
-| `question_count` | No | Mặc định 5, từ 1 đến 10 |
+| `question_count` | No | Mặc định 5, từ 1 đến 20 |
 | `language` | No | `vi` hoặc `en`, mặc định `vi` |
 | `max_context_chunks` | No | Mặc định theo `QUIZ_CONTEXT_CHUNKS`, từ 3 đến 24 |
+
+Ghi chú chất lượng quiz: mặc định hiện tại là `QUIZ_CONTEXT_CHUNKS=20`. AI Service lấy mẫu rải đều trên toàn bộ phạm vi tài liệu và ưu tiên chunk có nhiều nội dung trong từng bucket, sau đó prompt yêu cầu sinh câu hỏi theo các ý học tập lớn thay vì chỉ hỏi chi tiết nhỏ lẻ.
 
 Success `200`:
 

@@ -18,7 +18,7 @@ public class QuizUpdateRequest {
     @Size(max = 5000, message = "Mô tả quiz tối đa 5000 ký tự")
     private String description;
 
-    @Size(max = 10, message = "Quiz chỉ có tối đa 10 câu hỏi")
+    @Size(max = 20, message = "Quiz chỉ có tối đa 20 câu hỏi")
     @Valid
     private List<QuizQuestionUpdateRequest> questions;
 }

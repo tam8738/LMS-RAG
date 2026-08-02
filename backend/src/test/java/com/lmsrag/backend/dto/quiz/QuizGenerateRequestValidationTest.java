@@ -32,10 +32,19 @@ class QuizGenerateRequestValidationTest {
     }
 
     @Test
+    void questionCountAtUpperBound_shouldBeValid() {
+        QuizGenerateRequest request = new QuizGenerateRequest();
+        request.setDocumentId(10L);
+        request.setQuestionCount(20);
+
+        assertThat(validator.validate(request)).isEmpty();
+    }
+
+    @Test
     void questionCountOutsideRange_shouldBeInvalid() {
         QuizGenerateRequest request = new QuizGenerateRequest();
         request.setDocumentId(10L);
-        request.setQuestionCount(11);
+        request.setQuestionCount(21);
 
         assertThat(validator.validate(request))
                 .extracting(violation -> violation.getPropertyPath().toString())

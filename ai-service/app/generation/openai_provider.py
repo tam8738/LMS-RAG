@@ -43,7 +43,7 @@ from app.utils.question_intent import is_summary_question
 
 _FALLBACK_SUMMARY_MAX_TOKENS = 1200
 _FALLBACK_DEFAULT_MAX_TOKENS = 700
-_FALLBACK_QUIZ_MAX_TOKENS = 1800
+_FALLBACK_QUIZ_MAX_TOKENS = 4000
 _MARKDOWN_EMPHASIS_PATTERN = re.compile(r"(\*\*\*|\*\*|___|__)(.+?)\1")
 _MARKDOWN_HEADING_PATTERN = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
 _MOJIBAKE_MARKERS = (
@@ -333,18 +333,27 @@ class OpenAIGenerationProvider(GenerationProvider):
         system_prompt = (
             "You are a teaching assistant for an LMS RAG system. "
             "Generate a teacher-reviewable quiz draft only from the supplied document context. "
+            "Cover the major learning objectives across the whole context, not just isolated facts from one small passage. "
+            "Prefer concept, comparison, process, and application questions over tiny recall questions. "
             "Do not use outside knowledge. Do not invent facts. "
             f"Write the quiz in {language_name}. "
             "Return only a valid JSON object, without Markdown or code fences. "
             "Use only single_choice questions. Each question must have 4 options with ids A, B, C, D, "
             "exactly one correct_option_ids item, a short explanation grounded in context, "
             "and source_chunk_ids containing existing chunk_id values from the context. "
+            "Use varied source_chunk_ids across questions when the context allows; avoid citing the same chunk for most questions. "
             "Do not use the bracketed context number unless you cannot identify the chunk_id."
         )
         user_prompt = "\n\n".join(
             [
                 f"Authorized document_ids: {document_ids}",
                 f"Question count: {question_count}",
+                "Coverage rules:\n"
+                "- Treat the context items as representative slices ordered from the selected document scope.\n"
+                "- First infer the main themes from all supplied context items, then write questions for those themes.\n"
+                "- Spread questions across early, middle, and late context when possible.\n"
+                "- Skip front matter, table-of-contents text, headings-only text, or noisy fragments if they do not teach a concept.\n"
+                "- Do not create more than two questions from the same chunk_id unless there are too few useful chunks.",
                 "Required JSON shape:\n"
                 "{\n"
                 "  \"title\": \"...\",\n"

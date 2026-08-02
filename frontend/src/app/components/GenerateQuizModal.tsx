@@ -12,6 +12,16 @@ interface GenerateQuizModalProps {
   onSuccess: (quiz: QuizResponse) => void;
 }
 
+const MIN_QUIZ_QUESTION_COUNT = 1;
+const MAX_QUIZ_QUESTION_COUNT = 20;
+
+function clampQuestionCount(value: number): number {
+  if (!Number.isFinite(value)) {
+    return MIN_QUIZ_QUESTION_COUNT;
+  }
+  return Math.max(MIN_QUIZ_QUESTION_COUNT, Math.min(MAX_QUIZ_QUESTION_COUNT, value));
+}
+
 export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: GenerateQuizModalProps) {
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<number | undefined>(initialDocumentId);
@@ -73,7 +83,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
     try {
       const quiz = await quizService.generateQuiz({
         documentId: selectedDocId,
-        questionCount,
+        questionCount: clampQuestionCount(questionCount),
         language,
         shuffleAnswers,
       });
@@ -189,11 +199,11 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
                   <input
                     type="number"
                     min={1}
-                    max={50}
+                    max={MAX_QUIZ_QUESTION_COUNT}
                     value={questionCount}
                     onChange={e => {
                       const val = parseInt(e.target.value, 10);
-                      setQuestionCount(isNaN(val) ? 1 : Math.max(1, Math.min(50, val)));
+                      setQuestionCount(clampQuestionCount(val));
                     }}
                     className="w-16 h-7.5 text-center text-[13px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans"
                   />
@@ -205,9 +215,9 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
               <input
                 type="range"
                 min={1}
-                max={30}
-                value={questionCount > 30 ? 30 : questionCount}
-                onChange={e => setQuestionCount(Number(e.target.value))}
+                max={MAX_QUIZ_QUESTION_COUNT}
+                value={questionCount}
+                onChange={e => setQuestionCount(clampQuestionCount(Number(e.target.value)))}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 my-2"
               />
 
@@ -215,7 +225,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
               <div className="flex items-center justify-between gap-1.5 mt-1 text-[11.5px]">
                 <span className="text-[11px] text-[#AAAA9F] font-mono-label">Chọn nhanh:</span>
                 <div className="flex items-center gap-1.5">
-                  {[5, 10, 15, 20, 25].map(num => (
+                  {[5, 10, 15, 20].map(num => (
                     <button
                       key={num}
                       type="button"
