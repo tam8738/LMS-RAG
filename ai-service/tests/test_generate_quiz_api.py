@@ -221,6 +221,45 @@ class OpenAIQuizGenerationProviderTest(unittest.TestCase):
         self.assertIn("major learning objectives", call["messages"][0]["content"])
         self.assertIn("Coverage rules", call["messages"][1]["content"])
 
+    def test_accepts_twenty_question_quiz_payload(self) -> None:
+        payload = {
+            "title": "Quiz",
+            "description": "Draft",
+            "questions": [
+                {
+                    "question": f"Q{i}?",
+                    "options": [
+                        {"id": "A", "text": "A"},
+                        {"id": "B", "text": "B"},
+                        {"id": "C", "text": "C"},
+                        {"id": "D", "text": "D"},
+                    ],
+                    "correct_option_ids": ["A"],
+                    "explanation": "Because A.",
+                    "source_chunk_ids": [120],
+                }
+                for i in range(1, 21)
+            ],
+        }
+        self.client.chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(payload)))],
+            usage=SimpleNamespace(total_tokens=1000),
+        )
+
+        result = self._provider().generate_quiz(
+            document_ids=[12],
+            question_count=20,
+            language="vi",
+            chunks=[chunk(chunk_id=120)],
+        )
+
+        self.assertEqual(len(result.quiz.questions), 20)
+        self.assertEqual(result.quiz.tokens_used, 2000)
+        self.assertEqual(result.quiz.questions[19].citations[0].chunk_id, 120)
+        self.assertEqual(self.client.chat.completions.create.call_count, 2)
+        for call_args in self.client.chat.completions.create.call_args_list:
+            self.assertIn("Question count: 10", call_args.kwargs["messages"][1]["content"])
+
     def test_accepts_context_index_when_model_does_not_copy_chunk_id(self) -> None:
         payload = {
             "title": "Quiz",

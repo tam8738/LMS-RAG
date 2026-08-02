@@ -72,7 +72,7 @@ class Settings:
         os.getenv("GENERATION_SUMMARY_MAX_TOKENS", "1200")
     )
     generation_quiz_max_tokens: int = int(
-        os.getenv("GENERATION_QUIZ_MAX_TOKENS", "4000")
+        os.getenv("GENERATION_QUIZ_MAX_TOKENS", "6000")
     )
     quiz_context_chunks: int = int(os.getenv("QUIZ_CONTEXT_CHUNKS", "20"))
 

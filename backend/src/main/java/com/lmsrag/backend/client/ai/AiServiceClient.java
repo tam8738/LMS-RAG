@@ -29,6 +29,7 @@ import java.util.Set;
 public class AiServiceClient {
 
     private static final String INTERNAL_KEY_HEADER = "X-Internal-Key";
+    private static final int MAX_GENERATED_QUIZ_QUESTIONS = 20;
 
     private final AiServiceProperties properties;
     private final WebClient webClient;
@@ -224,7 +225,7 @@ public class AiServiceClient {
                 || response.getData().tokensUsed() < 0
                 || response.getData().questions() == null
                 || response.getData().questions().isEmpty()
-                || response.getData().questions().size() > 10
+                || response.getData().questions().size() > MAX_GENERATED_QUIZ_QUESTIONS
                 || response.getData().questions().stream().anyMatch(this::isInvalidQuizQuestion)) {
             throw new AiServiceException(
                     "AI_INVALID_RESPONSE",

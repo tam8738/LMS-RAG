@@ -43,7 +43,9 @@ from app.utils.question_intent import is_summary_question
 
 _FALLBACK_SUMMARY_MAX_TOKENS = 1200
 _FALLBACK_DEFAULT_MAX_TOKENS = 700
-_FALLBACK_QUIZ_MAX_TOKENS = 4000
+_FALLBACK_QUIZ_MAX_TOKENS = 6000
+_MAX_QUIZ_BATCH_SIZE = 10
+_MAX_QUIZ_BATCH_EXTRA_REQUESTS = 3
 _MARKDOWN_EMPHASIS_PATTERN = re.compile(r"(\*\*\*|\*\*|___|__)(.+?)\1")
 _MARKDOWN_HEADING_PATTERN = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
 _MOJIBAKE_MARKERS = (
@@ -84,7 +86,7 @@ class _RawQuiz(BaseModel):
 
     title: str = Field(min_length=1)
     description: str = Field(min_length=1)
-    questions: list[_RawQuizQuestion] = Field(min_length=1, max_length=10)
+    questions: list[_RawQuizQuestion] = Field(min_length=1, max_length=20)
 
 
 class OpenAIGenerationProvider(GenerationProvider):
@@ -217,6 +219,16 @@ class OpenAIGenerationProvider(GenerationProvider):
                 status_code=422,
             )
 
+        if question_count > _MAX_QUIZ_BATCH_SIZE:
+            return GeneratedQuiz(
+                quiz=self._generate_quiz_in_batches(
+                    document_ids=document_ids,
+                    question_count=question_count,
+                    language=language,
+                    chunks=chunks,
+                )
+            )
+
         response = self._request_quiz_completion(
             document_ids=document_ids,
             question_count=question_count,
@@ -229,6 +241,93 @@ class OpenAIGenerationProvider(GenerationProvider):
             chunks=chunks,
         )
         return GeneratedQuiz(quiz=quiz)
+
+    def _generate_quiz_in_batches(
+        self,
+        *,
+        document_ids: list[int],
+        question_count: int,
+        language: str,
+        chunks: list[RetrievedDocumentChunk],
+    ) -> GenerateQuizResult:
+        """Generate large quiz drafts in smaller LLM calls and merge them."""
+        questions: list[QuizQuestion] = []
+        title = ""
+        description = ""
+        tokens_used = 0
+        max_requests = (
+            (question_count + _MAX_QUIZ_BATCH_SIZE - 1) // _MAX_QUIZ_BATCH_SIZE
+        ) + _MAX_QUIZ_BATCH_EXTRA_REQUESTS
+
+        for request_index in range(max_requests):
+            remaining = question_count - len(questions)
+            if remaining <= 0:
+                break
+
+            batch_size = min(_MAX_QUIZ_BATCH_SIZE, remaining)
+            batch_chunks = self._select_quiz_batch_chunks(chunks, request_index)
+            response = self._request_quiz_completion(
+                document_ids=document_ids,
+                question_count=batch_size,
+                language=language,
+                chunks=batch_chunks,
+            )
+            try:
+                batch_quiz = self._parse_quiz_response(
+                    response,
+                    question_count=batch_size,
+                    chunks=batch_chunks,
+                    allow_partial=True,
+                )
+            except ServiceError as exc:
+                if exc.code == ErrorCode.INVALID_OUTPUT:
+                    continue
+                raise
+
+            if not title:
+                title = batch_quiz.title
+            if not description:
+                description = batch_quiz.description
+
+            available_slots = question_count - len(questions)
+            questions.extend(batch_quiz.questions[:available_slots])
+            tokens_used += batch_quiz.tokens_used
+
+        if len(questions) != question_count:
+            raise ServiceError(
+                ErrorCode.INVALID_OUTPUT,
+                "OpenAI returned fewer quiz questions than requested",
+                status_code=502,
+            )
+
+        try:
+            return GenerateQuizResult(
+                title=title or "Quiz draft",
+                description=description or "Quiz draft generated from selected documents.",
+                questions=questions,
+                tokens_used=tokens_used,
+            )
+        except ValidationError as exc:
+            raise ServiceError(
+                ErrorCode.INVALID_OUTPUT,
+                "OpenAI returned invalid quiz content",
+                status_code=502,
+            ) from exc
+
+    @staticmethod
+    def _select_quiz_batch_chunks(
+        chunks: list[RetrievedDocumentChunk],
+        request_index: int,
+    ) -> list[RetrievedDocumentChunk]:
+        """Rotate context windows so large quizzes cover more of the document."""
+        if len(chunks) <= _MAX_QUIZ_BATCH_SIZE:
+            return chunks
+
+        start = (request_index * _MAX_QUIZ_BATCH_SIZE) % len(chunks)
+        selected = chunks[start:start + _MAX_QUIZ_BATCH_SIZE]
+        if len(selected) < _MAX_QUIZ_BATCH_SIZE:
+            selected.extend(chunks[:_MAX_QUIZ_BATCH_SIZE - len(selected)])
+        return selected
 
     def _request_quiz_completion(
         self,
@@ -341,6 +440,8 @@ class OpenAIGenerationProvider(GenerationProvider):
             "Use only single_choice questions. Each question must have 4 options with ids A, B, C, D, "
             "exactly one correct_option_ids item, a short explanation grounded in context, "
             "and source_chunk_ids containing existing chunk_id values from the context. "
+            "Keep output compact: question under 160 characters, each option under 90 characters, "
+            "and explanation as one concise sentence under 180 characters. "
             "Use varied source_chunk_ids across questions when the context allows; avoid citing the same chunk for most questions. "
             "Do not use the bracketed context number unless you cannot identify the chunk_id."
         )
@@ -353,7 +454,8 @@ class OpenAIGenerationProvider(GenerationProvider):
                 "- First infer the main themes from all supplied context items, then write questions for those themes.\n"
                 "- Spread questions across early, middle, and late context when possible.\n"
                 "- Skip front matter, table-of-contents text, headings-only text, or noisy fragments if they do not teach a concept.\n"
-                "- Do not create more than two questions from the same chunk_id unless there are too few useful chunks.",
+                "- Do not create more than two questions from the same chunk_id unless there are too few useful chunks.\n"
+                "- For 15 or more questions, prioritize concise wording so the JSON response remains complete.",
                 "Required JSON shape:\n"
                 "{\n"
                 "  \"title\": \"...\",\n"
@@ -461,6 +563,7 @@ class OpenAIGenerationProvider(GenerationProvider):
         *,
         question_count: int,
         chunks: list[RetrievedDocumentChunk],
+        allow_partial: bool = False,
     ) -> GenerateQuizResult:
         """Parse response SDK -> JSON -> raw schema -> public quiz schema.
 
@@ -478,19 +581,20 @@ class OpenAIGenerationProvider(GenerationProvider):
                 status_code=502,
             ) from exc
 
-        if len(raw_quiz.questions) != question_count:
+        if len(raw_quiz.questions) != question_count and not allow_partial:
             raise ServiceError(
                 ErrorCode.INVALID_OUTPUT,
                 "OpenAI returned an unexpected number of quiz questions",
                 status_code=502,
             )
+        raw_questions = raw_quiz.questions[:question_count]
 
         chunk_by_id = {chunk.chunk_id: chunk for chunk in chunks}
         chunk_by_context_index = {
             index: chunk for index, chunk in enumerate(chunks, start=1)
         }
         questions: list[QuizQuestion] = []
-        for raw_question in raw_quiz.questions:
+        for raw_question in raw_questions:
             citations = OpenAIGenerationProvider._map_quiz_citations(
                 raw_question.source_chunk_ids,
                 chunk_by_id,
