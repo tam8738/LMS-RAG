@@ -6,7 +6,7 @@ import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
-import com.lmsrag.backend.dto.document.MyDocumentFilterRequest;
+import com.lmsrag.backend.dto.document.DocumentFilterRequest;
 import com.lmsrag.backend.enums.AiProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.exception.AppException;
@@ -145,7 +145,8 @@ public class DocumentController {
                 pageable.getPageNumber(), pageable.getPageSize());
 
         // Đóng gói các tham số filter vào DTO để truyền xuống service
-        MyDocumentFilterRequest filter = new MyDocumentFilterRequest();
+        // uploadedBy không set ở đây, service tự lấy từ current user
+        DocumentFilterRequest filter = new DocumentFilterRequest();
         filter.setQ(q);
         filter.setProcessingStatus(processingStatus);
         filter.setPublicationStatus(publicationStatus);

@@ -5,17 +5,26 @@ import com.lmsrag.backend.enums.PublicationStatus;
 import lombok.Data;
 
 /**
- * DTO chứa các tham số lọc và tìm kiếm cho API lấy danh sách tài liệu cá nhân của teacher.
+ * DTO chứa các tham số lọc và tìm kiếm tài liệu, dùng chung cho nhiều API.
  *
  * <p>Tất cả các trường đều optional (không bắt buộc). Khi null hoặc blank,
  * điều kiện tương ứng sẽ không được áp dụng vào câu truy vấn.
+ *
+ * <p><b>Cách dùng theo từng role:</b>
+ * <ul>
+ *   <li><b>Teacher</b> ({@code GET /my/documents}): service tự set {@code uploadedBy} từ
+ *       current user, field này trong DTO bị bỏ qua.</li>
+ *   <li><b>Admin</b> ({@code GET /admin/documents}): {@code uploadedBy} được dùng để lọc
+ *       theo teacher; {@code publicationStatus = DRAFT} bị từ chối.</li>
+ * </ul>
  */
 @Data
-public class MyDocumentFilterRequest {
+public class DocumentFilterRequest {
 
     /**
      * Từ khóa tìm kiếm tự do (full-text search).
      * Tìm trong: title, description, subject, topic, chapter.
+     * Với Admin, tìm thêm cả tên và email của teacher.
      */
     private String q;
 
@@ -27,7 +36,8 @@ public class MyDocumentFilterRequest {
 
     /**
      * Lọc theo trạng thái công bố của tài liệu.
-     * Các giá trị hợp lệ: DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED, ARCHIVED.
+     * Teacher: chấp nhận mọi giá trị (DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED, ARCHIVED).
+     * Admin: chỉ chấp nhận PENDING_REVIEW, PUBLISHED, REJECTED, ARCHIVED (không được là DRAFT).
      */
     private PublicationStatus publicationStatus;
 
@@ -51,4 +61,10 @@ public class MyDocumentFilterRequest {
      * Ví dụ: "database,normalization" → tìm tài liệu có chứa tất cả các tag này.
      */
     private String tags;
+
+    /**
+     * Lọc theo ID của teacher đã upload.
+     * Chỉ có ý nghĩa với Admin. Teacher: field này bị bỏ qua, service dùng current user ID.
+     */
+    private Long uploadedBy;
 }

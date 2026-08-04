@@ -1,8 +1,8 @@
 package com.lmsrag.backend.controller;
 
 import com.lmsrag.backend.dto.ApiResponse;
-import com.lmsrag.backend.dto.document.AdminDocumentFilterRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
+import com.lmsrag.backend.dto.document.DocumentFilterRequest;
 import com.lmsrag.backend.dto.document.RejectReviewRequest;
 import com.lmsrag.backend.enums.AiProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
@@ -23,12 +23,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
-@Tag(name = "Admin Documents", description = "Admin kiểm duyệt và quản lý tài liệu")
+@Tag(name = "Admin Documents", description = "Admin kiểm duyệt và quản lý tài liệu (chỉ thấy tài liệu đã được teacher gửi duyệt)")
 public class AdminDocumentController {
 
     private final DocumentService documentService;
 
-    @Operation(summary = "Lấy danh sách toàn bộ tài liệu trong hệ thống")
+    @Operation(summary = "Lấy danh sách tài liệu đã gửi duyệt (không bao gồm tài liệu nháp DRAFT)")
     @GetMapping("/documents")
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getAdminDocuments(
             @RequestParam(required = false) String q,
@@ -40,7 +40,8 @@ public class AdminDocumentController {
             @RequestParam(required = false) String tags,
             @RequestParam(required = false) Long uploadedBy,
             @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        AdminDocumentFilterRequest filter = new AdminDocumentFilterRequest();
+        // Dùng DocumentFilterRequest - DTO dùng chung cho cả Teacher và Admin
+        DocumentFilterRequest filter = new DocumentFilterRequest();
         filter.setQ(q);
         filter.setProcessingStatus(processingStatus);
         filter.setPublicationStatus(publicationStatus);
@@ -54,7 +55,7 @@ public class AdminDocumentController {
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách tài liệu hệ thống thành công"));
     }
 
-    @Operation(summary = "Lấy chi tiết một tài liệu trong hệ thống")
+    @Operation(summary = "Lấy chi tiết một tài liệu đã gửi duyệt (không bao gồm tài liệu nháp DRAFT)")
     @GetMapping("/documents/{documentId}")
     public ResponseEntity<ApiResponse<DocumentResponse>> getAdminDocument(
             @PathVariable Long documentId) {

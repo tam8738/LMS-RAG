@@ -1,10 +1,9 @@
 package com.lmsrag.backend.service;
 
-import com.lmsrag.backend.dto.document.AdminDocumentFilterRequest;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
-import com.lmsrag.backend.dto.document.MyDocumentFilterRequest;
+import com.lmsrag.backend.dto.document.DocumentFilterRequest;
 import com.lmsrag.backend.entity.Document;
 import com.lmsrag.backend.entity.DocumentProcessingJob;
 import com.lmsrag.backend.entity.User;
@@ -71,6 +70,15 @@ public class DocumentService {
             throw new AppException(ErrorCode.DOCUMENT_ACCESS_DENIED);
         }
     }
+
+    // Kiểm tra document đã được teacher gửi duyệt (không phải DRAFT)
+    // Dùng cho các API admin cần xác nhận quyền truy cập trước khi đọc chi tiết
+    private Document requireNonDraftDocument(Long id) {
+        return documentRepository.findById(id)
+                .filter(doc -> doc.getPublicationStatus() != PublicationStatus.DRAFT)
+                .orElseThrow(() -> new AppException(ErrorCode.DOCUMENT_NOT_FOUND));
+    }
+
 
     // ===== UPLOAD =====
     @Transactional
@@ -228,7 +236,7 @@ public class DocumentService {
      * @return Trang kết quả DocumentResponse đã được map
      */
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> getMyDocuments(MyDocumentFilterRequest filter, Pageable pageable) {
+    public Page<DocumentResponse> getMyDocuments(DocumentFilterRequest filter, Pageable pageable) {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getId();
 
@@ -463,8 +471,24 @@ public class DocumentService {
     }
 
     // ===== ADMIN DOCUMENTS =====
+
+    /**
+     * Lấy danh sách tài liệu dành cho Admin quản lý, có filter và phân trang.
+     *
+     * <p>Chỉ trả về các tài liệu mà teacher đã gửi duyệt (không bao gồm DRAFT).
+     * Nếu client cố tình truyền {@code publicationStatus = DRAFT}, request sẽ bị từ chối.
+     *
+     * @param filter     Các điều kiện lọc (dùng chung {@link DocumentFilterRequest})
+     * @param pageable   Thông tin phân trang và sắp xếp
+     * @return Trang kết quả DocumentResponse khớp điều kiện
+     */
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> getAdminDocuments(AdminDocumentFilterRequest filter, Pageable pageable) {
+    public Page<DocumentResponse> getAdminDocuments(DocumentFilterRequest filter, Pageable pageable) {
+        // Admin không được phép lọc theo trạng thái DRAFT
+        if (filter.getPublicationStatus() == PublicationStatus.DRAFT) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
         String processingStatusStr = filter.getProcessingStatus() != null
                 ? filter.getProcessingStatus().name()
                 : null;
@@ -485,9 +509,18 @@ public class DocumentService {
         ).map(DocumentMapper::toResponse);
     }
 
+    /**
+     * Lấy chi tiết một tài liệu dành cho Admin.
+     *
+     * <p>Chỉ trả về tài liệu mà teacher đã gửi duyệt (không bao gồm DRAFT).
+     *
+     * @param id ID của tài liệu cần xem
+     * @return DocumentResponse nếu tài liệu tồn tại và không phải DRAFT
+     * @throws AppException {@code DOCUMENT_NOT_FOUND} nếu không tìm thấy hoặc đang ở trạng thái DRAFT
+     */
     @Transactional(readOnly = true)
     public DocumentResponse getAdminDocument(Long id) {
-        return DocumentMapper.toResponse(requireDocument(id));
+        return DocumentMapper.toResponse(requireNonDraftDocument(id));
     }
 
     // ===== ADMIN REVIEW QUEUE =====
@@ -826,26 +859,32 @@ public class DocumentService {
     }
 
     private boolean canViewDocumentContent(Document document, User currentUser) {
+        // Teacher sở hữu luôn được xem tài liệu của mình, kể cả DRAFT
         if (currentUser != null && document.getUploadedBy().getId().equals(currentUser.getId())) {
             return true;
         }
 
+        // Admin chỉ xem được tài liệu mà teacher đã gửi duyệt (không phải DRAFT)
         if (currentUser != null && currentUser.getRole() == UserRole.ADMIN) {
-            return true;
+            return document.getPublicationStatus() != PublicationStatus.DRAFT;
         }
 
+        // Người dùng khác chỉ xem được tài liệu đã được công bố
         return document.getPublicationStatus() == PublicationStatus.PUBLISHED;
     }
 
     private boolean canDownloadDocument(Document document, User currentUser) {
+        // Teacher sở hữu luôn được download tài liệu của mình, kể cả DRAFT
         if (document.getUploadedBy().getId().equals(currentUser.getId())) {
             return true;
         }
 
+        // Admin chỉ download được tài liệu mà teacher đã gửi duyệt (không phải DRAFT)
         if (currentUser.getRole() == UserRole.ADMIN) {
-            return true;
+            return document.getPublicationStatus() != PublicationStatus.DRAFT;
         }
 
+        // Teacher khác chỉ download được tài liệu đã được công bố
         return document.getPublicationStatus() == PublicationStatus.PUBLISHED
                 && currentUser.getRole() == UserRole.TEACHER;
     }

@@ -74,16 +74,39 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     // ===== ADMIN DOCUMENTS =====
 
+    /**
+     * Tìm kiếm/lọc danh sách tài liệu dành cho Admin quản lý.
+     *
+     * <p>Chỉ trả về các tài liệu mà teacher đã gửi duyệt (không bao gồm DRAFT).
+     * Các trạng thái hợp lệ: PENDING_REVIEW, PUBLISHED, REJECTED, ARCHIVED.
+     *
+     * <p>Native query được dùng để tận dụng PostgreSQL ILIKE (case-insensitive LIKE)
+     * và toán tử jsonb {@code @>} để kiểm tra subset của mảng JSON tags.
+     *
+     * <p>Các tham số null sẽ bỏ qua điều kiện lọc tương ứng.
+     *
+     * @param q                 Từ khóa tìm kiếm trong title/description/subject/topic/chapter và thông tin teacher
+     * @param processingStatus  Lọc theo trạng thái AI xử lý (enum name dạng String)
+     * @param publicationStatus Lọc theo trạng thái công bố (enum name dạng String, không được là DRAFT)
+     * @param subject           Lọc khớp chính xác môn học
+     * @param topic             Lọc khớp một phần chủ đề
+     * @param chapter           Lọc khớp một phần chương
+     * @param uploadedBy        Lọc theo ID teacher đã upload
+     * @param tags              Cỗi JSON array để lọc tags, ví dụ: ["database","sql"]
+     * @param pageable          Thông tin phân trang và sắp xếp
+     * @return Trang kết quả Document khớp điều kiện
+     */
     @Query(value = """
         SELECT d.* FROM documents d
         LEFT JOIN users u ON u.id = d.uploaded_by
-        WHERE (:q IS NULL OR d.title       ILIKE CONCAT('%', :q, '%')
-                        OR d.description ILIKE CONCAT('%', :q, '%')
-                        OR d.subject     ILIKE CONCAT('%', :q, '%')
-                        OR d.topic       ILIKE CONCAT('%', :q, '%')
-                        OR d.chapter     ILIKE CONCAT('%', :q, '%')
-                        OR u.name        ILIKE CONCAT('%', :q, '%')
-                        OR u.email       ILIKE CONCAT('%', :q, '%'))
+        WHERE d.publication_status != 'DRAFT'
+          AND (:q IS NULL OR d.title       ILIKE CONCAT('%', :q, '%')
+                          OR d.description ILIKE CONCAT('%', :q, '%')
+                          OR d.subject     ILIKE CONCAT('%', :q, '%')
+                          OR d.topic       ILIKE CONCAT('%', :q, '%')
+                          OR d.chapter     ILIKE CONCAT('%', :q, '%')
+                          OR u.name        ILIKE CONCAT('%', :q, '%')
+                          OR u.email       ILIKE CONCAT('%', :q, '%'))
           AND (:processingStatus IS NULL OR d.processing_status = :processingStatus)
           AND (:publicationStatus IS NULL OR d.publication_status = :publicationStatus)
           AND (:subject IS NULL OR d.subject = :subject)
@@ -95,13 +118,14 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
         countQuery = """
         SELECT COUNT(*) FROM documents d
         LEFT JOIN users u ON u.id = d.uploaded_by
-        WHERE (:q IS NULL OR d.title       ILIKE CONCAT('%', :q, '%')
-                        OR d.description ILIKE CONCAT('%', :q, '%')
-                        OR d.subject     ILIKE CONCAT('%', :q, '%')
-                        OR d.topic       ILIKE CONCAT('%', :q, '%')
-                        OR d.chapter     ILIKE CONCAT('%', :q, '%')
-                        OR u.name        ILIKE CONCAT('%', :q, '%')
-                        OR u.email       ILIKE CONCAT('%', :q, '%'))
+        WHERE d.publication_status != 'DRAFT'
+          AND (:q IS NULL OR d.title       ILIKE CONCAT('%', :q, '%')
+                          OR d.description ILIKE CONCAT('%', :q, '%')
+                          OR d.subject     ILIKE CONCAT('%', :q, '%')
+                          OR d.topic       ILIKE CONCAT('%', :q, '%')
+                          OR d.chapter     ILIKE CONCAT('%', :q, '%')
+                          OR u.name        ILIKE CONCAT('%', :q, '%')
+                          OR u.email       ILIKE CONCAT('%', :q, '%'))
           AND (:processingStatus IS NULL OR d.processing_status = :processingStatus)
           AND (:publicationStatus IS NULL OR d.publication_status = :publicationStatus)
           AND (:subject IS NULL OR d.subject = :subject)
