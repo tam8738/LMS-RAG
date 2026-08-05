@@ -216,14 +216,16 @@ function SubjectShowcaseRow({
       {/* Desktop/Tablet side-by-side versus Mobile stacked layout */}
       <div className="flex flex-col md:flex-row gap-5 items-stretch relative">
 
-        {/* Fixed Subject Lead Card (Only for standard rows, hidden for AI Ready shelf) */}
+        {/* Fixed Subject Lead Card (Only for standard rows on desktop/tablet, hidden on mobile) */}
         {!isAiReadyRow && (
-          <SubjectLeadCard
-            subjectName={subjectName}
-            docCount={docs.length}
-            onSelect={handleSelect}
-            isAiReadyRow={isAiReadyRow}
-          />
+          <div className="hidden md:block">
+            <SubjectLeadCard
+              subjectName={subjectName}
+              docCount={docs.length}
+              onSelect={handleSelect}
+              isAiReadyRow={isAiReadyRow}
+            />
+          </div>
         )}
 
         {/* Viewport wrapper */}
@@ -300,10 +302,7 @@ export function LibraryPage({
     return val !== "";
   }).length;
 
-  const isFilteringOrSearching = !!searchVal || !!selectedSubject || activeFiltersCount > 0;
-
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const shouldRestoreSearchFocusRef = useRef(false);
   const scrollRestoreYRef = useRef<number | null>(null);
   const isScrollRestorePendingRef = useRef(false);
   const hasScrollRestoreFetchStartedRef = useRef(false);
@@ -320,16 +319,21 @@ export function LibraryPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (!shouldRestoreSearchFocusRef.current) return;
-    shouldRestoreSearchFocusRef.current = false;
-    searchInputRef.current?.focus();
-  }, [isFilteringOrSearching]);
-
   const handleSearchChange = (value: string) => {
-    shouldRestoreSearchFocusRef.current = true;
     setSearchVal(value);
     setPage(0);
+  };
+
+  const handleSearchSubmit = () => {
+    setDebouncedQuery({
+      page: 0,
+      size,
+      q: searchVal.trim(),
+      subject: advancedFilters.subject,
+      topic: advancedFilters.topic,
+      chapter: "",
+      tags: "",
+    });
   };
 
   const preserveScrollPosition = () => {
@@ -392,10 +396,12 @@ export function LibraryPage({
         chapter: "",
         tags: "",
       });
-    }, 400);
+    }, 450);
 
     return () => clearTimeout(timeoutId);
   }, [searchVal, advancedFilters.subject, advancedFilters.topic, page, size]);
+
+  const isFilteringOrSearching = !!debouncedQuery.q || !!selectedSubject || activeFiltersCount > 0;
 
   // Fetch unique subjects & unfiltered AI Ready recommendation list on mount
   useEffect(() => {
@@ -493,49 +499,19 @@ export function LibraryPage({
         </div>
       )}
 
-      {/* 1. Public Library Hero Section (Agromind-style, shown when not searching/filtering) */}
-      {!isFilteringOrSearching ? (
-        <PublicLibraryHero
-          user={user}
-          featuredDocument={aiReadyDocs[0] || documents[0]}
-          searchValue={searchVal}
-          onSearchChange={handleSearchChange}
-          searchInputRef={searchInputRef}
-          onExplore={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
-        />
-      ) : (
-        /* If searching/filtering, show a simpler compact search header bar */
-        <div className="py-6 px-6 rounded-2xl bg-[#F8F7F4]/55 border border-[#0E0D0B]/[0.06] shadow-xs animate-fadeIn">
-          <div className="relative max-w-xl mx-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#AAAA9F]" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchVal}
-              onChange={e => handleSearchChange(e.target.value)}
-              placeholder="Tìm kiếm theo tên tài liệu, môn học, chủ đề..."
-              className="w-full h-11 pl-11 pr-20 bg-white border border-[#0E0D0B]/[0.12] rounded-xl text-[13.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all shadow-xs"
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              {searchVal && (
-                <button
-                  onClick={() => {
-                    setSearchVal("");
-                    setPage(0);
-                  }}
-                  className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
-                  title="Xóa tìm kiếm"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 1. Public Library Hero Section */}
+      <PublicLibraryHero
+        user={user}
+        featuredDocument={aiReadyDocs[0] || documents[0]}
+        searchValue={searchVal}
+        onSearchChange={handleSearchChange}
+        onSearchSubmit={handleSearchSubmit}
+        searchInputRef={searchInputRef}
+        onExplore={() => document.getElementById("all-documents-section")?.scrollIntoView({ behavior: "smooth" })}
+      />
 
-      {/* 2. Sẵn sàng hỏi đáp AI (Chỉ hiển thị khi đã đăng nhập) */}
-      {user && !loading && aiReadyDocs.length > 0 && (
+      {/* 2. Sẵn sàng hỏi đáp AI (Chỉ hiển thị khi KHÔNG tìm kiếm / lọc) */}
+      {user && !loading && !isFilteringOrSearching && aiReadyDocs.length > 0 && (
         <div id="ai-ready-shelf" className="my-8 sm:my-10 animate-fadeIn">
           <SubjectShowcaseRow
             subjectName="Sẵn sàng hỏi đáp AI"
@@ -555,14 +531,16 @@ export function LibraryPage({
       ) : documents.length > 0 ? (
         <div className="space-y-12 animate-fadeIn">
 
-          {/* Section: Tất cả tài liệu (Presented as Subject Showcase Rows) */}
+          {/* Section: Kết quả tìm kiếm / Tất cả tài liệu */}
           <div id="all-documents-section" className="space-y-6 text-left pt-4">
 
             {/* Section Header */}
             <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.06] pb-3.5">
               <div>
                 <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">
-                  {isFilteringOrSearching ? "Kết quả tìm kiếm" : "Tất cả tài liệu"}
+                  {isFilteringOrSearching
+                    ? (debouncedQuery.q ? `Kết quả tìm kiếm cho "${debouncedQuery.q}"` : "Kết quả tìm kiếm")
+                    : "Tất cả tài liệu"}
                 </h2>
                 <p className="text-[12.5px] text-[#AAAA9F] font-semibold">Hiển thị {totalElements} kết quả được phân loại theo chuyên mục</p>
               </div>

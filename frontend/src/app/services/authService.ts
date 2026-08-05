@@ -1,21 +1,50 @@
-import { User } from "../types";
+import { Gender, User } from "../types";
 import { apiFetch } from "./apiClient";
+
+export interface UpdateProfileData {
+  name?: string;
+  phoneNumber?: string;
+  gender?: Gender;
+  dateOfBirth?: string;
+}
 
 export const authService = {
   /**
-   * Fetch the current authenticated user's profile from the server
+   * Fetch full detailed profile of the current user
    */
-  async getCurrentUserFromServer(): Promise<User> {
-    const response = await apiFetch<any>("/api/v1/auth/me");
+  async getProfile(): Promise<User> {
+    const response = await apiFetch<any>("/api/v1/me/profile");
     const user = response.data;
-    if (user && user.status === "INACTIVE") {
-      this.logout();
-      throw new Error("Tài khoản của bạn đã bị vô hiệu hóa.");
-    }
     if (user && user.role) {
       user.role = user.role.toLowerCase() as "teacher" | "admin";
     }
     return user;
+  },
+
+  /**
+   * Fetch current authenticated user basic + profile info from server
+   */
+  async getCurrentUserFromServer(): Promise<User> {
+    const response = await apiFetch<any>("/api/v1/auth/me");
+    const basicUser = response.data;
+    if (basicUser && basicUser.status === "INACTIVE") {
+      this.logout();
+      throw new Error("Tài khoản của bạn đã bị vô hiệu hóa.");
+    }
+
+    try {
+      const fullProfile = await this.getProfile();
+      return {
+        ...basicUser,
+        ...fullProfile,
+        role: (fullProfile.role || basicUser.role).toLowerCase() as "teacher" | "admin",
+      };
+    } catch (e) {
+      if (basicUser && basicUser.role) {
+        basicUser.role = basicUser.role.toLowerCase() as "teacher" | "admin";
+      }
+      return basicUser;
+    }
   },
 
   /**
@@ -67,12 +96,12 @@ export const authService = {
   },
 
   /**
-   * Update authenticated user's profile name in DB
+   * Update authenticated user's profile details in DB
    */
-  async updateProfile(name: string): Promise<User> {
+  async updateProfile(data: UpdateProfileData): Promise<User> {
     const response = await apiFetch<any>("/api/v1/me/profile", {
       method: "PATCH",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(data),
     });
     const user = response.data;
     if (user && user.role) {
@@ -91,3 +120,4 @@ export const authService = {
     });
   },
 };
+

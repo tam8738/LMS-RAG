@@ -17,6 +17,7 @@ export const TEACHER_NAV: NavItem[] = [
 ];
 
 export const ADMIN_NAV: NavItem[] = [
+  { id: "library", path: ROUTES.LIBRARY, label: "Thư viện", icon: Library },
   { id: "admin-documents", path: ROUTES.ADMIN_DOCUMENTS, label: "Quản lý tài liệu", icon: FileText },
   { id: "admin-review-queue", path: ROUTES.ADMIN_REVIEWS, label: "Hàng chờ duyệt", icon: ListChecks },
   { id: "admin-teachers", path: ROUTES.ADMIN_TEACHERS, label: "Quản lý giảng viên", icon: Users },

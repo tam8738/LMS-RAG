@@ -3,8 +3,31 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Role, User } from "../types";
 import { getNavForRole } from "../navigation";
 import { ROUTES } from "../routes";
-import { BookOpen, ChevronDown, User as UserIcon, LogOut, Menu, X, Key, Upload, Lock, ShieldCheck } from "lucide-react";
+import {
+  BookOpen,
+  ChevronDown,
+  User as UserIcon,
+  LogOut,
+  Menu,
+  X,
+  Key,
+  Upload,
+  Lock,
+  ShieldCheck,
+  Check,
+  AlertTriangle,
+  Building2,
+  Phone,
+  Calendar,
+  Mail,
+  UserCheck,
+  Sparkles,
+  Loader2,
+  Camera,
+} from "lucide-react";
 import { authService } from "../services/authService";
+import { VietnameseDateInput } from "./VietnameseDateInput";
+import { formatIsoToVietnameseDate, parseVietnameseDateToIso, formatDate } from "../utils/formatDate";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -21,6 +44,14 @@ const LAYOUT_STYLES = `
   .animate-slide-in-drawer {
     animation: slide-in-drawer 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
+  @keyframes modal-pop {
+    0% { opacity: 0; transform: scale(0.95) translateY(12px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes slide-down-toast {
+    0% { opacity: 0; transform: translate(-50%, -16px); }
+    100% { opacity: 1; transform: translate(-50%, 0); }
+  }
 `;
 
 export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutProps) {
@@ -33,21 +64,34 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [profileTab, setProfileTab] = useState<"profile" | "security">("profile");
 
-  // Profile info states (mocked based on user details)
+  // Profile info states
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [fullName, setFullName] = useState(user?.name || "");
-  const [faculty, setFaculty] = useState("Khoa Công nghệ Thông tin");
-  const [lecturerId] = useState(user ? `GV-${user.role.toUpperCase()}-${user.id || 107}` : "");
-  const [profileSavedMsg, setProfileSavedMsg] = useState("");
+  const [department, setDepartment] = useState(user?.department || "Khoa Công nghệ Thông tin");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
+  const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">(user?.gender || "MALE");
+  const [dateOfBirth, setDateOfBirth] = useState(formatIsoToVietnameseDate(user?.dateOfBirth));
+  const [hireDate, setHireDate] = useState(user?.hireDate || "");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   // Security info states
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [securityError, setSecurityError] = useState("");
-  const [securitySuccessMsg, setSecuritySuccessMsg] = useState("");
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+
+  // Toast notification state
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ msg, type });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
 
   const navItems = getNavForRole(user?.role);
 
@@ -55,17 +99,38 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   const drawerRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Reset inputs when modal is closed or opened
-  const handleAccountClick = () => {
+  // Reset inputs and fetch detailed profile when modal is opened
+  const handleAccountClick = async () => {
     setProfileOpen(false);
     setIsAccountOpen(true);
     setProfileTab("profile");
-    setProfileSavedMsg("");
-    setSecurityError("");
-    setSecuritySuccessMsg("");
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+
+    if (user) {
+      setIsLoadingProfile(true);
+      try {
+        const profile = await authService.getProfile();
+        setFullName(profile.name || user.name || "");
+        setDepartment(profile.department || user.department || "Khoa Công nghệ Thông tin");
+        setPhoneNumber(profile.phoneNumber || user.phoneNumber || "");
+        if (profile.gender) setGender(profile.gender);
+        if (profile.dateOfBirth) setDateOfBirth(formatIsoToVietnameseDate(profile.dateOfBirth));
+        if (profile.hireDate) setHireDate(profile.hireDate);
+        if (onUpdateUser) {
+          onUpdateUser({
+            ...user,
+            ...profile,
+            role: (profile.role || user.role) as Role,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load full user profile", err);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    }
   };
 
   const requestLogout = () => {
@@ -87,6 +152,12 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       return;
     }
     setFullName(user.name);
+    if (user.department) setDepartment(user.department);
+    if (user.phoneNumber) setPhoneNumber(user.phoneNumber);
+    if (user.gender) setGender(user.gender);
+    if (user.dateOfBirth) setDateOfBirth(formatIsoToVietnameseDate(user.dateOfBirth));
+    if (user.hireDate) setHireDate(user.hireDate);
+
     try {
       const savedAvatar = localStorage.getItem(`user_avatar_${user.id}`);
       if (savedAvatar) {
@@ -115,6 +186,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
         if (onUpdateUser) {
           onUpdateUser({ ...user, avatarUrl: dataUrl });
         }
+        showToast("Đã cập nhật ảnh đại diện tạm thời!", "info");
       };
       reader.readAsDataURL(file);
     }
@@ -123,43 +195,54 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   const handleSaveProfile = async () => {
     if (!user) return;
     if (!fullName.trim()) {
-      setProfileSavedMsg("Họ tên không được để trống!");
+      showToast("Họ tên không được để trống!", "error");
       return;
     }
 
+    let formattedDob: string | undefined = undefined;
+    if (dateOfBirth && dateOfBirth.trim()) {
+      const parsed = parseVietnameseDateToIso(dateOfBirth);
+      if (!parsed) {
+        showToast("Ngày sinh không hợp lệ. Vui lòng nhập ngày/tháng/năm (ví dụ: 23/05/1998)", "error");
+        return;
+      }
+      formattedDob = parsed;
+    }
+
     setIsSavingProfile(true);
-    setProfileSavedMsg("");
     try {
-      const updatedUser = await authService.updateProfile(fullName.trim());
+      const updatedUser = await authService.updateProfile({
+        name: fullName.trim(),
+        phoneNumber: phoneNumber.trim() || undefined,
+        gender: gender,
+        dateOfBirth: formattedDob,
+      });
       setIsSavingProfile(false);
       const userWithAvatar: User = {
+        ...user,
         ...updatedUser,
+        department: department,
         avatarUrl: avatarPreview || user.avatarUrl || localStorage.getItem(`user_avatar_${user.id}`) || undefined
       };
       onUpdateUser?.(userWithAvatar);
-      setProfileSavedMsg("Cập nhật thông tin cá nhân thành công!");
-      setTimeout(() => setProfileSavedMsg(""), 3000);
+      showToast("Cập nhật thông tin cá nhân thành công!", "success");
     } catch (err: any) {
       setIsSavingProfile(false);
-      setProfileSavedMsg(err.message || "Cập nhật thông tin thất bại.");
-      setTimeout(() => setProfileSavedMsg(""), 4000);
+      showToast(err.message || "Cập nhật thông tin thất bại.", "error");
     }
   };
 
   const handleSaveSecurity = async () => {
-    setSecurityError("");
-    setSecuritySuccessMsg("");
-
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setSecurityError("Vui lòng điền đầy đủ các trường mật khẩu.");
+      showToast("Vui lòng điền đầy đủ các trường mật khẩu.", "error");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setSecurityError("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+      showToast("Mật khẩu mới và xác nhận mật khẩu không khớp.", "error");
       return;
     }
     if (newPassword.length < 6) {
-      setSecurityError("Mật khẩu mới phải có ít nhất 6 ký tự.");
+      showToast("Mật khẩu mới phải có ít nhất 6 ký tự.", "error");
       return;
     }
 
@@ -167,14 +250,13 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     try {
       await authService.changePassword(currentPassword, newPassword);
       setIsSavingSecurity(false);
-      setSecuritySuccessMsg("Đổi mật khẩu thành công!");
+      showToast("Đổi mật khẩu thành công!", "success");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setTimeout(() => setSecuritySuccessMsg(""), 3000);
     } catch (err: any) {
       setIsSavingSecurity(false);
-      setSecurityError(err.message || "Mật khẩu hiện tại không chính xác.");
+      showToast(err.message || "Mật khẩu hiện tại không chính xác.", "error");
     }
   };
 
@@ -562,87 +644,112 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
         </div>
       )}
 
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[140] flex items-center gap-2.5 px-4.5 py-3 rounded-2xl bg-slate-900/95 text-white text-[13.5px] font-medium shadow-2xl backdrop-blur-md border border-slate-700/60 animate-[slide-down-toast_200ms_cubic-bezier(0.16,1,0.3,1)]">
+          {toast.type === "success" && <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+          {toast.type === "error" && <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />}
+          {toast.type === "info" && <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0" />}
+          <span>{toast.msg}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-2 text-slate-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer p-0.5"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Account Info Modal */}
       {isAccountOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-fadeIn">
           {/* Backdrop */}
           <div
             onClick={() => setIsAccountOpen(false)}
-            className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm transition-opacity"
           />
+
           {/* Modal Container */}
-          <div className="bg-white rounded-2xl w-full max-w-[500px] shadow-[0_12px_40px_rgba(14,13,11,0.15)] flex flex-col relative z-50 text-left animate-[fade-in_150ms_ease-out] overflow-hidden">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl w-full max-w-[540px] shadow-[0_20px_50px_-10px_rgba(15,23,42,0.22)] flex flex-col relative z-50 text-left border border-slate-200/80 animate-[modal-pop_220ms_cubic-bezier(0.16,1,0.3,1)] overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/50">
-              <div>
-                <h3 className="text-[16px] font-bold text-[#0E0D0B]">Thông tin tài khoản</h3>
-                <p className="text-[11.5px] text-[#AAAA9F]">Quản lý thông tin hồ sơ và mật khẩu đăng nhập</p>
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 via-white to-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-[16.5px] font-bold text-slate-900 tracking-tight">Thông tin tài khoản</h3>
+                  <p className="text-[12px] text-slate-500 font-sans">Quản lý thông tin hồ sơ và mật khẩu đăng nhập</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsAccountOpen(false)}
-                className="text-[#AAAA9F] hover:text-[#0E0D0B] transition-colors p-1 cursor-pointer border-none bg-transparent"
+                className="w-8 h-8 rounded-xl bg-slate-100/70 hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-all flex items-center justify-center cursor-pointer border-none"
               >
-                <X className="w-4.5 h-4.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/20 px-5">
+            <div className="flex border-b border-slate-100 bg-slate-50/40 px-6 pt-2">
               <button
                 onClick={() => setProfileTab("profile")}
-                className={`flex items-center gap-2 py-3 text-[13px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent border-none ${profileTab === "profile"
-                    ? "border-[#4F63D2] text-[#4F63D2]"
-                    : "border-transparent text-[#6B6963] hover:text-[#0E0D0B]"
+                className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold rounded-t-xl transition-all cursor-pointer border-b-2 bg-transparent ${profileTab === "profile"
+                  ? "border-indigo-600 text-indigo-600 bg-white shadow-3xs"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
                   }`}
               >
                 <UserIcon className="w-3.5 h-3.5" />
-                Hồ sơ {user?.role === "admin" ? "quản trị viên" : "giảng viên"}
+                <span>Hồ sơ {user?.role === "admin" ? "Quản trị viên" : "Giảng viên"}</span>
               </button>
               <button
                 onClick={() => setProfileTab("security")}
-                className={`flex items-center gap-2 py-3 ml-6 text-[13px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent border-none ${profileTab === "security"
-                    ? "border-[#4F63D2] text-[#4F63D2]"
-                    : "border-transparent text-[#6B6963] hover:text-[#0E0D0B]"
+                className={`flex items-center gap-2 px-4 py-2.5 ml-2 text-[13px] font-bold rounded-t-xl transition-all cursor-pointer border-b-2 bg-transparent ${profileTab === "security"
+                  ? "border-indigo-600 text-indigo-600 bg-white shadow-3xs"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
                   }`}
               >
                 <Key className="w-3.5 h-3.5" />
-                Bảo mật & Đổi mật khẩu
+                <span>Bảo mật & Đổi mật khẩu</span>
               </button>
             </div>
 
             {/* Scrollable Content Area */}
-            <div className="p-6 max-h-[400px] overflow-y-auto space-y-5">
-
-              {profileTab === "profile" ? (
+            <div className="p-6 max-h-[440px] overflow-y-auto space-y-5">
+              {isLoadingProfile ? (
+                /* Skeleton Loading State */
+                <div className="space-y-4 animate-pulse">
+                  <div className="h-20 bg-slate-100 rounded-2xl w-full" />
+                  <div className="h-10 bg-slate-100 rounded-xl w-full" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="h-10 bg-slate-100 rounded-xl" />
+                    <div className="h-10 bg-slate-100 rounded-xl" />
+                  </div>
+                  <div className="h-10 bg-slate-100 rounded-xl w-full" />
+                </div>
+              ) : profileTab === "profile" ? (
                 /* Profile Tab */
-                <div className="space-y-4">
-                  {profileSavedMsg && (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[12.5px] font-medium flex items-center gap-2 animate-[fade-in_150ms_ease-out]">
-                      <ShieldCheck className="w-4 h-4 text-emerald-650" />
-                      <span>{profileSavedMsg}</span>
-                    </div>
-                  )}
+                <div className="space-y-5">
 
-                  {/* Avatar upload & preview section */}
-                  <div className="flex items-center gap-4.5 pb-2">
-                    <div className="relative group/avatar">
+                  {/* Avatar upload & preview card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/20 to-purple-50/10 border border-slate-200/60 flex items-center gap-4">
+                    <div className="relative group/avatar cursor-pointer flex-shrink-0">
                       {avatarPreview ? (
                         <img
                           src={avatarPreview}
                           alt="Avatar preview"
-                          className="w-16 h-16 rounded-full object-cover border border-[#0E0D0B]/[0.08]"
+                          className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md transition-transform group-hover/avatar:scale-105"
                         />
                       ) : (
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center shadow-sm">
-                          <span className="text-white text-[24px] font-bold">
-                            {fullName.charAt(0)}
-                          </span>
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white text-2xl font-bold shadow-md">
+                          {fullName ? fullName.charAt(0).toUpperCase() : "U"}
                         </div>
                       )}
 
-                      <label className="absolute inset-0 bg-[#0E0D0B]/50 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer">
-                        <Upload className="w-4 h-4 text-white" />
+                      <label className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer text-white">
+                        <Camera className="w-4 h-4" />
+                        <span className="text-[9px] font-bold mt-0.5 uppercase tracking-wider">Đổi ảnh</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -652,11 +759,17 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                       </label>
                     </div>
 
-                    <div className="text-left">
-                      <h4 className="text-[14px] font-bold text-[#0E0D0B]">{fullName}</h4>
-                      <p className="text-[12px] text-[#6B6963]">{user?.email || ""}</p>
-                      <label className="inline-block text-[11px] font-semibold text-[#4F63D2] hover:text-[#3D50B8] cursor-pointer mt-1">
-                        Thay ảnh đại diện
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-[15px] font-bold text-slate-900 truncate">{fullName || user?.name}</h4>
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[10.5px] font-mono font-bold uppercase">
+                          {user?.role}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-slate-500 truncate mt-0.5">{user?.email || ""}</p>
+                      <label className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer mt-1.5 transition-colors">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Tải ảnh mới</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -668,115 +781,221 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                   </div>
 
                   {/* Form fields */}
-                  <div className="space-y-3.5">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Họ và tên</label>
+                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                        Họ và tên
+                      </label>
                       <input
                         type="text"
                         value={fullName}
                         onChange={e => setFullName(e.target.value)}
-                        className="w-full h-10 border border-[#0E0D0B]/[0.12] rounded-xl px-3.5 text-[13.5px] text-[#0E0D0B] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all bg-white"
+                        placeholder="Nhập họ và tên"
+                        className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mã {user?.role === "admin" ? "quản trị viên" : "giảng viên"}</label>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <Mail className="w-3.5 h-3.5 text-slate-400" />
+                          Email đăng nhập
+                        </label>
                         <input
                           type="text"
-                          value={lecturerId}
+                          value={user?.email || ""}
                           disabled
-                          className="w-full h-10 border border-[#0E0D0B]/[0.08] rounded-xl px-3.5 text-[13.5px] text-[#AAAA9F] bg-[#F4F3F0] cursor-not-allowed outline-none"
+                          className="w-full h-10.5 border border-slate-200/80 rounded-xl px-3.5 text-[13px] text-slate-500 bg-slate-100/70 cursor-not-allowed outline-none font-mono"
                         />
                       </div>
                       <div>
-                        <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Vai trò</label>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                          Vai trò
+                        </label>
                         <input
                           type="text"
-                          value={user?.role || ""}
+                          value={user?.role === "admin" ? "Quản trị viên (Admin)" : "Giảng viên (Teacher)"}
                           disabled
-                          className="w-full h-10 border border-[#0E0D0B]/[0.08] rounded-xl px-3.5 text-[13.5px] text-[#AAAA9F] bg-[#F4F3F0] cursor-not-allowed outline-none"
+                          className="w-full h-10.5 border border-slate-200/80 rounded-xl px-3.5 text-[13.5px] text-slate-500 bg-slate-100/70 cursor-not-allowed outline-none font-medium"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Khoa / Bộ môn</label>
+                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        Khoa / Bộ môn
+                      </label>
                       <input
                         type="text"
-                        value={faculty}
-                        onChange={e => setFaculty(e.target.value)}
-                        className="w-full h-10 border border-[#0E0D0B]/[0.12] rounded-xl px-3.5 text-[13.5px] text-[#0E0D0B] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all bg-white"
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                        placeholder="Khoa Công nghệ Thông tin"
+                        className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          Số điện thoại
+                        </label>
+                        <input
+                          type="text"
+                          value={phoneNumber}
+                          onChange={e => setPhoneNumber(e.target.value)}
+                          placeholder="Ví dụ: 0912345678"
+                          className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                          Giới tính
+                        </label>
+                        <select
+                          value={gender}
+                          onChange={e => setGender(e.target.value as any)}
+                          className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white cursor-pointer font-medium"
+                        >
+                          <option value="MALE">Nam</option>
+                          <option value="FEMALE">Nữ</option>
+                          <option value="OTHER">Khác</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          Ngày sinh
+                        </label>
+                        <VietnameseDateInput
+                          value={dateOfBirth}
+                          onChange={setDateOfBirth}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          Ngày vào làm
+                        </label>
+                        <input
+                          type="text"
+                          value={hireDate ? formatDate(hireDate) : "Chưa cập nhật"}
+                          disabled
+                          className="w-full h-10.5 border border-slate-200/80 rounded-xl px-3.5 text-[13.5px] text-slate-500 bg-slate-100/70 cursor-not-allowed outline-none font-medium"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={isSavingProfile}
-                    className="w-full h-10 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer mt-4 flex items-center justify-center gap-1.5 disabled:opacity-50 font-sans"
-                  >
-                    {isSavingProfile ? "Đang lưu..." : "Lưu thay đổi"}
-                  </button>
+                  <div className="pt-2 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsAccountOpen(false)}
+                      className="h-11 px-5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[13.5px] font-semibold transition-all cursor-pointer font-action"
+                    >
+                      Đóng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveProfile}
+                      disabled={isSavingProfile}
+                      className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] font-bold rounded-xl transition-all shadow-md hover:shadow-lg border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 font-action"
+                    >
+                      {isSavingProfile ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-indigo-300" />
+                          <span>Đang lưu...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span>Lưu thay đổi</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 /* Security Tab */
-                <div className="space-y-4">
-                  {securityError && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[12.5px] font-medium flex items-center gap-2 animate-[fade-in_150ms_ease-out]">
-                      <X className="w-4 h-4 text-red-650" />
-                      <span>{securityError}</span>
-                    </div>
-                  )}
-                  {securitySuccessMsg && (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[12.5px] font-medium flex items-center gap-2 animate-[fade-in_150ms_ease-out]">
-                      <ShieldCheck className="w-4 h-4 text-emerald-650" />
-                      <span>{securitySuccessMsg}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-3.5">
+                <div className="space-y-5">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mật khẩu hiện tại</label>
+                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        Mật khẩu hiện tại
+                      </label>
                       <input
                         type="password"
                         value={currentPassword}
                         onChange={e => setCurrentPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full h-10 border border-[#0E0D0B]/[0.12] rounded-xl px-3.5 text-[13.5px] text-[#0E0D0B] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all bg-white"
+                        className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Mật khẩu mới</label>
+                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        Mật khẩu mới
+                      </label>
                       <input
                         type="password"
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
                         placeholder="Tối thiểu 6 ký tự"
-                        className="w-full h-10 border border-[#0E0D0B]/[0.12] rounded-xl px-3.5 text-[13.5px] text-[#0E0D0B] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all bg-white"
+                        className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1.5 text-[11px] font-semibold text-[#6B6963] uppercase tracking-wider">Xác nhận mật khẩu mới</label>
+                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        Xác nhận mật khẩu mới
+                      </label>
                       <input
                         type="password"
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full h-10 border border-[#0E0D0B]/[0.12] rounded-xl px-3.5 text-[13.5px] text-[#0E0D0B] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/10 focus:border-[#4F63D2] transition-all bg-white"
+                        className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleSaveSecurity}
-                    disabled={isSavingSecurity}
-                    className="w-full h-10 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer mt-4 flex items-center justify-center gap-1.5 disabled:opacity-50 font-sans"
-                  >
-                    {isSavingSecurity ? "Đang xử lý..." : "Đổi mật khẩu"}
-                  </button>
+                  <div className="pt-2 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsAccountOpen(false)}
+                      className="h-11 px-5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[13.5px] font-semibold transition-all cursor-pointer font-action"
+                    >
+                      Đóng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveSecurity}
+                      disabled={isSavingSecurity}
+                      className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] font-bold rounded-xl transition-all shadow-md hover:shadow-lg border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 font-action"
+                    >
+                      {isSavingSecurity ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-indigo-300" />
+                          <span>Đang xử lý...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Key className="w-4 h-4 text-indigo-300" />
+                          <span>Đổi mật khẩu</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 

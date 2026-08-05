@@ -13,6 +13,8 @@ import {
   TeacherBatchCreateResponse
 } from "../services/teacherAdminService";
 import { PageLoading, EmptyState } from "../components/EmptyState";
+import { VietnameseDateInput } from "../components/VietnameseDateInput";
+import { formatIsoToVietnameseDate, parseVietnameseDateToIso } from "../utils/formatDate";
 
 export function AdminTeacherManagementPage() {
   const [teachers, setTeachers] = useState<TeacherResponse[]>([]);
@@ -641,6 +643,16 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
       return;
     }
 
+    let formattedDob: string | undefined = undefined;
+    if (dateOfBirth && dateOfBirth.trim()) {
+      const parsed = parseVietnameseDateToIso(dateOfBirth);
+      if (!parsed) {
+        setError("Ngày sinh không hợp lệ. Vui lòng nhập theo định dạng ngày/tháng/năm (ví dụ: 23/05/1998).");
+        return;
+      }
+      formattedDob = parsed;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -650,7 +662,7 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
         role: "TEACHER",
         department: department.trim() || undefined,
         phoneNumber: phoneNumber.trim() || undefined,
-        dateOfBirth: dateOfBirth || undefined,
+        dateOfBirth: formattedDob,
         gender: gender || undefined,
       });
       onSuccess();
@@ -728,11 +740,10 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Ngày sinh
               </label>
-              <input
-                type="date"
+              <VietnameseDateInput
                 value={dateOfBirth}
-                onChange={e => setDateOfBirth(e.target.value)}
-                className="w-full h-10 border border-gray-200 rounded-xl px-3.5 text-[13.5px] focus:outline-none focus:border-indigo-500 bg-white"
+                onChange={setDateOfBirth}
+                className="w-full h-10 border border-gray-200 rounded-xl px-3.5 pr-10 text-[13.5px] focus:outline-none focus:border-indigo-500 bg-white font-medium"
               />
             </div>
             <div>
@@ -792,13 +803,24 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
   const [name, setName] = useState(teacher.name || "");
   const [department, setDepartment] = useState(teacher.department || "");
   const [phoneNumber, setPhoneNumber] = useState(teacher.phoneNumber || "");
-  const [dateOfBirth, setDateOfBirth] = useState(teacher.dateOfBirth || "");
+  const [dateOfBirth, setDateOfBirth] = useState(formatIsoToVietnameseDate(teacher.dateOfBirth));
   const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">((teacher.gender as any) || "MALE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    let formattedDob: string | undefined = undefined;
+    if (dateOfBirth && dateOfBirth.trim()) {
+      const parsed = parseVietnameseDateToIso(dateOfBirth);
+      if (!parsed) {
+        setError("Ngày sinh không hợp lệ. Vui lòng nhập theo định dạng ngày/tháng/năm (ví dụ: 23/05/1998).");
+        return;
+      }
+      formattedDob = parsed;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -806,7 +828,7 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
         name: name.trim() || undefined,
         department: department.trim() || undefined,
         phoneNumber: phoneNumber.trim() || undefined,
-        dateOfBirth: dateOfBirth || undefined,
+        dateOfBirth: formattedDob,
         gender: gender || undefined,
       });
       onSuccess();
@@ -867,11 +889,10 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Ngày sinh
               </label>
-              <input
-                type="date"
+              <VietnameseDateInput
                 value={dateOfBirth}
-                onChange={e => setDateOfBirth(e.target.value)}
-                className="w-full h-10 border border-gray-200 rounded-xl px-3.5 text-[13.5px] focus:outline-none focus:border-indigo-500 bg-white"
+                onChange={setDateOfBirth}
+                className="w-full h-10 border border-gray-200 rounded-xl px-3.5 pr-10 text-[13.5px] focus:outline-none focus:border-indigo-500 bg-white font-medium"
               />
             </div>
             <div>

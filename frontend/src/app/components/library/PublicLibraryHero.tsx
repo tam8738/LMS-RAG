@@ -28,6 +28,7 @@ interface PublicLibraryHeroProps {
   featuredDocument?: LibraryDocument | null;
   searchValue: string;
   onSearchChange: (value: string) => void;
+  onSearchSubmit?: () => void;
   searchInputRef?: React.RefObject<HTMLInputElement>;
   onExplore: () => void;
 }
@@ -37,6 +38,7 @@ export function PublicLibraryHero({
   featuredDocument,
   searchValue,
   onSearchChange,
+  onSearchSubmit,
   searchInputRef,
   onExplore,
 }: PublicLibraryHeroProps) {
@@ -188,6 +190,12 @@ export function PublicLibraryHero({
                 type="text"
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && onSearchSubmit) {
+                    event.preventDefault();
+                    onSearchSubmit();
+                  }
+                }}
                 placeholder="Đặt câu hỏi hoặc tìm kiếm tài liệu, môn học, chủ đề..."
                 className="w-full h-14 pl-12 pr-24 bg-white border border-[#0E0D0B]/[0.1] rounded-2xl text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/8 focus:border-[#4F63D2] transition-all"
               />
@@ -195,7 +203,10 @@ export function PublicLibraryHero({
                 {searchValue && (
                   <button
                     type="button"
-                    onClick={() => onSearchChange("")}
+                    onClick={() => {
+                      onSearchChange("");
+                      onSearchSubmit?.();
+                    }}
                     className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
                     title="Xóa tìm kiếm"
                   >
