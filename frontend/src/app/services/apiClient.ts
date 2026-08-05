@@ -20,12 +20,12 @@ export async function apiFetch<T>(
   const isLoginRequest = endpoint.includes("/auth/login");
   const token = isLoginRequest ? null : localStorage.getItem("token");
   const headers = new Headers(options.headers || {});
-  
+
   const hasAuthToken = !!token;
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  
+
   // Set JSON content-type by default unless body is FormData
   if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");

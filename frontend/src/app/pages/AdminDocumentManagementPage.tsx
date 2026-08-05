@@ -24,7 +24,6 @@ const PAGE_SIZE = 12;
 
 const publicationOptions: Array<{ value: PublicationStatus | "ALL"; label: string }> = [
   { value: "ALL", label: "Tất cả trạng thái" },
-  { value: "DRAFT", label: "Bản nháp" },
   { value: "PENDING_REVIEW", label: "Chờ duyệt" },
   { value: "PUBLISHED", label: "Đã công bố" },
   { value: "REJECTED", label: "Bị từ chối" },

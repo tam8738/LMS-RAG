@@ -208,8 +208,8 @@ export function AdminTeacherManagementPage() {
       {toastMsg && (
         <div className="fixed top-5 right-5 z-[150] max-w-md animate-[fade-in_200ms_ease-out]">
           <div className={`p-4 rounded-xl shadow-lg border flex items-start gap-3 text-[13.5px] ${toastMsg.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-900" :
-              toastMsg.type === "error" ? "bg-red-50 border-red-200 text-red-900" :
-                "bg-blue-50 border-blue-200 text-blue-900"
+            toastMsg.type === "error" ? "bg-red-50 border-red-200 text-red-900" :
+              "bg-blue-50 border-blue-200 text-blue-900"
             }`}>
             {toastMsg.type === "success" && <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />}
             {toastMsg.type === "error" && <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />}
@@ -438,8 +438,8 @@ export function AdminTeacherManagementPage() {
                       {/* Status Badge */}
                       <td className="py-3.5 px-5">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border ${isActive
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-gray-100 text-gray-600 border-gray-200"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
                           }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-gray-400"}`} />
                           {isActive ? "Hoạt động" : "Đã khóa"}
@@ -815,7 +815,7 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
     if (dateOfBirth && dateOfBirth.trim()) {
       const parsed = parseVietnameseDateToIso(dateOfBirth);
       if (!parsed) {
-        setError("Ngày sinh không hợp lệ. Vui lòng nhập theo định dạng ngày/tháng/năm (ví dụ: 23/05/1998).");
+        setError("Ngày sinh không hợp lệ. Vui lòng nhập theo định dạng ngày/tháng/năm (ví dụ: 23/05/1998)");
         return;
       }
       formattedDob = parsed;
