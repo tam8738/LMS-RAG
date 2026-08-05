@@ -924,7 +924,14 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                 </div>
               ) : (
                 /* Security Tab */
-                <div className="space-y-5">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveSecurity();
+                  }}
+                  autoComplete="off"
+                  className="space-y-5"
+                >
                   <div className="space-y-4">
                     <div>
                       <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -935,6 +942,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         type="password"
                         value={currentPassword}
                         onChange={e => setCurrentPassword(e.target.value)}
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
@@ -949,6 +957,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         type="password"
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
+                        autoComplete="new-password"
                         placeholder="Tối thiểu 6 ký tự"
                         className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
@@ -963,6 +972,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         type="password"
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         className="w-full h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
@@ -978,8 +988,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                       Đóng
                     </button>
                     <button
-                      type="button"
-                      onClick={handleSaveSecurity}
+                      type="submit"
                       disabled={isSavingSecurity}
                       className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] font-bold rounded-xl transition-all shadow-md hover:shadow-lg border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 font-action"
                     >
@@ -990,13 +999,13 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         </>
                       ) : (
                         <>
-                          <Key className="w-4 h-4 text-indigo-300" />
+                          <Key className="w-4 h-4 text-amber-400" />
                           <span>Đổi mật khẩu</span>
                         </>
                       )}
                     </button>
                   </div>
-                </div>
+                </form>
               )}
 
             </div>
