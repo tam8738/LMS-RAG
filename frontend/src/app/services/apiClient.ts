@@ -65,13 +65,17 @@ export async function apiFetch<T>(
 
   let result: any;
   try {
+    const trimmed = responseText.trim();
+    if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) {
+      throw new Error("HTML fallback response");
+    }
     result = responseText ? JSON.parse(responseText) : {};
   } catch (parseError) {
-    // Non-JSON error response
+    // Non-JSON error response or Vite SPA fallback when Backend is offline
     if (!response.ok) {
       throw new ApiError(`Lỗi hệ thống (${response.status}): ${responseText || response.statusText}`, undefined, response.status);
     }
-    throw new ApiError("Định dạng phản hồi của máy chủ không hợp lệ.");
+    throw new ApiError("Máy chủ Backend (Port 8081) chưa chạy hoặc phản hồi không hợp lệ.");
   }
 
   if (!response.ok || !result.success) {
