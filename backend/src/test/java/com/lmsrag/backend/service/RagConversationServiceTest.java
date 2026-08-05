@@ -34,12 +34,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -61,6 +65,12 @@ class RagConversationServiceTest {
     @Mock
     private AiServiceClient aiServiceClient;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
+    @Mock
+    private AiRequestGuard aiRequestGuard;
+
     @InjectMocks
     private RagConversationService ragConversationService;
 
@@ -72,9 +82,25 @@ class RagConversationServiceTest {
     private RagConversation conversation;
     private RagMessage oldUserMessage;
     private RagMessage oldAssistantMessage;
+    private AtomicBoolean transactionTemplateActive;
 
     @BeforeEach
     void setUp() {
+        transactionTemplateActive = new AtomicBoolean(false);
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            assertThat(transactionTemplateActive.compareAndSet(false, true)).isTrue();
+            try {
+                return callback.doInTransaction(null);
+            } finally {
+                transactionTemplateActive.set(false);
+            }
+        });
+        lenient().when(aiRequestGuard.execute(any(), any(), any())).thenAnswer(invocation -> {
+            Supplier<?> action = invocation.getArgument(2);
+            return action.get();
+        });
+
         teacher = createUser(1L, "teacher.a@example.com", UserRole.TEACHER);
         otherTeacher = createUser(2L, "teacher.b@example.com", UserRole.TEACHER);
 
@@ -103,11 +129,12 @@ class RagConversationServiceTest {
     // =========================================================
 
     @Test
-    void getOrCreateConversation_whenConversationExists_shouldReturnConversationWithMessages() {
+    void getOrCreateConversation_whenConversationExists_shouldReturnOnlyBoundedRecentMessages() {
         when(documentRepository.findById(10L)).thenReturn(Optional.of(publishedDocument));
         when(ragConversationRepository.findByUserIdAndDocumentId(1L, 10L)).thenReturn(Optional.of(conversation));
-        when(ragMessageRepository.findByConversationIdOrderByCreatedAtAsc(100L))
-                .thenReturn(List.of(oldUserMessage, oldAssistantMessage));
+        Pageable recentPageable = PageRequest.of(0, 30);
+        when(ragMessageRepository.findByConversationIdOrderByCreatedAtDescIdDesc(100L, recentPageable))
+                .thenReturn(new PageImpl<>(List.of(oldAssistantMessage, oldUserMessage), recentPageable, 2));
 
         RagConversationResponse response = ragConversationService.getOrCreateConversation(teacher, 10L);
 
@@ -131,9 +158,6 @@ class RagConversationServiceTest {
             saved.setId(101L);
             return saved;
         });
-        when(ragMessageRepository.findByConversationIdOrderByCreatedAtAsc(101L))
-                .thenReturn(Collections.emptyList());
-
         RagConversationResponse response = ragConversationService.getOrCreateConversation(teacher, 10L);
 
         assertThat(response.getConversationId()).isEqualTo(101L);
@@ -223,7 +247,10 @@ class RagConversationServiceTest {
                 });
         when(ragMessageRepository.findRecentMessagesBefore(eq(100L), any(Instant.class), eq(PageRequest.of(0, 6))))
                 .thenReturn(List.of(oldAssistantMessage, oldUserMessage)); // DESC order
-        when(aiServiceClient.answerQuestionSync(any(AiAnswerQuestionRequest.class))).thenReturn(aiResult);
+        when(aiServiceClient.answerQuestionSync(any(AiAnswerQuestionRequest.class))).thenAnswer(invocation -> {
+            assertThat(transactionTemplateActive).isFalse();
+            return aiResult;
+        });
         when(ragConversationRepository.save(any(RagConversation.class))).thenReturn(conversation);
 
         RagSendMessageResponse response = ragConversationService.sendMessage(teacher, 100L, request);
@@ -246,6 +273,7 @@ class RagConversationServiceTest {
         assertThat(aiRequest.history()).hasSize(2);
         assertThat(aiRequest.history().get(0).role()).isEqualTo("user");
         assertThat(aiRequest.history().get(1).role()).isEqualTo("assistant");
+        verify(transactionTemplate, times(2)).execute(any());
     }
 
     @Test
@@ -316,10 +344,7 @@ class RagConversationServiceTest {
         request.setTopK(5);
         request.setLanguage("vi");
 
-        RagMessage savedUserMessage = createMessage(3L, conversation, RagMessageRole.user, "Câu hỏi?", false, 0);
-
         when(ragConversationRepository.findById(100L)).thenReturn(Optional.of(conversation));
-        when(ragMessageRepository.save(any(RagMessage.class))).thenReturn(savedUserMessage);
         when(ragMessageRepository.findRecentMessagesBefore(eq(100L), any(Instant.class), eq(PageRequest.of(0, 6))))
                 .thenReturn(Collections.emptyList());
         when(aiServiceClient.answerQuestionSync(any(AiAnswerQuestionRequest.class)))
@@ -328,6 +353,7 @@ class RagConversationServiceTest {
         assertThatThrownBy(() -> ragConversationService.sendMessage(teacher, 100L, request))
                 .isInstanceOf(AppException.class)
                 .satisfies(e -> assertThat(((AppException) e).getErrorCode()).isEqualTo(ErrorCode.AI_SERVICE_ERROR));
+        verify(ragMessageRepository, never()).save(any());
     }
 
     // =========================================================
@@ -340,7 +366,7 @@ class RagConversationServiceTest {
         Page<RagMessage> messagePage = new PageImpl<>(List.of(oldUserMessage, oldAssistantMessage), pageable, 2);
 
         when(ragConversationRepository.findById(100L)).thenReturn(Optional.of(conversation));
-        when(ragMessageRepository.findByConversationIdOrderByCreatedAtAsc(100L, pageable))
+        when(ragMessageRepository.findByConversationIdOrderByCreatedAtDescIdDesc(100L, pageable))
                 .thenReturn(messagePage);
 
         Page<RagMessageResponse> response = ragConversationService.getMessages(teacher, 100L, pageable);

@@ -18,20 +18,10 @@ import java.util.List;
 public interface RagMessageRepository extends JpaRepository<RagMessage, Long> {
 
     /**
-     * Lấy tất cả message của một conversation theo thứ tự thờI gian tăng dần (cũ -> mới).
-     */
-    List<RagMessage> findByConversationIdOrderByCreatedAtAsc(Long conversationId);
-
-    /**
-     * Lấy tất cả message của một conversation theo thứ tự thờI gian tăng dần, có phân trang.
-     */
-    Page<RagMessage> findByConversationIdOrderByCreatedAtAsc(Long conversationId, Pageable pageable);
-
-    /**
      * Lấy các message gần nhất của một conversation theo thứ tự thờI gian giảm dần (mới -> cũ).
      * Dùng Pageable để giớI hạn số lượng, ví dụ PageRequest.of(0, 6).
      */
-    Page<RagMessage> findByConversationIdOrderByCreatedAtDesc(Long conversationId, Pageable pageable);
+    Page<RagMessage> findByConversationIdOrderByCreatedAtDescIdDesc(Long conversationId, Pageable pageable);
 
     /**
      * Đếm số message trong một conversation.

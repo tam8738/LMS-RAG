@@ -2,13 +2,29 @@ package com.lmsrag.backend.mapper;
 
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.entity.Document;
+import com.lmsrag.backend.entity.User;
+
+import java.util.Map;
+import java.util.function.Function;
 
 public class DocumentMapper {
 
     public static DocumentResponse toResponse(Document document) {
+        return toResponse(document, User::getName);
+    }
+
+    /** Maps list results using names loaded in one batch, avoiding lazy User N+1 queries. */
+    public static DocumentResponse toResponse(Document document, Map<Long, String> userNamesById) {
+        return toResponse(document, user -> userNamesById.get(user.getId()));
+    }
+
+    private static DocumentResponse toResponse(Document document, Function<User, String> resolveUserName) {
         if (document == null) {
             return null;
         }
+
+        User reviewer = document.getReviewedBy();
+        User uploader = document.getUploadedBy();
 
         return DocumentResponse.builder()
                 .id(document.getId())
@@ -40,14 +56,14 @@ public class DocumentMapper {
                 .unsupportedReason(document.getUnsupportedReason())
                 .analyzedAt(document.getAnalyzedAt())
 
-                .reviewedBy(document.getReviewedBy() != null ? document.getReviewedBy().getId() : null)
-                .reviewerName(document.getReviewedBy() != null ? document.getReviewedBy().getName() : null)
+                .reviewedBy(reviewer != null ? reviewer.getId() : null)
+                .reviewerName(reviewer != null ? resolveUserName.apply(reviewer) : null)
                 .reviewedAt(document.getReviewedAt())
                 .rejectionReason(document.getRejectionReason())
                 .publishedAt(document.getPublishedAt())
 
-                .uploadedBy(document.getUploadedBy() != null ? document.getUploadedBy().getId() : null)
-                .uploaderName(document.getUploadedBy() != null ? document.getUploadedBy().getName() : null)
+                .uploadedBy(uploader != null ? uploader.getId() : null)
+                .uploaderName(uploader != null ? resolveUserName.apply(uploader) : null)
 
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())

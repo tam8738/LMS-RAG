@@ -79,7 +79,7 @@ public class RagConversationController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "ID của conversation")
             @PathVariable Long conversationId,
-            @PageableDefault(size = 30, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 30, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         User user = userDetails.getUser();
         Page<RagMessageResponse> response = ragConversationService.getMessages(user, conversationId, pageable);

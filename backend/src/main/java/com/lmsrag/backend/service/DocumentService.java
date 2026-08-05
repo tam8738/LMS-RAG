@@ -34,7 +34,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -254,9 +258,8 @@ public class DocumentService {
 
         if (!hasFilter) {
             log.debug("[MY_DOCS] Không có filter, dùng fast-path | userId={}", userId);
-            return documentRepository
-                    .findByUploadedByIdOrderByCreatedAtDesc(userId, pageable)
-                    .map(DocumentMapper::toResponse);
+            return mapDocumentPage(documentRepository
+                    .findByUploadedByIdOrderByCreatedAtDesc(userId, pageable));
         }
 
         // Full-filter path: truyền từng tham số vào native query
@@ -279,7 +282,7 @@ public class DocumentService {
                 filter.getChapter(),
                 filter.getTags());
 
-        return documentRepository.findMyDocuments(
+        return mapDocumentPage(documentRepository.findMyDocuments(
                 userId,
                 normalizeFilter(filter.getQ()),
                 processingStatusStr,
@@ -289,7 +292,7 @@ public class DocumentService {
                 normalizeFilter(filter.getChapter()),
                 normalizeTags(filter.getTags()),
                 toNativePageable(pageable)
-        ).map(DocumentMapper::toResponse);
+        ));
     }
 
     @Transactional(readOnly = true)
@@ -496,7 +499,7 @@ public class DocumentService {
                 ? filter.getPublicationStatus().name()
                 : null;
 
-        return documentRepository.findAdminDocuments(
+        return mapDocumentPage(documentRepository.findAdminDocuments(
                 normalizeFilter(filter.getQ()),
                 processingStatusStr,
                 publicationStatusStr,
@@ -506,7 +509,7 @@ public class DocumentService {
                 filter.getUploadedBy(),
                 normalizeTags(filter.getTags()),
                 toNativePageable(pageable)
-        ).map(DocumentMapper::toResponse);
+        ));
     }
 
     /**
@@ -525,11 +528,18 @@ public class DocumentService {
 
     // ===== ADMIN REVIEW QUEUE =====
     @Transactional(readOnly = true)
-    public List<DocumentResponse> getReviewQueue() {
-        return documentRepository.findByPublicationStatusOrderByUpdatedAtAsc(PublicationStatus.PENDING_REVIEW)
-                .stream()
-                .map(DocumentMapper::toResponse)
-                .toList();
+    public Page<DocumentResponse> getReviewQueue(String query, Pageable pageable) {
+        return mapDocumentPage(documentRepository.findAdminDocuments(
+                normalizeFilter(query),
+                null,
+                PublicationStatus.PENDING_REVIEW.name(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                toNativePageable(pageable)
+        ));
     }
 
     @Transactional(readOnly = true)
@@ -711,11 +721,13 @@ public class DocumentService {
                 || uploadedBy != null;
 
         if (!hasFilter) {
-            return documentRepository.findByPublicationStatusOrderByPublishedAtDesc(PublicationStatus.PUBLISHED, pageable)
-                    .map(DocumentMapper::toResponse);
+            return mapDocumentPage(documentRepository.findByPublicationStatusOrderByPublishedAtDesc(
+                    PublicationStatus.PUBLISHED,
+                    pageable
+            ));
         }
 
-        return documentRepository.findLibraryDocuments(
+        return mapDocumentPage(documentRepository.findLibraryDocuments(
                 PublicationStatus.PUBLISHED.name(),
                 normalizeFilter(subject),
                 normalizeFilter(topic),
@@ -724,7 +736,31 @@ public class DocumentService {
                 uploadedBy,
                 normalizeTags(tags),
                 toNativePageable(pageable)
-        ).map(DocumentMapper::toResponse);
+        ));
+    }
+
+    /**
+     * Loads all uploader/reviewer names for one page in a single query, then maps without
+     * initializing one lazy User proxy per document.
+     */
+    private Page<DocumentResponse> mapDocumentPage(Page<Document> documents) {
+        if (documents.isEmpty()) {
+            return documents.map(DocumentMapper::toResponse);
+        }
+
+        Set<Long> userIds = new HashSet<>();
+        for (Document document : documents.getContent()) {
+            if (document.getUploadedBy() != null) {
+                userIds.add(document.getUploadedBy().getId());
+            }
+            if (document.getReviewedBy() != null) {
+                userIds.add(document.getReviewedBy().getId());
+            }
+        }
+
+        Map<Long, String> namesById = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+        return documents.map(document -> DocumentMapper.toResponse(document, namesById));
     }
 
     private String normalizeTags(String tags) {

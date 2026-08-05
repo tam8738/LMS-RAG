@@ -6,6 +6,7 @@ import com.lmsrag.backend.dto.quiz.QuizGenerateRequest;
 import com.lmsrag.backend.dto.quiz.QuizResponse;
 import com.lmsrag.backend.dto.quiz.QuizUpdateRequest;
 import com.lmsrag.backend.entity.User;
+import com.lmsrag.backend.enums.QuizStatus;
 import com.lmsrag.backend.service.QuizService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -56,9 +63,23 @@ public class QuizController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         User user = userDetails.getUser();
+        PageRequest firstPage = PageRequest.of(0, 25, Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<QuizResponse> response = quizService.listMyQuizzes(user, null, null, firstPage).getContent();
+        return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách quiz thành công"));
+    }
+
+    @Operation(summary = "Lấy danh sách quiz có phân trang")
+    @GetMapping("/my/page")
+    public ResponseEntity<ApiResponse<Page<QuizResponse>>> listMyQuizzesPaged(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) QuizStatus status,
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        User user = userDetails.getUser();
         log.info("[QUIZ-CTRL] Nhận yêu cầu lấy danh sách quiz | userId={}", user.getId());
         return ResponseEntity.ok(ApiResponse.success(
-                quizService.listMyQuizzes(user),
+                quizService.listMyQuizzes(user, q, status, pageable),
                 "Lấy danh sách quiz thành công"
         ));
     }

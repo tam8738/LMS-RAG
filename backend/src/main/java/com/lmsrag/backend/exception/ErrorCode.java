@@ -123,6 +123,8 @@ public enum ErrorCode {
     // =========================================================
     // ===== AI SERVICE =====
     // =========================================================
+    AI_RATE_LIMIT_EXCEEDED(429, "AI_RATE_LIMIT_EXCEEDED", "Bạn đã gửi quá nhiều yêu cầu AI, vui lòng thử lại sau"),
+    AI_CAPACITY_EXCEEDED(503, "AI_CAPACITY_EXCEEDED", "Hệ thống AI đang bận, vui lòng thử lại sau"),
     AI_SERVICE_ERROR(502, "AI_SERVICE_ERROR", "Lỗi khi giao tiếp với AI Service"),
 
     // =========================================================

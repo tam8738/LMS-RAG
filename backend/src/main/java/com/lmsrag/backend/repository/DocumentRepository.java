@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -26,9 +25,6 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     // Lấy tài liệu PUBLISHED theo ID
     Optional<Document> findByIdAndPublicationStatus(Long id, PublicationStatus status);
-
-    // Admin: lấy danh sách chờ duyệt
-    List<Document> findByPublicationStatusOrderByUpdatedAtAsc(PublicationStatus status);
 
     // Library filter with full-text search and metadata filters.
     // Native query is used to leverage PostgreSQL ILIKE and jsonb @> operator.

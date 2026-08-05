@@ -28,7 +28,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -47,11 +49,14 @@ import java.util.List;
 public class RagConversationService {
 
     private static final int MAX_HISTORY_MESSAGES = 6;
+    private static final int MAX_RETURNED_MESSAGES = 30;
 
     private final DocumentRepository documentRepository;
     private final RagConversationRepository ragConversationRepository;
     private final RagMessageRepository ragMessageRepository;
     private final AiServiceClient aiServiceClient;
+    private final TransactionTemplate transactionTemplate;
+    private final AiRequestGuard aiRequestGuard;
 
     // =========================================================
     // ===== GET OR CREATE CONVERSATION =====
@@ -71,10 +76,24 @@ public class RagConversationService {
                 .findByUserIdAndDocumentId(user.getId(), documentId)
                 .orElseGet(() -> createConversation(user, document));
 
-        List<RagMessage> messages = ragMessageRepository
-                .findByConversationIdOrderByCreatedAtAsc(conversation.getId());
-
+        List<RagMessage> messages = loadRecentMessages(conversation);
         return mapToConversationResponse(conversation, document, messages);
+    }
+
+    /** Keeps the legacy response compatible while preventing an unbounded history query. */
+    private List<RagMessage> loadRecentMessages(RagConversation conversation) {
+        if (conversation.getMessageCount() == null || conversation.getMessageCount() == 0) {
+            return List.of();
+        }
+
+        List<RagMessage> messages = new ArrayList<>(ragMessageRepository
+                .findByConversationIdOrderByCreatedAtDescIdDesc(
+                        conversation.getId(),
+                        PageRequest.of(0, MAX_RETURNED_MESSAGES)
+                )
+                .getContent());
+        Collections.reverse(messages);
+        return messages;
     }
 
     private RagConversation createConversation(User user, Document document) {
@@ -95,18 +114,67 @@ public class RagConversationService {
     /**
      * GửI câu hỏi mới vào conversation.
      * <p>
-     * Flow: lưu user message → lấy history → gọI AI → lưu assistant message → trả response.
+     * Flow: TX đọc/kiểm tra → gọi AI ngoài transaction → TX lưu cặp user/assistant message.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RagSendMessageResponse sendMessage(User user, Long conversationId, RagSendMessageRequest request) {
         log.info("[RAG_CONV] GửI message | userId={} | conversationId={} | question={}",
                 user.getId(), conversationId, request.getQuestion());
 
+        PreparedRagRequest preparedRequest = transactionTemplate.execute(status ->
+                prepareRagRequest(user, conversationId, request));
+
+        AiAnswerQuestionResult aiResult = callAi(user.getId(), conversationId, preparedRequest.aiRequest());
+
+        return transactionTemplate.execute(status ->
+                persistRagAnswer(user, conversationId, request, aiResult));
+    }
+
+    /** Chụp document và history trong một transaction DB ngắn. */
+    private PreparedRagRequest prepareRagRequest(User user,
+                                                 Long conversationId,
+                                                 RagSendMessageRequest request) {
         RagConversation conversation = requireConversation(conversationId, user);
         Document document = conversation.getDocument();
         validateDocumentForRag(document);
 
-        // 1. Lưu user message
+        List<AiChatMessage> history = buildHistoryForAi(conversation.getId(), Instant.now());
+        AiAnswerQuestionRequest aiRequest = new AiAnswerQuestionRequest(
+                List.of(document.getId()),
+                request.getQuestion(),
+                request.getTopK(),
+                request.getLanguage(),
+                history
+        );
+        return new PreparedRagRequest(aiRequest);
+    }
+
+    /** Gọi AI khi không có transaction DB nào đang mở. */
+    private AiAnswerQuestionResult callAi(Long userId, Long conversationId, AiAnswerQuestionRequest aiRequest) {
+        try {
+            return aiRequestGuard.execute(
+                    userId,
+                    "rag-conversation",
+                    () -> aiServiceClient.answerQuestionSync(aiRequest)
+            );
+        } catch (AppException e) {
+            // Preserve 429/503 decisions made by AiRequestGuard.
+            throw e;
+        } catch (Exception e) {
+            log.error("[RAG_CONV] AI Service gọI thất bại | conversationId={} | error={}",
+                    conversationId, e.getMessage(), e);
+            throw new AppException(ErrorCode.AI_SERVICE_ERROR);
+        }
+    }
+
+    /** Lưu cặp user/assistant message atomically sau khi AI đã trả kết quả. */
+    private RagSendMessageResponse persistRagAnswer(User user,
+                                                    Long conversationId,
+                                                    RagSendMessageRequest request,
+                                                    AiAnswerQuestionResult aiResult) {
+        RagConversation conversation = requireConversation(conversationId, user);
+        validateDocumentForRag(conversation.getDocument());
+
         RagMessage userMessage = RagMessage.builder()
                 .conversation(conversation)
                 .role(RagMessageRole.user)
@@ -117,28 +185,6 @@ public class RagConversationService {
         userMessage = ragMessageRepository.save(userMessage);
         conversation.addMessage(userMessage);
 
-        // 2. Lấy history (tối đa 6 messages) trước user message vừa lưu
-        List<AiChatMessage> history = buildHistoryForAi(conversation.getId(), userMessage.getCreatedAt());
-
-        // 3. GọI AI Service
-        AiAnswerQuestionRequest aiRequest = new AiAnswerQuestionRequest(
-                List.of(document.getId()),
-                request.getQuestion(),
-                request.getTopK(),
-                request.getLanguage(),
-                history
-        );
-
-        AiAnswerQuestionResult aiResult;
-        try {
-            aiResult = aiServiceClient.answerQuestionSync(aiRequest);
-        } catch (Exception e) {
-            log.error("[RAG_CONV] AI Service gọI thất bại | conversationId={} | error={}",
-                    conversationId, e.getMessage(), e);
-            throw new AppException(ErrorCode.AI_SERVICE_ERROR);
-        }
-
-        // 4. Lưu assistant message
         RagMessage assistantMessage = RagMessage.builder()
                 .conversation(conversation)
                 .role(RagMessageRole.assistant)
@@ -159,6 +205,9 @@ public class RagConversationService {
                 .build();
     }
 
+    private record PreparedRagRequest(AiAnswerQuestionRequest aiRequest) {
+    }
+
     // =========================================================
     // ===== GET MESSAGES =====
     // =========================================================
@@ -172,7 +221,7 @@ public class RagConversationService {
 
         RagConversation conversation = requireConversation(conversationId, user);
         return ragMessageRepository
-                .findByConversationIdOrderByCreatedAtAsc(conversation.getId(), pageable)
+                .findByConversationIdOrderByCreatedAtDescIdDesc(conversation.getId(), pageable)
                 .map(this::mapToMessageResponse);
     }
 

@@ -1,5 +1,6 @@
 package com.lmsrag.backend.controller;
 
+import com.lmsrag.backend.config.CustomUserDetails;
 import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.rag.RagAnswerRequest;
 import com.lmsrag.backend.dto.rag.RagAnswerResponse;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,8 +27,9 @@ public class RagController {
     @Operation(summary = "Hỏi đáp RAG trên danh sách tài liệu")
     @PostMapping("/answer")
     public ResponseEntity<ApiResponse<RagAnswerResponse>> answer(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody RagAnswerRequest request) {
-        RagAnswerResponse response = ragService.answer(request);
+        RagAnswerResponse response = ragService.answer(userDetails.getUser(), request);
         String message = Boolean.TRUE.equals(response.getNotFound())
                 ? "Không tìm thấy ngữ cảnh phù hợp"
                 : "Trả lời thành công";

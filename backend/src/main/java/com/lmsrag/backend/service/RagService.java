@@ -10,6 +10,7 @@ import com.lmsrag.backend.dto.rag.RagAnswerResponse;
 import com.lmsrag.backend.dto.rag.RagChatMessage;
 import com.lmsrag.backend.dto.rag.RagCitation;
 import com.lmsrag.backend.entity.Document;
+import com.lmsrag.backend.entity.User;
 import com.lmsrag.backend.enums.AiProcessingStatus;
 import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.exception.AppException;
@@ -18,7 +19,9 @@ import com.lmsrag.backend.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
@@ -29,19 +32,23 @@ public class RagService {
 
     private final DocumentRepository documentRepository;
     private final AiServiceClient aiServiceClient;
+    private final TransactionTemplate transactionTemplate;
+    private final AiRequestGuard aiRequestGuard;
 
-    @Transactional(readOnly = true)
-    public RagAnswerResponse answer(RagAnswerRequest request) {
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public RagAnswerResponse answer(User currentUser, RagAnswerRequest request) {
         List<Long> documentIds = request.getDocumentIds().stream()
                 .distinct()
                 .toList();
 
         log.info("[RAG] Nhận yêu cầu hỏi đáp | documentIds={} | question={}", documentIds, request.getQuestion());
 
-        // Kiểm tra từng document phải tồn tại, PUBLISHED và đã PROCESSED
-        for (Long documentId : documentIds) {
-            validateDocumentForRag(documentId);
-        }
+        transactionTemplate.executeWithoutResult(status -> {
+            // Kiểm tra từng document phải tồn tại, PUBLISHED và đã PROCESSED.
+            for (Long documentId : documentIds) {
+                validateDocumentForRag(documentId);
+            }
+        });
 
         AiAnswerQuestionRequest aiRequest = new AiAnswerQuestionRequest(
                 documentIds,
@@ -51,7 +58,11 @@ public class RagService {
                 mapHistory(request.getHistory())
         );
 
-        AiAnswerQuestionResult result = aiServiceClient.answerQuestionSync(aiRequest);
+        AiAnswerQuestionResult result = aiRequestGuard.execute(
+                currentUser.getId(),
+                "rag-answer",
+                () -> aiServiceClient.answerQuestionSync(aiRequest)
+        );
 
         return mapToResponse(result);
     }

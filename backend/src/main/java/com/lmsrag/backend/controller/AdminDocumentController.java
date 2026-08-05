@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -66,7 +67,17 @@ public class AdminDocumentController {
     @Operation(summary = "Lấy danh sách tài liệu chờ duyệt")
     @GetMapping("/reviews")
     public ResponseEntity<ApiResponse<List<DocumentResponse>>> getReviewQueue() {
-        List<DocumentResponse> response = documentService.getReviewQueue();
+        PageRequest firstPage = PageRequest.of(0, 100, Sort.by(Sort.Direction.ASC, "updatedAt"));
+        List<DocumentResponse> response = documentService.getReviewQueue(null, firstPage).getContent();
+        return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách chờ duyệt thành công"));
+    }
+
+    @Operation(summary = "Lấy danh sách tài liệu chờ duyệt có phân trang")
+    @GetMapping("/reviews/page")
+    public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getReviewQueuePaged(
+            @RequestParam(required = false) String q,
+            @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.ASC) Pageable pageable) {
+        Page<DocumentResponse> response = documentService.getReviewQueue(q, pageable);
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách chờ duyệt thành công"));
     }
 

@@ -33,16 +33,26 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,20 +71,44 @@ class QuizServiceTest {
     @Mock
     private AiServiceClient aiServiceClient;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
+    @Mock
+    private AiRequestGuard aiRequestGuard;
+
     private QuizService quizService;
     private User teacher;
     private User otherTeacher;
     private Document eligibleDocument;
     private Quiz draftQuiz;
     private QuizQuestion storedQuestion;
+    private AtomicBoolean transactionTemplateActive;
 
     @BeforeEach
     void setUp() {
+        transactionTemplateActive = new AtomicBoolean(false);
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            assertThat(transactionTemplateActive.compareAndSet(false, true)).isTrue();
+            try {
+                return callback.doInTransaction(null);
+            } finally {
+                transactionTemplateActive.set(false);
+            }
+        });
+        lenient().when(aiRequestGuard.execute(any(), any(), any())).thenAnswer(invocation -> {
+            Supplier<?> action = invocation.getArgument(2);
+            return action.get();
+        });
+
         quizService = new QuizService(
                 documentRepository,
                 quizRepository,
                 quizQuestionRepository,
-                aiServiceClient
+                aiServiceClient,
+                transactionTemplate,
+                aiRequestGuard
         );
         teacher = createUser(1L, "teacher.a@example.com");
         otherTeacher = createUser(2L, "teacher.b@example.com");
@@ -90,7 +124,10 @@ class QuizServiceTest {
         AiGenerateQuizResult aiResult = createAiResult();
 
         when(documentRepository.findById(10L)).thenReturn(Optional.of(eligibleDocument));
-        when(aiServiceClient.generateQuizSync(any(AiGenerateQuizRequest.class))).thenReturn(aiResult);
+        when(aiServiceClient.generateQuizSync(any(AiGenerateQuizRequest.class))).thenAnswer(invocation -> {
+            assertThat(transactionTemplateActive).isFalse();
+            return aiResult;
+        });
         when(quizRepository.save(any(Quiz.class))).thenAnswer(invocation -> {
             Quiz quiz = invocation.getArgument(0);
             quiz.setId(100L);
@@ -125,6 +162,7 @@ class QuizServiceTest {
         verify(quizRepository).save(quizCaptor.capture());
         assertThat(quizCaptor.getValue().getCreatedBy().getId()).isEqualTo(1L);
         assertThat(quizCaptor.getValue().getDocument().getUploadedBy().getId()).isEqualTo(2L);
+        verify(transactionTemplate, times(2)).execute(any());
     }
 
     @Test
@@ -179,6 +217,27 @@ class QuizServiceTest {
 
         assertThat(response.getQuestions()).hasSize(1);
         assertThat(response.getQuestions().getFirst().getExplanation()).isEqualTo("Giải thích");
+    }
+
+    @Test
+    void listMyQuizzes_shouldLoadOnePageAndBatchAllQuestions() {
+        Quiz secondQuiz = createQuiz(101L, QuizStatus.PUBLISHED, teacher);
+        QuizQuestion secondQuestion = createStoredQuestion(502L, secondQuiz);
+        Pageable pageable = PageRequest.of(0, 12);
+        Page<Quiz> quizPage = new PageImpl<>(List.of(draftQuiz, secondQuiz), pageable, 2);
+
+        when(quizRepository.searchByCreatedBy(1L, null, null, pageable)).thenReturn(quizPage);
+        when(quizQuestionRepository.findAllByQuizIds(List.of(100L, 101L)))
+                .thenReturn(List.of(storedQuestion, secondQuestion));
+
+        Page<QuizResponse> response = quizService.listMyQuizzes(teacher, null, null, pageable);
+
+        assertThat(response.getTotalElements()).isEqualTo(2);
+        assertThat(response.getContent()).hasSize(2);
+        assertThat(response.getContent().get(0).getQuestions()).hasSize(1);
+        assertThat(response.getContent().get(1).getQuestions()).hasSize(1);
+        verify(quizQuestionRepository).findAllByQuizIds(List.of(100L, 101L));
+        verify(quizQuestionRepository, never()).findByQuizIdOrderByQuestionIndex(any());
     }
 
     @Test

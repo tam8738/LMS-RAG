@@ -29,7 +29,12 @@ import com.lmsrag.backend.repository.QuizRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -39,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Nghiệp vụ sinh, xem, sửa và công bố quiz của Teacher. */
 @Slf4j
@@ -47,39 +53,56 @@ import java.util.Set;
 public class QuizService {
 
     private static final String SINGLE_CHOICE = "single_choice";
+    private static final int MAX_QUIZ_PAGE_SIZE = 25;
 
     private final DocumentRepository documentRepository;
     private final QuizRepository quizRepository;
     private final QuizQuestionRepository quizQuestionRepository;
     private final AiServiceClient aiServiceClient;
+    private final TransactionTemplate transactionTemplate;
+    private final AiRequestGuard aiRequestGuard;
 
     /** Sinh quiz từ một document PUBLISHED + PROCESSED và lưu toàn bộ draft. */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public QuizResponse generateQuiz(User currentUser, QuizGenerateRequest request) {
         Long documentId = request.getDocumentId();
         log.info("[QUIZ] Bắt đầu sinh quiz | userId={} | documentId={} | questionCount={} | language={}",
                 currentUser.getId(), documentId, request.getQuestionCount(), request.getLanguage());
 
-        Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> {
-                    log.warn("[QUIZ] Document không tồn tại | userId={} | documentId={}",
-                            currentUser.getId(), documentId);
-                    return new AppException(ErrorCode.DOCUMENT_NOT_FOUND);
-                });
-        requireQuizEligibleDocument(currentUser, document);
+        transactionTemplate.execute(status -> {
+            Document document = findDocumentForQuiz(currentUser, documentId);
+            requireQuizEligibleDocument(currentUser, document);
+            return document.getId();
+        });
 
         AiGenerateQuizResult aiResult;
         try {
-            aiResult = aiServiceClient.generateQuizSync(AiGenerateQuizRequest.from(
-                    documentId,
-                    request.getQuestionCount(),
-                    request.getLanguage()
-            ));
+            aiResult = aiRequestGuard.execute(
+                    currentUser.getId(),
+                    "quiz-generate",
+                    () -> aiServiceClient.generateQuizSync(AiGenerateQuizRequest.from(
+                            documentId,
+                            request.getQuestionCount(),
+                            request.getLanguage()
+                    ))
+            );
         } catch (AiServiceException exception) {
             log.error("[QUIZ] AI không thể sinh quiz | userId={} | documentId={} | aiCode={}",
                     currentUser.getId(), documentId, exception.getErrorCode());
             throw new AppException(ErrorCode.QUIZ_GENERATE_FAILED);
         }
+
+        return transactionTemplate.execute(status ->
+                persistGeneratedQuiz(currentUser, request, aiResult));
+    }
+
+    /** Lưu quiz draft trong một transaction ngắn sau khi lời gọi AI đã hoàn tất. */
+    private QuizResponse persistGeneratedQuiz(User currentUser,
+                                               QuizGenerateRequest request,
+                                               AiGenerateQuizResult aiResult) {
+        Long documentId = request.getDocumentId();
+        Document document = findDocumentForQuiz(currentUser, documentId);
+        requireQuizEligibleDocument(currentUser, document);
 
         Quiz quiz = Quiz.builder()
                 .document(document)
@@ -104,13 +127,49 @@ public class QuizService {
         return toResponse(savedQuiz, savedQuestions);
     }
 
+    private Document findDocumentForQuiz(User currentUser, Long documentId) {
+        return documentRepository.findById(documentId)
+                .orElseThrow(() -> {
+                    log.warn("[QUIZ] Document không tồn tại | userId={} | documentId={}",
+                            currentUser.getId(), documentId);
+                    return new AppException(ErrorCode.DOCUMENT_NOT_FOUND);
+                });
+    }
+
     /** Lấy danh sách quiz thật từ DB của Teacher hiện tại. */
     @Transactional(readOnly = true)
-    public List<QuizResponse> listMyQuizzes(User currentUser) {
-        List<Quiz> quizzes = quizRepository.findByCreatedByIdOrderByCreatedAtDesc(currentUser.getId());
-        return quizzes.stream()
-                .map(quiz -> toResponse(quiz, quizQuestionRepository.findByQuizIdOrderByQuestionIndex(quiz.getId())))
-                .toList();
+    public Page<QuizResponse> listMyQuizzes(User currentUser,
+                                            String query,
+                                            QuizStatus status,
+                                            Pageable pageable) {
+        Pageable boundedPageable = boundPageSize(pageable, MAX_QUIZ_PAGE_SIZE);
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        Page<Quiz> quizzes = quizRepository.searchByCreatedBy(
+                currentUser.getId(),
+                status,
+                normalizedQuery,
+                boundedPageable
+        );
+        if (quizzes.isEmpty()) {
+            return quizzes.map(quiz -> toResponse(quiz, List.of()));
+        }
+
+        List<Long> quizIds = quizzes.getContent().stream().map(Quiz::getId).toList();
+        Map<Long, List<QuizQuestion>> questionsByQuizId = quizQuestionRepository.findAllByQuizIds(quizIds)
+                .stream()
+                .collect(Collectors.groupingBy(question -> question.getQuiz().getId()));
+
+        return quizzes.map(quiz -> toResponse(
+                quiz,
+                questionsByQuizId.getOrDefault(quiz.getId(), List.of())
+        ));
+    }
+
+    private Pageable boundPageSize(Pageable pageable, int maxSize) {
+        if (pageable.getPageSize() <= maxSize) {
+            return pageable;
+        }
+        return PageRequest.of(pageable.getPageNumber(), maxSize, pageable.getSort());
     }
 
     /** Lấy quiz đã PUBLISHED cho sinh viên qua link public, không yêu cầu đăng nhập. */
