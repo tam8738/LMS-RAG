@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Archive,
+  Check,
+  ChevronDown,
   Download,
   Eye,
   FileText,
@@ -39,6 +41,73 @@ const processingOptions: Array<{ value: ProcessingStatus | "ALL"; label: string 
   { value: "PROCESSED", label: "Đã lập chỉ mục" },
   { value: "FAILED", label: "Lỗi xử lý" },
 ];
+
+interface CustomSelectOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+function CustomSelect<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: CustomSelectOption<T>[];
+  onChange: (value: T) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedLabel = options.find((opt) => opt.value === value)?.label || "";
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="h-10.5 sm:h-11 w-full rounded-xl border border-[#0E0D0B]/[0.10] bg-white px-3 text-[12px] sm:text-[13px] font-medium text-[#0E0D0B] outline-none transition-all focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10 cursor-pointer flex items-center justify-between gap-1.5"
+      >
+        <span className="truncate text-left">{selectedLabel}</span>
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[#AAAA9F] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-[100] max-h-56 overflow-y-auto rounded-xl border border-[#0E0D0B]/[0.10] bg-white p-1 shadow-lg text-left font-sans">
+          {options.map((option) => {
+            const isSelected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`flex w-full items-center justify-between px-3 py-2 text-[12.5px] font-medium rounded-lg transition-colors border-none cursor-pointer ${
+                  isSelected ? "bg-[#EEF2FF] text-[#4F63D2] font-semibold" : "bg-transparent text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                }`}
+              >
+                <span className="truncate">{option.label}</span>
+                {isSelected && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#4F63D2]" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AdminDocumentManagementPage() {
   const navigate = useNavigate();
@@ -220,35 +289,33 @@ export function AdminDocumentManagementPage() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-[#0E0D0B]/[0.06] bg-white p-4 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[1fr_220px_220px]">
-          <div className="relative">
+      <div className="rounded-2xl border border-[#0E0D0B]/[0.06] bg-white p-3.5 sm:p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+          <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#AAAA9F]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Tìm theo tên tài liệu, môn học, giảng viên..."
-              className="h-11 w-full rounded-xl border border-[#0E0D0B]/[0.10] bg-white pl-10 pr-4 text-[13.5px] text-[#0E0D0B] outline-none transition-all placeholder:text-[#AAAA9F] focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10"
+              className="h-10.5 sm:h-11 w-full rounded-xl border border-[#0E0D0B]/[0.10] bg-white pl-10 pr-4 text-[13px] sm:text-[13.5px] text-[#0E0D0B] outline-none transition-all placeholder:text-[#AAAA9F] focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10"
             />
           </div>
-          <select
-            value={publicationStatus}
-            onChange={(event) => setPublicationStatus(event.target.value as PublicationStatus | "ALL")}
-            className="h-11 rounded-xl border border-[#0E0D0B]/[0.10] bg-white px-3 text-[13px] font-medium text-[#0E0D0B] outline-none focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10"
-          >
-            {publicationOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <select
-            value={processingStatus}
-            onChange={(event) => setProcessingStatus(event.target.value as ProcessingStatus | "ALL")}
-            className="h-11 rounded-xl border border-[#0E0D0B]/[0.10] bg-white px-3 text-[13px] font-medium text-[#0E0D0B] outline-none focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10"
-          >
-            {processingOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <div className="w-full sm:w-[190px]">
+              <CustomSelect
+                value={publicationStatus}
+                options={publicationOptions}
+                onChange={(val) => setPublicationStatus(val)}
+              />
+            </div>
+            <div className="w-full sm:w-[190px]">
+              <CustomSelect
+                value={processingStatus}
+                options={processingOptions}
+                onChange={(val) => setProcessingStatus(val)}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -264,12 +331,12 @@ export function AdminDocumentManagementPage() {
             <table className="w-full min-w-[960px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-[#0E0D0B]/[0.06] bg-[#F8F7F4]/70">
-                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963]">Tài liệu</th>
-                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963]">Giảng viên</th>
-                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963]">Phân loại</th>
-                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963]">Trạng thái</th>
-                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963]">Cập nhật</th>
-                  <th className="px-5 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-[#6B6963]">Thao tác</th>
+                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">Tài liệu</th>
+                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">Giảng viên</th>
+                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">Phân loại</th>
+                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">Trạng thái</th>
+                  <th className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">Cập nhật</th>
+                  <th className="px-5 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#0E0D0B]/[0.05]">
@@ -279,31 +346,31 @@ export function AdminDocumentManagementPage() {
                     onClick={() => navigate(adminDocumentDetailPath(doc.id))}
                     className="group cursor-pointer transition-colors hover:bg-[#FDFDFB]"
                   >
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#F4F3F0] text-[#6B6963] transition-colors group-hover:bg-[#EEF2FF] group-hover:text-[#4F63D2]">
                           <FileText className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
                           <p className="line-clamp-1 text-[14.5px] font-semibold text-[#0E0D0B] transition-colors group-hover:text-[#4F63D2]">{doc.title}</p>
-                          <p className="mt-0.5 text-[12px] text-[#AAAA9F]">
+                          <p className="mt-0.5 text-[12px] text-[#AAAA9F] whitespace-nowrap">
                             {doc.fileType} · {doc.fileSize}{doc.pageCount ? ` · ${doc.pageCount} trang` : ""}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-[13.5px] font-medium text-[#0E0D0B]">
+                    <td className="px-5 py-4 text-[13.5px] font-medium text-[#0E0D0B] whitespace-nowrap">
                       <span className="line-clamp-1">{doc.authorName}</span>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <p className="line-clamp-1 text-[13px] font-semibold text-[#0E0D0B]">{doc.subject}</p>
                       <p className="mt-0.5 line-clamp-1 text-[12px] text-[#AAAA9F]">{doc.topic || "Chưa có chủ đề"}</p>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} />
                     </td>
                     <td className="px-5 py-4 text-[12.5px] text-[#6B6963] whitespace-nowrap">{doc.updatedAt}</td>
-                    <td className="px-5 py-4 text-right" onClick={(event) => event.stopPropagation()}>
+                    <td className="px-5 py-4 text-right whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
                       <button
                         type="button"
                         onClick={(event) => openActionMenu(doc, event.currentTarget)}

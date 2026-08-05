@@ -134,7 +134,7 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
   const flushList = (key: string) => {
     if (inUnorderedList && listItems.length > 0) {
       elements.push(
-        <ul key={`ul-${key}`} className="my-2 space-y-1.5 list-disc list-inside text-[14.5px] leading-[1.75] text-[#1F1E1B]">
+        <ul key={`ul-${key}`} className="my-2 space-y-1.5 list-disc list-inside text-[13.5px] sm:text-[14.5px] leading-[1.7] text-[#1F1E1B]">
           {listItems}
         </ul>
       );
@@ -155,7 +155,7 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
       flushList(`${idx}`);
       const level = headingMatch[1].length;
       const title = headingMatch[2];
-      const sizeClass = level === 1 ? "text-[17px] font-bold mt-4 mb-2" : level === 2 ? "text-[16px] font-bold mt-3.5 mb-1.5" : "text-[15px] font-bold mt-3 mb-1";
+      const sizeClass = level === 1 ? "text-[15px] sm:text-[17px] font-bold mt-3.5 mb-2" : level === 2 ? "text-[14.5px] sm:text-[16px] font-bold mt-3 mb-1.5" : "text-[14px] sm:text-[15px] font-bold mt-2.5 mb-1";
       elements.push(
         <h3 key={idx} className={`${sizeClass} text-[#0E0D0B] font-sans tracking-tight first:mt-0`}>
           {parseInlineMarkdown(title)}
@@ -179,7 +179,7 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
     if (numberedListMatch) {
       flushList(`${idx}`);
       elements.push(
-        <div key={idx} className="my-2 text-[14.5px] leading-[1.75] text-[#1F1E1B] flex items-start gap-2">
+        <div key={idx} className="my-2 text-[13.5px] sm:text-[14.5px] leading-[1.7] text-[#1F1E1B] flex items-start gap-2">
           <span className="font-bold text-[#0E0D0B] flex-shrink-0">{numberedListMatch[1]}.</span>
           <div className="flex-1 min-w-0">{parseInlineMarkdown(numberedListMatch[2])}</div>
         </div>
@@ -189,7 +189,7 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
 
     flushList(`${idx}`);
     elements.push(
-      <p key={idx} className="mb-2.5 last:mb-0 leading-[1.75] text-[#1F1E1B]">
+      <p key={idx} className="mb-2 last:mb-0 leading-[1.7] text-[#1F1E1B]">
         {parseInlineMarkdown(trimmed)}
       </p>
     );
@@ -197,7 +197,7 @@ export function FormattedAssistantMessage({ content }: { content: string }) {
 
   flushList("end");
 
-  return <div className="text-[14.5px] leading-[1.75] text-[#1F1E1B] font-sans select-text break-words pt-0.5">{elements}</div>;
+  return <div className="text-[13.5px] sm:text-[14.5px] leading-[1.7] text-[#1F1E1B] font-sans select-text break-words pt-0.5">{elements}</div>;
 }
 
 export function RagChatPanel({
@@ -634,7 +634,7 @@ export function RagChatPanel({
         : "Đặt câu hỏi về nội dung tài liệu này...";
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#FDFDFB] rounded-3xl border border-[#0E0D0B]/[0.06] overflow-hidden font-sans relative shadow-premium">
+    <div className="flex flex-col w-full h-[520px] sm:h-[580px] lg:h-full bg-[#FDFDFB] rounded-2xl sm:rounded-3xl border border-[#0E0D0B]/[0.06] overflow-hidden font-sans relative shadow-premium">
 
       {/* Compact Dynamic Header */}
       <div className="px-5 py-3 bg-white/90 backdrop-blur-md border-b border-[#0E0D0B]/[0.06] flex items-center justify-between flex-shrink-0 text-left sticky top-0 z-10">
@@ -739,18 +739,18 @@ export function RagChatPanel({
               </div>
 
               {/* Prompt Recommendation Matrix Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 {suggestedPrompts.map((p, i) => (
                   <div
                     key={i}
                     onClick={() => handleSelectPrompt(p.desc)}
-                    className="border border-[#0E0D0B]/[0.07] bg-white hover:border-[#4F63D2]/35 rounded-xl p-3.5 cursor-pointer hover:shadow-xs transition-all duration-200 text-left group"
+                    className="border border-[#0E0D0B]/[0.07] bg-white hover:border-[#4F63D2]/35 rounded-xl p-2.5 sm:p-3.5 cursor-pointer hover:shadow-xs transition-all duration-200 text-left group"
                   >
-                    <h4 className="text-[13px] font-semibold text-[#0E0D0B] flex items-center justify-between group-hover:text-[#4F63D2]">
+                    <h4 className="text-[12px] sm:text-[13px] font-semibold text-[#0E0D0B] flex items-center justify-between group-hover:text-[#4F63D2]">
                       {p.title}
-                      <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                      <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                     </h4>
-                    <p className="text-[12px] text-[#6B6963] mt-0.5 leading-relaxed">
+                    <p className="text-[11px] sm:text-[12px] text-[#6B6963] mt-0.5 leading-relaxed line-clamp-2">
                       {p.desc}
                     </p>
                   </div>

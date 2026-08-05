@@ -284,6 +284,7 @@ export function LibraryPage({
 
   // Search and Advanced Filters
   const [searchVal, setSearchVal] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -535,29 +536,108 @@ export function LibraryPage({
           <div id="all-documents-section" className="space-y-6 text-left pt-4">
 
             {/* Section Header */}
-            <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.06] pb-3.5">
-              <div>
-                <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">
-                  {isFilteringOrSearching
-                    ? (debouncedQuery.q ? `Kết quả tìm kiếm cho "${debouncedQuery.q}"` : "Kết quả tìm kiếm")
-                    : "Tất cả tài liệu"}
-                </h2>
-                <p className="text-[12.5px] text-[#AAAA9F] font-semibold">Hiển thị {totalElements} kết quả được phân loại theo chuyên mục</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#0E0D0B]/[0.06] pb-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">
+                    {isFilteringOrSearching
+                      ? (debouncedQuery.q ? `Kết quả tìm kiếm cho "${debouncedQuery.q}"` : "Kết quả tìm kiếm")
+                      : "Tất cả tài liệu"}
+                  </h2>
+                  <p className="text-[12.5px] text-[#AAAA9F] font-semibold">Hiển thị {totalElements} kết quả được phân loại theo chuyên mục</p>
+                </div>
+
+                {/* Mobile Search Icon Button & Filter Button container when not expanded */}
+                <div className="flex items-center gap-2 sm:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileSearchOpen((prev) => !prev)}
+                    className={`h-9 w-9 flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                      isMobileSearchOpen || searchVal
+                        ? "bg-[#4F63D2]/10 border-[#4F63D2]/30 text-[#4F63D2]"
+                        : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                    }`}
+                    title="Tìm kiếm tài liệu"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterDrawerOpen(true)}
+                    className={`flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl text-[12.5px] font-semibold transition-all shadow-xs cursor-pointer border whitespace-nowrap ${
+                      activeFiltersCount > 0
+                        ? "bg-[#4F63D2]/10 border-[#4F63D2]/25 text-[#4F63D2]"
+                        : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                    }`}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Lọc</span> {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* Desktop Toolbar Controls */}
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="w-4 h-4 text-[#AAAA9F] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchVal}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Tìm tài liệu, môn học..."
+                    className="w-full h-9 px-3 pl-9 pr-7 bg-white border border-[#0E0D0B]/[0.10] rounded-xl text-[12.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10 transition-all shadow-xs"
+                  />
+                  {searchVal && (
+                    <button
+                      onClick={() => handleSearchChange("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setIsFilterDrawerOpen(true)}
-                  className={`flex items-center gap-2 h-9 px-4 rounded-xl text-[12.5px] font-semibold transition-all shadow-xs cursor-pointer border ${activeFiltersCount > 0
-                    ? "bg-[#4F63D2]/10 border-[#4F63D2]/25 text-[#4F63D2]"
-                    : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
-                    }`}
+                  className={`flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-[12.5px] font-semibold transition-all shadow-xs cursor-pointer border whitespace-nowrap flex-shrink-0 ${
+                    activeFiltersCount > 0
+                      ? "bg-[#4F63D2]/10 border-[#4F63D2]/25 text-[#4F63D2]"
+                      : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                  }`}
                 >
                   <Filter className="w-3.5 h-3.5" />
-                  Lọc nâng cao {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+                  <span>Lọc nâng cao</span> {activeFiltersCount > 0 && `(${activeFiltersCount})`}
                 </button>
               </div>
+
+              {/* Mobile Expandable Search Bar (when icon clicked) */}
+              {isMobileSearchOpen && (
+                <div className="relative w-full sm:hidden animate-fadeIn">
+                  <Search className="w-4 h-4 text-[#4F63D2] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchVal}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Nhập tên tài liệu, môn học hoặc giảng viên..."
+                    autoFocus
+                    className="w-full h-10 pl-9 pr-9 bg-white border border-[#4F63D2]/50 rounded-xl text-[13px] text-[#0E0D0B] placeholder:text-[#AAAA9F] outline-none ring-4 ring-[#4F63D2]/10 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSearchChange("");
+                      setIsMobileSearchOpen(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Subject Chips for Filtering */}

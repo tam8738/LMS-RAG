@@ -53,15 +53,15 @@ export function DualStatusBadge({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 font-mono-label text-left">
+    <div className="flex flex-row items-center gap-1.5 font-mono-label text-left">
       {/* Processing Status */}
-      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${getProcessingStyle()}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent whitespace-nowrap ${getProcessingStyle()}`}>
         {(processing === "PROCESSING" || processing === "ANALYZING") && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
         {getProcessingLabel()}
       </span>
       
       {/* Publication Status */}
-      <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${getPublicationStyle()}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent whitespace-nowrap ${getPublicationStyle()}`}>
         {getPublicationLabel()}
       </span>
     </div>

@@ -85,33 +85,33 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
       {/* Modal Dialog Content Container */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl w-full max-w-4xl overflow-hidden relative text-left animate-modal-enter my-auto flex flex-col"
+        className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xl w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden relative text-left animate-modal-enter my-auto flex flex-col"
       >
         {/* Header Section */}
-        <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 via-white to-indigo-50/20">
+        <div className="px-5 py-4 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 via-white to-indigo-50/20 flex-shrink-0">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[11px] font-bold uppercase tracking-wider mb-1.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider mb-1">
               <CheckCircle2 className="w-3.5 h-3.5" /> Quy trình quản lý học liệu chuẩn
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-heading">
+            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight font-heading">
               Vòng đời xuất bản Học liệu EduRAG
             </h3>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-sans">
+            <p className="text-[11.5px] sm:text-sm text-slate-500 mt-0.5 font-sans leading-tight">
               4 bước khép kín đảm bảo chất lượng tri thức từ biên soạn đến tích hợp trợ lý RAG AI.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all border-none cursor-pointer flex-shrink-0 ml-4"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all border-none cursor-pointer flex-shrink-0 ml-3"
             title="Đóng cửa sổ (ESC)"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 4 Horizontal Steps Stepper Grid */}
-        <div className="p-6 sm:p-8 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+        {/* 4 Horizontal Steps Stepper Grid - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 sm:space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 relative">
             {steps.map((step, idx) => {
               const StepIcon = step.icon;
               const isLast = idx === steps.length - 1;
@@ -119,16 +119,16 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
               return (
                 <div key={step.number} className="relative flex flex-col">
                   {/* Step Card */}
-                  <div className="h-full p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/20 hover:border-slate-300 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group relative overflow-hidden text-left">
+                  <div className="h-full p-4 sm:p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/20 hover:border-slate-300 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group relative overflow-hidden text-left">
 
                     {/* Background accent tint */}
                     <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${step.accent}`} />
 
                     <div>
                       {/* Step Header info */}
-                      <div className="flex items-center justify-between mb-3.5">
-                        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${step.badgeColor} shadow-3xs`}>
-                          <StepIcon className="w-5 h-5" />
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center ${step.badgeColor} shadow-3xs`}>
+                          <StepIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
                         </div>
                         <span className="text-[11px] font-mono font-bold text-slate-400 group-hover:text-indigo-600 transition-colors">
                           BƯỚC {step.number}
@@ -138,7 +138,7 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block mb-0.5">
                         {step.subtitle}
                       </span>
-                      <h4 className="text-base font-bold text-slate-900 leading-snug mb-2 font-heading">
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900 leading-snug mb-1.5 font-heading">
                         {step.title}
                       </h4>
                       <p className="text-xs text-slate-600 leading-relaxed font-sans font-normal">
@@ -159,21 +159,21 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
           </div>
 
           {/* Bottom Footer Banner */}
-          <div className="p-4 sm:p-4.5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
-            <div className="flex items-center gap-3.5 text-left">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 flex-shrink-0">
-                <ShieldCheck className="w-5.5 h-5.5" />
+          <div className="p-4 sm:p-4.5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-3.5 shadow-md">
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 flex-shrink-0">
+                <ShieldCheck className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
               </div>
               <div>
                 <h5 className="text-xs font-bold text-white mb-0.5">Cam kết chất lượng tri thức</h5>
-                <p className="text-[12px] text-slate-300 leading-normal font-sans">
+                <p className="text-[11.5px] sm:text-[12px] text-slate-300 leading-normal font-sans">
                   Tất cả học liệu xuất bản trên Thư viện công cộng đều được Ban Quản trị khoa CNTT kiểm duyệt trước khi đưa vào sử dụng.
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-full sm:w-auto h-10 px-6 bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold rounded-xl transition-all border-none cursor-pointer flex-shrink-0 font-action shadow-sm"
+              className="w-full sm:w-auto h-9.5 sm:h-10 px-5 sm:px-6 bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold rounded-xl transition-all border-none cursor-pointer flex-shrink-0 font-action shadow-sm"
             >
               Đóng cửa sổ
             </button>

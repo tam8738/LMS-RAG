@@ -181,62 +181,25 @@ export function PublicLibraryHero({
               </p>
             )}
 
-            {/* Hero Search */}
-            <div className="relative max-w-2xl shadow-md rounded-2xl">
-              <Search className="absolute left-4.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#AAAA9F]" />
-              <input
-                id="library-hero-search"
-                ref={searchInputRef}
-                type="text"
-                value={searchValue}
-                onChange={(event) => onSearchChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && onSearchSubmit) {
-                    event.preventDefault();
-                    onSearchSubmit();
-                  }
-                }}
-                placeholder="Đặt câu hỏi hoặc tìm kiếm tài liệu, môn học, chủ đề..."
-                className="w-full h-14 pl-12 pr-24 bg-white border border-[#0E0D0B]/[0.1] rounded-2xl text-[14.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:ring-4 focus:ring-[#4F63D2]/8 focus:border-[#4F63D2] transition-all"
-              />
-              <div className="absolute right-4.5 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                {searchValue && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSearchChange("");
-                      onSearchSubmit?.();
-                    }}
-                    className="p-1 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#AAAA9F] hover:text-[#0E0D0B]"
-                    title="Xóa tìm kiếm"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-[#0E0D0B]/[0.06] bg-[#F8F7F4] text-[10.5px] text-[#AAAA9F] select-none shadow-3xs font-semibold">
-                  Ctrl + K
-                </kbd>
-              </div>
-            </div>
             {/* CTA Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
               {isTeacher ? (
                 <>
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.UPLOAD)}
-                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group"
+                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] sm:text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto whitespace-nowrap"
                   >
-                    <Upload className="w-4 h-4 text-indigo-300" />
+                    <Upload className="w-4.5 h-4.5 text-indigo-300 flex-shrink-0" />
                     <span>Tải tài liệu mới</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.MY_DOCUMENTS)}
-                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action"
+                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13.5px] sm:text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto whitespace-nowrap"
                   >
-                    <FolderKanban className="w-4 h-4 text-slate-400" />
+                    <FolderKanban className="w-4.5 h-4.5 text-slate-400 flex-shrink-0" />
                     <span>Quản lý tài liệu của tôi</span>
                   </button>
                 </>
@@ -245,18 +208,18 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.ADMIN_REVIEWS)}
-                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group"
+                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] sm:text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto whitespace-nowrap"
                   >
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <ShieldCheck className="w-4.5 h-4.5 text-emerald-400 flex-shrink-0" />
                     <span>Duyệt tài liệu ngay</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.ADMIN_TEACHERS)}
-                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action"
+                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13.5px] sm:text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto whitespace-nowrap"
                   >
-                    <UserCheck className="w-4 h-4 text-slate-400" />
+                    <UserCheck className="w-4.5 h-4.5 text-slate-400 flex-shrink-0" />
                     <span>Quản lý Giảng viên</span>
                   </button>
                 </>
@@ -265,19 +228,19 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={onExplore}
-                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group"
+                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] sm:text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto whitespace-nowrap"
                   >
                     <span>Khám phá thư viện</span>
-                    <ArrowRight className="w-4 h-4 text-indigo-300 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4.5 h-4.5 text-indigo-300 group-hover:translate-x-1 transition-transform flex-shrink-0" />
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setIsProcessOpen(true)}
-                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action"
+                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13.5px] sm:text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto whitespace-nowrap"
                   >
-                    <span>Xem quy trình xuất bản</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Quy trình xuất bản</span>
+                    <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
                   </button>
                 </>
               )}

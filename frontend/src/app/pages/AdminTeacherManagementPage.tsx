@@ -225,41 +225,41 @@ export function AdminTeacherManagementPage() {
       )}
 
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[rgba(14,13,11,0.07)] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 border-b border-[rgba(14,13,11,0.07)] pb-4 sm:pb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-              <Users className="w-5 h-5 text-indigo-600" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+              <Users className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-[22px] font-bold text-[#0E0D0B] tracking-tight">Quản lý Giảng viên</h1>
-              <p className="text-[13px] text-[#6B6963] mt-0.5">Quản lý danh sách tài khoản, kích hoạt và cấp quyền cho giảng viên</p>
+              <h1 className="text-[20px] sm:text-[22px] font-bold text-[#0E0D0B] tracking-tight">Quản lý Giảng viên</h1>
+              <p className="text-[12px] sm:text-[13px] text-[#6B6963] mt-0.5">Quản lý danh sách tài khoản, kích hoạt và cấp quyền cho giảng viên</p>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={() => setIsCsvImportOpen(true)}
-            className="h-10 px-4 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="h-10 px-3.5 sm:px-4 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[12.5px] sm:text-[13px] font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 whitespace-nowrap"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <span>Import CSV</span>
           </button>
 
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="h-10 px-4 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs flex items-center gap-2 cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="h-10 px-3.5 sm:px-4 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[12.5px] sm:text-[13px] font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer border-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 flex-shrink-0" />
             <span>Thêm giảng viên</span>
           </button>
         </div>
       </div>
 
       {/* Filter & Search Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-[rgba(14,13,11,0.07)] shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[rgba(14,13,11,0.07)] shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Search Input */}
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-[#AAAA9F] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -281,26 +281,26 @@ export function AdminTeacherManagementPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {/* Status Filter */}
-          <div className="flex items-center bg-[#F8F7F4] p-1 rounded-xl border border-[#0E0D0B]/[0.08] text-[12px] font-medium">
+          <div className="flex-1 sm:flex-none flex items-center justify-between bg-[#F8F7F4] p-1 rounded-xl border border-[#0E0D0B]/[0.08] text-[12px] font-medium overflow-x-auto no-scrollbar">
             <button
               onClick={() => { setStatusFilter("ALL"); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-all ${statusFilter === "ALL" ? "bg-white text-[#0E0D0B] shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
+              className={`whitespace-nowrap flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-lg border-none cursor-pointer transition-all ${statusFilter === "ALL" ? "bg-white text-[#0E0D0B] shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
                 }`}
             >
               Tất cả
             </button>
             <button
               onClick={() => { setStatusFilter("ACTIVE"); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-all ${statusFilter === "ACTIVE" ? "bg-white text-emerald-700 shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
+              className={`whitespace-nowrap flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-lg border-none cursor-pointer transition-all ${statusFilter === "ACTIVE" ? "bg-white text-emerald-700 shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
                 }`}
             >
               Hoạt động
             </button>
             <button
               onClick={() => { setStatusFilter("INACTIVE"); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-all ${statusFilter === "INACTIVE" ? "bg-white text-red-700 shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
+              className={`whitespace-nowrap flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-lg border-none cursor-pointer transition-all ${statusFilter === "INACTIVE" ? "bg-white text-red-700 shadow-xs font-semibold" : "text-[#6B6963] hover:text-[#0E0D0B]"
                 }`}
             >
               Đã khóa
@@ -310,7 +310,7 @@ export function AdminTeacherManagementPage() {
           <button
             onClick={() => fetchTeachers()}
             title="Tải lại danh sách"
-            className="h-10 w-10 flex items-center justify-center bg-[#F8F7F4] hover:bg-[#F4F3F0] text-[#6B6963] hover:text-[#0E0D0B] rounded-xl border border-[#0E0D0B]/[0.08] transition-colors cursor-pointer"
+            className="h-10 w-10 flex-shrink-0 flex items-center justify-center bg-[#F8F7F4] hover:bg-[#F4F3F0] text-[#6B6963] hover:text-[#0E0D0B] rounded-xl border border-[#0E0D0B]/[0.08] transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -341,17 +341,17 @@ export function AdminTeacherManagementPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] shadow-xs overflow-hidden min-h-[240px]">
           <div className="overflow-x-auto min-h-[240px]">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[880px] text-left border-collapse">
               <thead>
                 <tr className="bg-[#F8F7F4]/70 border-b border-[rgba(14,13,11,0.06)] text-[12px] font-semibold uppercase tracking-wider text-[#6B6963]">
-                  <th className="py-3.5 px-5">Mã giảng viên</th>
-                  <th className="py-3.5 px-5">Giảng viên</th>
-                  <th className="py-3.5 px-5">Khoa / Bộ môn</th>
-                  <th className="py-3.5 px-5">Số điện thoại</th>
-                  <th className="py-3.5 px-5">Ngày sinh</th>
-                  <th className="py-3.5 px-5">Giới tính</th>
-                  <th className="py-3.5 px-5">Trạng thái</th>
-                  <th className="py-3.5 px-5 text-right">Thao tác</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Mã giảng viên</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Giảng viên</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Khoa / Bộ môn</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Số điện thoại</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Ngày sinh</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Giới tính</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Trạng thái</th>
+                  <th className="py-3.5 px-5 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(14,13,11,0.05)] text-[13px]">
@@ -370,12 +370,12 @@ export function AdminTeacherManagementPage() {
                   return (
                     <tr key={teacher.id} className="hover:bg-[#F8F7F4]/40 transition-colors group">
                       {/* Mã giảng viên */}
-                      <td className="py-3.5 px-5 font-mono-label text-[12.5px] font-semibold text-indigo-700">
+                      <td className="py-3.5 px-5 font-mono-label text-[12.5px] font-semibold text-indigo-700 whitespace-nowrap">
                         GV-{(teacher.role || "TEACHER").toUpperCase()}-{teacher.id}
                       </td>
 
                       {/* Teacher info (Avatar + Name + Email) */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {teacherAvatar ? (
                             <img
@@ -401,7 +401,7 @@ export function AdminTeacherManagementPage() {
                       </td>
 
                       {/* Department */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <span className="text-[#0E0D0B] text-[13px] font-medium flex items-center gap-1.5">
                           <Building2 className="w-3.5 h-3.5 text-[#AAAA9F]" />
                           {teacher.department || "Chưa cập nhật"}
@@ -409,7 +409,7 @@ export function AdminTeacherManagementPage() {
                       </td>
 
                       {/* Phone Number */}
-                      <td className="py-3.5 px-5 text-[#6B6963] text-[13px]">
+                      <td className="py-3.5 px-5 text-[#6B6963] text-[13px] whitespace-nowrap">
                         {teacher.phoneNumber ? (
                           <span className="flex items-center gap-1.5 font-mono-label text-[12.5px] text-[#0E0D0B]">
                             <Phone className="w-3.5 h-3.5 text-[#AAAA9F]" />
@@ -421,7 +421,7 @@ export function AdminTeacherManagementPage() {
                       </td>
 
                       {/* Date of Birth */}
-                      <td className="py-3.5 px-5 text-[#6B6963] text-[13px]">
+                      <td className="py-3.5 px-5 text-[#6B6963] text-[13px] whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-[#AAAA9F]" />
                           {teacher.dateOfBirth
@@ -431,12 +431,12 @@ export function AdminTeacherManagementPage() {
                       </td>
 
                       {/* Gender */}
-                      <td className="py-3.5 px-5 text-[#6B6963] text-[13px]">
+                      <td className="py-3.5 px-5 text-[#6B6963] text-[13px] whitespace-nowrap">
                         {formatGender(teacher.gender)}
                       </td>
 
                       {/* Status Badge */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border ${isActive
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : "bg-gray-100 text-gray-600 border-gray-200"
@@ -674,12 +674,12 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl relative z-50 text-left overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-[#F8F7F4]/50">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl relative z-50 text-left overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 bg-[#F8F7F4]/50 flex-shrink-0">
           <div>
-            <h3 className="text-[16px] font-bold text-[#0E0D0B]">Thêm giảng viên mới</h3>
+            <h3 className="text-[15.5px] sm:text-[16px] font-bold text-[#0E0D0B]">Thêm giảng viên mới</h3>
             <p className="text-[11.5px] text-[#AAAA9F]">Tạo tài khoản giảng viên đơn lẻ</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer">
@@ -687,7 +687,7 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[12.5px]">
               {error}
@@ -735,7 +735,7 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Ngày sinh
@@ -775,7 +775,7 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -840,12 +840,12 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl relative z-50 text-left overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-[#F8F7F4]/50">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl relative z-50 text-left overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 bg-[#F8F7F4]/50 flex-shrink-0">
           <div>
-            <h3 className="text-[16px] font-bold text-[#0E0D0B]">Chỉnh sửa giảng viên</h3>
+            <h3 className="text-[15.5px] sm:text-[16px] font-bold text-[#0E0D0B]">Chỉnh sửa giảng viên</h3>
             <p className="text-[11.5px] text-[#AAAA9F]">{teacher.email}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer">
@@ -853,7 +853,7 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[12.5px]">
               {error}
@@ -884,7 +884,7 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Ngày sinh
@@ -1040,12 +1040,12 @@ function BatchCsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSu
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
       <div onClick={onClose} className="fixed inset-0 bg-[#0E0D0B]/40 backdrop-blur-sm" />
-      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl relative z-50 text-left overflow-hidden max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-[#F8F7F4]/50">
+      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl relative z-50 text-left overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 bg-[#F8F7F4]/50 flex-shrink-0">
           <div>
-            <h3 className="text-[16px] font-bold text-[#0E0D0B]">Import danh sách từ CSV</h3>
+            <h3 className="text-[15.5px] sm:text-[16px] font-bold text-[#0E0D0B]">Import danh sách từ CSV</h3>
             <p className="text-[11.5px] text-[#AAAA9F]">Frontend tự chuyển đổi file CSV sang dữ liệu gửi API</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer">
@@ -1053,7 +1053,7 @@ function BatchCsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSu
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[12.5px]">
               {error}

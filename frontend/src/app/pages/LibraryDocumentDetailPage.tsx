@@ -46,6 +46,9 @@ export function LibraryDocumentDetailPage({
   const [activeQuizForPreview, setActiveQuizForPreview] = useState<QuizResponse | null>(null);
   const [publishedQuizForShare, setPublishedQuizForShare] = useState<QuizResponse | null>(null);
 
+  // Mobile View Tab state
+  const [mobileTab, setMobileTab] = useState<"metadata" | "ai">("metadata");
+
   const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleDownload = async () => {
@@ -147,7 +150,7 @@ export function LibraryDocumentDetailPage({
   const ragEligible = canUseDocumentRag(doc);
 
   return (
-    <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
+    <div className="w-full flex flex-col min-h-0 lg:h-[calc(100vh-100px)] text-left pb-10 sm:pb-0 font-sans">
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#0E0D0B] text-white px-4 py-2 rounded-xl text-[14.5px] flex items-center gap-2 shadow-lg animate-[slide-down_200ms_ease-out]">
           <Check className="w-4 h-4 text-emerald-400" />
@@ -177,10 +180,10 @@ export function LibraryDocumentDetailPage({
       )}
 
       {/* Top Navigation Bar & Actions */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between gap-2.5 mb-3.5 sm:mb-5">
         <button
           onClick={handleBack}
-          className="flex items-center gap-1.5 text-[13.5px] font-medium text-slate-500 hover:text-black transition-colors border-none bg-transparent cursor-pointer font-action"
+          className="flex items-center gap-1.5 text-[13px] sm:text-[13.5px] font-medium text-slate-500 hover:text-black transition-colors border-none bg-transparent cursor-pointer font-action"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Trở về thư viện
         </button>
@@ -188,27 +191,60 @@ export function LibraryDocumentDetailPage({
         {ragEligible && user?.role === "teacher" && (
           <button
             onClick={() => setIsQuizGenerateOpen(true)}
-            className="h-8.5 px-3.5 flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action shadow-xs"
+            className="h-8 sm:h-9 px-3 sm:px-4 flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-[12px] sm:text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action shadow-xs"
           >
             <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            Tạo Quiz AI từ tài liệu này
+            <span className="hidden sm:inline">Tạo Quiz AI từ tài liệu này</span>
+            <span className="sm:hidden">Tạo Quiz AI</span>
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+      {/* Mobile View Tab Switcher (Only visible on < lg screens) */}
+      <div className="flex lg:hidden items-center p-1 bg-[#F4F3F0] rounded-2xl border border-[#0E0D0B]/[0.08] mb-3.5">
+        <button
+          type="button"
+          onClick={() => setMobileTab("metadata")}
+          className={`flex-1 py-2 text-center text-[12px] font-bold rounded-xl transition-all border-none cursor-pointer font-action ${
+            mobileTab === "metadata"
+              ? "bg-white text-[#0E0D0B] shadow-xs"
+              : "text-[#6B6963] hover:text-[#0E0D0B]"
+          }`}
+        >
+          📄 Thông tin học liệu
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("ai")}
+          className={`flex-1 py-2 text-center text-[12px] font-bold rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-1.5 font-action ${
+            mobileTab === "ai"
+              ? "bg-white text-[#4F63D2] shadow-xs"
+              : "text-[#6B6963] hover:text-[#0E0D0B]"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#4F63D2]" />
+          <span>Hỏi đáp AI Workspace</span>
+          {ragEligible && (
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          )}
+        </button>
+      </div>
 
-        {/* Left Column: Metadata & Actions - 32-35% equivalent */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4.5 overflow-y-auto pr-1 scrollbar-hide">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 flex-1 min-h-0">
+
+        {/* Left Column: Metadata & Actions - Visible on mobile when mobileTab === 'metadata', always visible on lg */}
+        <div className={`lg:col-span-5 xl:col-span-4 flex-col gap-4 sm:gap-4.5 lg:overflow-y-auto pr-0 lg:pr-1 scrollbar-hide ${
+          mobileTab === "metadata" ? "flex" : "hidden lg:flex"
+        }`}>
           {/* 1. Document summary */}
-          <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-6 shadow-premium">
-            <div className="w-12 h-12 rounded-xl bg-[#F4F3F0] flex items-center justify-center mb-4">
+          <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-5 sm:p-6 shadow-premium">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#F4F3F0] flex items-center justify-center mb-3.5 sm:mb-4">
               <FileText className="w-5 h-5 text-[#6B6963]" />
             </div>
-            <h1 className="text-[24px] font-semibold text-[#0E0D0B] leading-snug mb-3">
+            <h1 className="text-[20px] sm:text-[24px] font-bold text-[#0E0D0B] leading-snug mb-2 sm:mb-3">
               {doc.title}
             </h1>
-            <p className="text-[14.5px] text-[#6B6963] leading-relaxed font-sans">
+            <p className="text-[13.5px] sm:text-[14.5px] text-[#6B6963] leading-relaxed font-sans">
               {doc.description || "Chưa có mô tả chi tiết."}
             </p>
           </div>
@@ -217,30 +253,30 @@ export function LibraryDocumentDetailPage({
           <DocumentMetadataPanel doc={doc} isOwner={false} />
 
           {/* 3 & 4. File Information + Actions */}
-          <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-6 shadow-premium text-left">
-            <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-4 font-sans-body">Tệp tài liệu gốc</h3>
+          <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-5 sm:p-6 shadow-premium text-left">
+            <h3 className="text-[16px] sm:text-[17px] font-semibold text-[#0E0D0B] mb-3.5 sm:mb-4 font-sans-body">Tệp tài liệu gốc</h3>
             <div className="space-y-3.5">
               <div>
-                <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Tên file gốc</p>
-                <p className="text-[14px] text-[#0E0D0B] font-medium break-all font-sans">{doc.originalFilename || "source.pdf"}</p>
+                <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Tên file gốc</p>
+                <p className="text-[13.5px] sm:text-[14px] text-[#0E0D0B] font-medium break-all font-sans">{doc.originalFilename || "source.pdf"}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Định dạng & Dung lượng</p>
-                  <p className="text-[13.5px] text-[#0E0D0B] font-medium">{doc.fileType} · {doc.fileSize}</p>
+                  <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Định dạng & Dung lượng</p>
+                  <p className="text-[13px] sm:text-[13.5px] text-[#0E0D0B] font-medium">{doc.fileType} · {doc.fileSize}</p>
                 </div>
                 <div>
-                  <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Phiên bản</p>
-                  <p className="text-[13.5px] text-[#0E0D0B] font-medium">Bản v{doc.fileVersion || 1}</p>
+                  <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Phiên bản</p>
+                  <p className="text-[13px] sm:text-[13.5px] text-[#0E0D0B] font-medium">Bản v{doc.fileVersion || 1}</p>
                 </div>
               </div>
               <div>
-                <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Cập nhật lần cuối</p>
-                <p className="text-[13.5px] text-[#0E0D0B] font-medium">{doc.updatedAt}</p>
+                <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Cập nhật lần cuối</p>
+                <p className="text-[13px] sm:text-[13.5px] text-[#0E0D0B] font-medium">{doc.updatedAt}</p>
               </div>
 
-              {/* File Information Actions: compact, side by side */}
-              <div className="flex gap-3 pt-2.5">
+              {/* File Information Actions: full width stack on mobile, side by side on desktop */}
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-2.5">
                 <button
                   onClick={handlePreview}
                   disabled={isPreviewing}
@@ -271,22 +307,24 @@ export function LibraryDocumentDetailPage({
           </div>
         </div>
 
-        {/* Right Column: Scoped RAG Chat or Non-RAG Notice Card */}
-        <div className="lg:col-span-7 xl:col-span-8 h-[520px] min-h-0 lg:h-full">
+        {/* Right Column: Scoped RAG Chat or Non-RAG Notice Card - Visible on mobile when mobileTab === 'ai', always visible on lg */}
+        <div className={`lg:col-span-7 xl:col-span-8 flex-1 flex flex-col min-h-0 ${
+          mobileTab === "ai" ? "block w-full" : "hidden lg:flex"
+        }`}>
           {!user ? (
-            <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-premium">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4 text-indigo-600">
-                <Sparkles className="w-7 h-7 animate-pulse" />
+            <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-premium">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3.5 sm:mb-4 text-indigo-600">
+                <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 animate-pulse" />
               </div>
-              <h2 className="text-[19px] font-bold text-[#0E0D0B] mb-2 font-sans-body">
+              <h2 className="text-[17px] sm:text-[19px] font-bold text-[#0E0D0B] mb-2 font-sans-body">
                 Trợ lý Hỏi đáp AI Workspace
               </h2>
-              <p className="text-[14px] text-[#6B6963] max-w-[460px] leading-relaxed mb-6 font-sans">
+              <p className="text-[13px] sm:text-[14px] text-[#6B6963] max-w-[460px] leading-relaxed mb-5 sm:mb-6 font-sans">
                 Tính năng Hỏi đáp AI chuyên sâu và Trích xuất kiến thức tự động dành riêng cho tài khoản Giảng viên.
               </p>
               <button
                 onClick={() => navigate(ROUTES.LOGIN)}
-                className="h-10 px-6 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action flex items-center gap-2"
+                className="h-10 px-5 sm:px-6 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] sm:text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Sparkles className="w-4 h-4 text-indigo-400" />
                 Đăng nhập để sử dụng AI Workspace
@@ -295,27 +333,27 @@ export function LibraryDocumentDetailPage({
           ) : ragEligible ? (
             <RagChatPanel document={doc} isEligible={true} />
           ) : (
-            <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-premium">
-              <div className="w-14 h-14 rounded-2xl bg-[#F4F3F0] flex items-center justify-center mb-4">
-                <FileText className="w-7 h-7 text-[#6B6963]" />
+            <div className="h-full bg-white border border-[#0E0D0B]/[0.06] rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-premium">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F4F3F0] flex items-center justify-center mb-3.5 sm:mb-4">
+                <FileText className="w-6 h-6 sm:w-7 sm:h-7 text-[#6B6963]" />
               </div>
-              <h2 className="text-[19px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">
+              <h2 className="text-[17px] sm:text-[19px] font-semibold text-[#0E0D0B] mb-2 font-sans-body">
                 Tài liệu đọc & tải trực tiếp
               </h2>
-              <p className="text-[14px] text-[#6B6963] max-w-[460px] leading-relaxed mb-6 font-sans">
+              <p className="text-[13px] sm:text-[14px] text-[#6B6963] max-w-[460px] leading-relaxed mb-5 sm:mb-6 font-sans">
                 Tài liệu này được lưu trữ trong Thư viện để phục vụ xem trực tuyến và tải về. Tính năng Hỏi đáp AI (RAG) không khả dụng đối với định dạng hoặc nội dung của tệp này.
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                 <button
                   onClick={handlePreview}
                   disabled={isPreviewing}
-                  className="h-10 px-5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13.5px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
+                  className="w-full sm:w-auto h-10 px-5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] sm:text-[13.5px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
                 >
                   {isPreviewing ? "Đang tải..." : "Xem nội dung trực tuyến"}
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="h-10 px-5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action flex items-center gap-2"
+                  className="w-full sm:w-auto h-10 px-5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] sm:text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                   Tải file gốc
