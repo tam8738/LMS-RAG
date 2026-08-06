@@ -1,23 +1,21 @@
 package com.lmsrag.backend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.lmsrag.backend.config.CustomUserDetails;
 import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.document.DocumentCreateRequest;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentUpdateRequest;
 import com.lmsrag.backend.dto.document.DocumentFilterRequest;
-import com.lmsrag.backend.enums.AiProcessingStatus;
-import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
-import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +32,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -44,16 +41,16 @@ import java.util.stream.Collectors;
 public class DocumentController {
 
     private final DocumentService documentService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     @Operation(summary = "Upload tài liệu kèm metadata")
     @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DocumentResponse>> uploadDocument(
             @RequestParam("file") @NotNull MultipartFile file,
             @RequestParam("metadata") @NotNull String metadataJson) {
-        log.info("[CONTROLLER] Nhận request upload document | fileName={} | fileSize={} bytes | metadataJson={}",
-                file.getOriginalFilename(), file.getSize(), metadataJson);
+        log.info("[CONTROLLER] Nhận request upload document | fileName={} | fileSize={} bytes | metadataLength={}",
+                file.getOriginalFilename(), file.getSize(), metadataJson.length());
 
         DocumentCreateRequest metadata = parseMetadata(metadataJson);
         DocumentResponse response = documentService.uploadDocument(file, metadata);
@@ -67,25 +64,20 @@ public class DocumentController {
             throw new AppException(ErrorCode.METADATA_REQUIRED);
         }
 
+        DocumentCreateRequest metadata;
         try {
-            DocumentCreateRequest metadata = objectMapper.readValue(metadataJson, DocumentCreateRequest.class);
-
-            Set<ConstraintViolation<DocumentCreateRequest>> violations = validator.validate(metadata);
-            if (!violations.isEmpty()) {
-                String details = violations.stream()
-                        .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                        .collect(Collectors.joining(", "));
-                log.warn("[CONTROLLER] Metadata validation failed | details={}", details);
-                throw new AppException(ErrorCode.INVALID_INPUT);
-            }
-
-            return metadata;
-        } catch (AppException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("[CONTROLLER] Không thể parse metadata JSON | error={}", e.getMessage());
+            metadata = objectMapper.readValue(metadataJson, DocumentCreateRequest.class);
+        } catch (JacksonException e) {
+            log.warn("[CONTROLLER] Không thể parse metadata JSON | cause={}",
+                    e.getClass().getSimpleName());
             throw new AppException(ErrorCode.INVALID_INPUT);
         }
+
+        Set<ConstraintViolation<DocumentCreateRequest>> violations = validator.validate(metadata);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException("Document metadata validation failed", violations);
+        }
+        return metadata;
     }
 
     /**
@@ -101,14 +93,8 @@ public class DocumentController {
      *   <li><b>Phân trang</b>: {@code page}, {@code size}, {@code sort} — Spring Pageable chuẩn</li>
      * </ul>
      *
-     * @param q                 Từ khóa tìm kiếm tự do (optional)
-     * @param processingStatus  Lọc theo trạng thái xử lý AI (optional)
-     * @param publicationStatus Lọc theo trạng thái công bố (optional)
-     * @param subject           Lọc theo môn học (optional, khớp chính xác)
-     * @param topic             Lọc theo chủ đề (optional, khớp một phần)
-     * @param chapter           Lọc theo chương (optional, khớp một phần)
-     * @param tags              Lọc theo tags (optional, phân cách bởi dấu phẩy)
-     * @param pageable          Thông tin phân trang (page, size, sort)
+     * @param filter   Điều kiện tìm kiếm và lọc tài liệu
+     * @param pageable Thông tin phân trang (page, size, sort)
      */
     @Operation(
             summary = "Lấy danh sách tài liệu của tôi",
@@ -117,43 +103,13 @@ public class DocumentController {
     )
     @GetMapping("/my/documents")
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getMyDocuments(
-            @Parameter(description = "Từ khóa tìm kiếm trong title/description/subject/topic/chapter")
-            @RequestParam(required = false) String q,
-
-            @Parameter(description = "Lọc theo trạng thái AI xử lý: UPLOADED | ANALYZING | ANALYZED | PROCESSING | PROCESSED | FAILED")
-            @RequestParam(required = false) AiProcessingStatus processingStatus,
-
-            @Parameter(description = "Lọc theo trạng thái công bố: DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | ARCHIVED")
-            @RequestParam(required = false) PublicationStatus publicationStatus,
-
-            @Parameter(description = "Lọc theo môn học (khớp chính xác)")
-            @RequestParam(required = false) String subject,
-
-            @Parameter(description = "Lọc theo chủ đề (khớp một phần, không phân biệt hoa thường)")
-            @RequestParam(required = false) String topic,
-
-            @Parameter(description = "Lọc theo chương (khớp một phần, không phân biệt hoa thường)")
-            @RequestParam(required = false) String chapter,
-
-            @Parameter(description = "Lọc theo tags, phân cách bởi dấu phẩy. Ví dụ: database,sql")
-            @RequestParam(required = false) String tags,
-
+            @Valid @ModelAttribute DocumentFilterRequest filter,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         log.info("[CONTROLLER] GET /my/documents | q={} | processingStatus={} | publicationStatus={} | subject={} | topic={} | chapter={} | tags={} | page={} | size={}",
-                q, processingStatus, publicationStatus, subject, topic, chapter, tags,
+                filter.getQ(), filter.getProcessingStatus(), filter.getPublicationStatus(),
+                filter.getSubject(), filter.getTopic(), filter.getChapter(), filter.getTags(),
                 pageable.getPageNumber(), pageable.getPageSize());
-
-        // Đóng gói các tham số filter vào DTO để truyền xuống service
-        // uploadedBy không set ở đây, service tự lấy từ current user
-        DocumentFilterRequest filter = new DocumentFilterRequest();
-        filter.setQ(q);
-        filter.setProcessingStatus(processingStatus);
-        filter.setPublicationStatus(publicationStatus);
-        filter.setSubject(subject);
-        filter.setTopic(topic);
-        filter.setChapter(chapter);
-        filter.setTags(tags);
 
         Page<DocumentResponse> response = documentService.getMyDocuments(filter, pageable);
 

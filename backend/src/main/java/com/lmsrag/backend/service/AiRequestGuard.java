@@ -4,6 +4,7 @@ import com.lmsrag.backend.config.AiGuardProperties;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -34,6 +35,7 @@ public class AiRequestGuard {
     private final Map<Long, RateWindow> rateWindows = new ConcurrentHashMap<>();
     private final AtomicLong requestCounter = new AtomicLong();
 
+    @Autowired
     public AiRequestGuard(AiGuardProperties properties) {
         this(properties, System::nanoTime);
     }
