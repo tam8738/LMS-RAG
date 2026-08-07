@@ -33,11 +33,15 @@ services:
       - pgdata:/var/lib/postgresql/data
 
     healthcheck:
-      # Chỉ báo healthy khi PostgreSQL sẵn sàng nhận kết nối
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}" ]
+      # Dùng psql thực sự execute query để đảm bảo Postgres hoàn toàn sẵn sàng,
+      # bao gồm cả xác thực mật khẩu - chính xác hơn pg_isready.
+      # start_period: cho Postgres thêm thời gian khởi động sau khi server reboot
+      # trước khi bắt đầu đếm retries.
+      test: [ "CMD-SHELL", "psql -U ${DB_USERNAME} -d ${DB_NAME} -c 'SELECT 1' -q --no-psqlrc" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
     networks:
       - lms-network
@@ -99,6 +103,14 @@ services:
       # ========= Spring =========
       SPRING_PROFILES_ACTIVE: docker
 
+      # Bound the JVM heap so Backend cannot starve the other services.
+      JAVA_TOOL_OPTIONS: ${BACKEND_JAVA_TOOL_OPTIONS:--Xms128m -Xmx512m -XX:+ExitOnOutOfMemoryError}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
+      SERVER_MAX_THREADS: ${SERVER_MAX_THREADS:-50}
+      SERVER_MIN_SPARE_THREADS: ${SERVER_MIN_SPARE_THREADS:-2}
+      DOCUMENT_LOG_LEVEL: ${DOCUMENT_LOG_LEVEL:-INFO}
+
       # ========= CORS =========
       # Cần bao gồm URL public của frontend khi triển khai thực tế,
       # ví dụ: http://14.225.172.55:5173
@@ -107,6 +119,10 @@ services:
     ports:
       # Truy cập API
       - "8081:8080"
+
+    # Runtime guardrails; override in .env after load testing.
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-1g}
+    cpus: ${BACKEND_CPU_LIMIT:-1.5}
 
     volumes:
       # Shared storage với AI Service
@@ -207,6 +223,10 @@ services:
     image: dpage/pgadmin4
     container_name: lms-rag-pgadmin
 
+    # Development/operations tool. Start explicitly with:
+    # docker compose --profile tools up -d pgadmin
+    profiles: [ "tools" ]
+
     restart: unless-stopped
 
     environment:
@@ -215,6 +235,9 @@ services:
 
     ports:
       - "5050:80"
+
+    mem_limit: ${PGADMIN_MEMORY_LIMIT:-512m}
+    cpus: ${PGADMIN_CPU_LIMIT:-0.5}
 
     depends_on:
       postgres:

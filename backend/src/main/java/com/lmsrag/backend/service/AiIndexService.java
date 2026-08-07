@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.CompletionException;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,9 +31,19 @@ public class AiIndexService {
      */
     public void requestIndexAsync(Document document, DocumentProcessingJob job) {
         aiServiceClient.indexDocumentAsync(document)
-                .subscribe(
-                        result -> resultHandler.handleSuccess(document.getId(), job.getId(), result),
-                        error -> resultHandler.handleFailure(document.getId(), job.getId(), error)
-                );
+                .whenComplete((result, error) -> {
+                    if (error == null) {
+                        resultHandler.handleSuccess(document.getId(), job.getId(), result);
+                    } else {
+                        resultHandler.handleFailure(document.getId(), job.getId(), unwrap(error));
+                    }
+                });
+    }
+
+    private static Throwable unwrap(Throwable error) {
+        if (error instanceof CompletionException && error.getCause() != null) {
+            return error.getCause();
+        }
+        return error;
     }
 }

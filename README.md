@@ -116,7 +116,13 @@ Môi trường:
 Backend, AI Service và database:
 
 ```powershell
-docker compose up -d postgres backend ai-service pgadmin
+docker compose up -d postgres backend ai-service
+```
+
+Chỉ bật pgAdmin khi cần quản trị database:
+
+```powershell
+docker compose --profile tools up -d pgadmin
 ```
 
 Frontend:
