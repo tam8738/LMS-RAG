@@ -26,5 +26,8 @@ public class DocumentCreateRequest {
     @Size(max = 100, message = "Chapter tối đa 100 ký tự")
     private String chapter;
 
-    private List<String> tags = new ArrayList<>();
+    @Size(max = 20, message = "Tài liệu chỉ được có tối đa 20 tags")
+    private List<
+            @NotBlank(message = "Tag không được để trống")
+            @Size(max = 100, message = "Mỗi tag tối đa 100 ký tự") String> tags = new ArrayList<>();
 }

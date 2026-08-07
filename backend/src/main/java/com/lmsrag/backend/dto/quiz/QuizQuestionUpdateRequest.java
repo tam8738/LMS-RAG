@@ -3,6 +3,7 @@ package com.lmsrag.backend.dto.quiz;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -13,6 +14,7 @@ import java.util.List;
 public class QuizQuestionUpdateRequest {
 
     @NotNull(message = "Question ID không được để trống")
+    @Positive(message = "Question ID phải là số nguyên dương")
     private Long id;
 
     @Size(max = 1000, message = "Nội dung câu hỏi tối đa 1000 ký tự")

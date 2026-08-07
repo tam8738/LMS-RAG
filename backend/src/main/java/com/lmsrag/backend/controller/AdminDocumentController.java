@@ -4,8 +4,6 @@ import com.lmsrag.backend.dto.ApiResponse;
 import com.lmsrag.backend.dto.document.DocumentResponse;
 import com.lmsrag.backend.dto.document.DocumentFilterRequest;
 import com.lmsrag.backend.dto.document.RejectReviewRequest;
-import com.lmsrag.backend.enums.AiProcessingStatus;
-import com.lmsrag.backend.enums.PublicationStatus;
 import com.lmsrag.backend.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,26 +30,8 @@ public class AdminDocumentController {
     @Operation(summary = "Lấy danh sách tài liệu đã gửi duyệt (không bao gồm tài liệu nháp DRAFT)")
     @GetMapping("/documents")
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getAdminDocuments(
-            @RequestParam(required = false) String q,
-            @RequestParam(required = false) AiProcessingStatus processingStatus,
-            @RequestParam(required = false) PublicationStatus publicationStatus,
-            @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String topic,
-            @RequestParam(required = false) String chapter,
-            @RequestParam(required = false) String tags,
-            @RequestParam(required = false) Long uploadedBy,
+            @Valid @ModelAttribute DocumentFilterRequest filter,
             @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        // Dùng DocumentFilterRequest - DTO dùng chung cho cả Teacher và Admin
-        DocumentFilterRequest filter = new DocumentFilterRequest();
-        filter.setQ(q);
-        filter.setProcessingStatus(processingStatus);
-        filter.setPublicationStatus(publicationStatus);
-        filter.setSubject(subject);
-        filter.setTopic(topic);
-        filter.setChapter(chapter);
-        filter.setTags(tags);
-        filter.setUploadedBy(uploadedBy);
-
         Page<DocumentResponse> response = documentService.getAdminDocuments(filter, pageable);
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách tài liệu hệ thống thành công"));
     }

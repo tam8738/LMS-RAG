@@ -1,6 +1,7 @@
 package com.lmsrag.backend.dto.request.profile;
 
 import com.lmsrag.backend.enums.Gender;
+import com.lmsrag.backend.validation.ValidationPatterns;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -18,7 +19,7 @@ public record ProfileUpdateRequest(
         Gender gender,
 
         @Pattern(
-                regexp = "^\\+?[0-9]{9,15}$",
+                regexp = ValidationPatterns.PHONE_NUMBER,
                 message = "Số điện thoại phải gồm 9 đến 15 chữ số"
         )
         String phoneNumber

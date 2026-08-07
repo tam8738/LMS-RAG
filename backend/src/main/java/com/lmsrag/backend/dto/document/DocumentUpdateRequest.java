@@ -1,15 +1,19 @@
 package com.lmsrag.backend.dto.document;
 
+import com.lmsrag.backend.validation.ValidationPatterns;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Data
 public class DocumentUpdateRequest {
 
     @Size(max = 255, message = "Tiêu đề tối đa 255 ký tự")
+    @Pattern(regexp = ValidationPatterns.NON_BLANK_IF_PRESENT,
+            message = "Tiêu đề không được chỉ chứa khoảng trắng")
     private String title;
 
     @Size(max = 5000, message = "Mô tả tối đa 5000 ký tự")
@@ -24,5 +28,8 @@ public class DocumentUpdateRequest {
     @Size(max = 100, message = "Chapter tối đa 100 ký tự")
     private String chapter;
 
-    private List<String> tags = new ArrayList<>();
+    @Size(max = 20, message = "Tài liệu chỉ được có tối đa 20 tags")
+    private List<
+            @NotBlank(message = "Tag không được để trống")
+            @Size(max = 100, message = "Mỗi tag tối đa 100 ký tự") String> tags;
 }

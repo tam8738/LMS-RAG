@@ -2,6 +2,7 @@ package com.lmsrag.backend.dto.request.admin.teacher;
 
 import com.lmsrag.backend.enums.Gender;
 import com.lmsrag.backend.enums.UserRole;
+import com.lmsrag.backend.validation.ValidationPatterns;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -37,10 +38,11 @@ public record TeacherCreateRequest(
         Gender gender,
 
         @Schema(description = "Khoa hoặc bộ môn", example = "Công nghệ thông tin")
-        @Size(max = 255) String department,
+        @Size(max = 255)
+        String department,
 
         @Schema(description = "Số điện thoại", example = "0901234567")
-        @Pattern(regexp = "^\\+?[0-9]{9,15}$", message = "Số điện thoại không hợp lệ")
+        @Pattern(regexp = ValidationPatterns.PHONE_NUMBER, message = "Số điện thoại không hợp lệ")
         String phoneNumber,
 
         @Schema(description = "Ngày bắt đầu công tác", example = "2026-07-22")
