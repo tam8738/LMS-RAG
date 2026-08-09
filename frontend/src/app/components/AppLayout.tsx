@@ -67,7 +67,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   // Profile info states
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [fullName, setFullName] = useState(user?.name || "");
-  const [department, setDepartment] = useState(user?.department || "Khoa Công nghệ Thông tin");
+  const [department, setDepartment] = useState(user?.department || "");
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">(user?.gender || "MALE");
   const [dateOfBirth, setDateOfBirth] = useState(formatIsoToVietnameseDate(user?.dateOfBirth));
@@ -113,7 +113,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       try {
         const profile = await authService.getProfile();
         setFullName(profile.name || user.name || "");
-        setDepartment(profile.department || user.department || "Khoa Công nghệ Thông tin");
+        setDepartment(profile.department || user.department || "");
         setPhoneNumber(profile.phoneNumber || user.phoneNumber || "");
         if (profile.gender) setGender(profile.gender);
         if (profile.dateOfBirth) setDateOfBirth(formatIsoToVietnameseDate(profile.dateOfBirth));
@@ -152,7 +152,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       return;
     }
     setFullName(user.name);
-    if (user.department) setDepartment(user.department);
+    setDepartment(user.department || "");
     if (user.phoneNumber) setPhoneNumber(user.phoneNumber);
     if (user.gender) setGender(user.gender);
     if (user.dateOfBirth) setDateOfBirth(formatIsoToVietnameseDate(user.dateOfBirth));
@@ -192,8 +192,24 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     }
   };
 
+  // Check if profile form has any dirty (changed) fields compared to current user data
+  const initialDobVietnamese = formatIsoToVietnameseDate(user?.dateOfBirth);
+  const isProfileDirty = Boolean(
+    user && (
+      fullName.trim() !== (user.name || "").trim() ||
+      (phoneNumber || "").trim() !== (user.phoneNumber || "").trim() ||
+      (gender || "MALE") !== (user.gender || "MALE") ||
+      (dateOfBirth || "").trim() !== (initialDobVietnamese || "").trim()
+    )
+  );
+
   const handleSaveProfile = async () => {
     if (!user) return;
+    if (!isProfileDirty) {
+      showToast("Không có thông tin nào thay đổi để cập nhật.", "info");
+      return;
+    }
+
     if (!fullName.trim()) {
       showToast("Họ tên không được để trống!", "error");
       return;
@@ -221,7 +237,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       const userWithAvatar: User = {
         ...user,
         ...updatedUser,
-        department: department,
+        department: user.department || updatedUser.department || department,
         avatarUrl: avatarPreview || user.avatarUrl || localStorage.getItem(`user_avatar_${user.id}`) || undefined
       };
       onUpdateUser?.(userWithAvatar);
@@ -241,8 +257,8 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
       showToast("Mật khẩu mới và xác nhận mật khẩu không khớp.", "error");
       return;
     }
-    if (newPassword.length < 6) {
-      showToast("Mật khẩu mới phải có ít nhất 6 ký tự.", "error");
+    if (newPassword.length < 8) {
+      showToast("Mật khẩu mới phải có ít nhất 8 ký tự.", "error");
       return;
     }
 
@@ -828,18 +844,31 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                       </div>
                     </div>
 
-                    <div>
-                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                        {user?.role === "admin" ? "Khoa / Phòng ban" : "Khoa / Bộ môn"}
-                      </label>
-                      <input
-                        type="text"
-                        value={department}
-                        onChange={e => setDepartment(e.target.value)}
-                        placeholder="Khoa Công nghệ Thông tin"
-                        className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          {user?.role === "admin" ? "Khoa / Phòng ban" : "Khoa / Bộ môn"}
+                        </label>
+                        <input
+                          type="text"
+                          value={department || "Chưa cập nhật"}
+                          disabled
+                          className="w-full h-10 sm:h-10.5 border border-slate-200/80 rounded-xl px-3.5 text-[13.5px] text-slate-500 bg-slate-100/70 cursor-not-allowed outline-none font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          Ngày vào làm
+                        </label>
+                        <input
+                          type="text"
+                          value={hireDate ? formatDate(hireDate) : "Chưa cập nhật"}
+                          disabled
+                          className="w-full h-10 sm:h-10.5 border border-slate-200/80 rounded-xl px-3.5 text-[13.5px] text-slate-500 bg-slate-100/70 cursor-not-allowed outline-none font-medium"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -873,29 +902,15 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          Ngày sinh
-                        </label>
-                        <VietnameseDateInput
-                          value={dateOfBirth}
-                          onChange={setDateOfBirth}
-                        />
-                      </div>
-                      <div>
-                        <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          Ngày vào làm
-                        </label>
-                        <input
-                          type="text"
-                          value={hireDate ? formatDate(hireDate) : "Chưa cập nhật"}
-                          disabled
-                          className="w-full h-10 sm:h-10.5 border border-slate-200/80 rounded-xl px-3.5 text-[13.5px] text-slate-500 bg-slate-100/70 cursor-not-allowed outline-none font-medium"
-                        />
-                      </div>
+                    <div>
+                      <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        Ngày sinh
+                      </label>
+                      <VietnameseDateInput
+                        value={dateOfBirth}
+                        onChange={setDateOfBirth}
+                      />
                     </div>
                   </div>
 
@@ -910,8 +925,8 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                     <button
                       type="button"
                       onClick={handleSaveProfile}
-                      disabled={isSavingProfile}
-                      className="h-10 sm:h-11 px-5 sm:px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13px] sm:text-[13.5px] font-bold rounded-xl transition-all shadow-md hover:shadow-lg border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 font-action"
+                      disabled={isSavingProfile || !isProfileDirty}
+                      className="h-10 sm:h-11 px-5 sm:px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13px] sm:text-[13.5px] font-bold rounded-xl transition-all shadow-md hover:shadow-lg border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed font-action"
                     >
                       {isSavingProfile ? (
                         <>
@@ -963,7 +978,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
                         autoComplete="new-password"
-                        placeholder="Tối thiểu 6 ký tự"
+                        placeholder="Tối thiểu 8 ký tự"
                         className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
                       />
                     </div>
