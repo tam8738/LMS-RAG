@@ -415,17 +415,19 @@ export function MyDocumentsPage({
             if (!val) return null;
             let label = val;
             if (key === "processingStatus") {
-              if (val === "PROCESSED") label = "AI Active";
-              else if (val === "ANALYZING") label = "AI Analyzing";
-              else if (val === "PROCESSING") label = "RAG Indexing";
-              else if (val === "FAILED") label = "AI Lỗi";
+              if (val === "PROCESSED") label = "RAG Sẵn sàng";
+              else if (val === "ANALYZED") label = "Đã phân tích";
+              else if (val === "ANALYZING") label = "Đang phân tích AI";
+              else if (val === "PROCESSING") label = "Đang nạp RAG";
+              else if (val === "UPLOADED") label = "Đã tải lên";
+              else if (val === "FAILED") label = "Lỗi xử lý AI";
             }
             if (key === "publicationStatus") {
               if (val === "DRAFT") label = "Bản nháp";
               else if (val === "PENDING_REVIEW") label = "Chờ duyệt";
               else if (val === "PUBLISHED") label = "Đã xuất bản";
-              else if (val === "REJECTED") label = "Từ chối";
-              else if (val === "ARCHIVED") label = "Lưu trữ";
+              else if (val === "REJECTED") label = "Bị từ chối";
+              else if (val === "ARCHIVED") label = "Đã lưu trữ";
             }
             return (
               <span
@@ -527,15 +529,21 @@ export function MyDocumentsPage({
 
                       {/* AI Status column */}
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md border ${isAiReady ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
-                            isProcessing ? "text-amber-700 bg-amber-50 border-amber-100" :
-                              isFailed ? "text-red-700 bg-red-50 border-red-100" : "text-slate-500 bg-slate-50 border-transparent"
-                          }`}>
-                          {isProcessing && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />}
-                          {doc.processingStatus === "PROCESSED" ? "RAG Sẵn sàng" :
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md border ${
+                          doc.ragEligible === false ? "text-slate-600 bg-slate-100 border-slate-200" :
+                          doc.processingStatus === "PROCESSED" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
+                          isProcessing ? "text-amber-700 bg-amber-50 border-amber-100" :
+                          isFailed ? "text-red-700 bg-red-50 border-red-100" :
+                          doc.processingStatus === "ANALYZED" ? "text-indigo-700 bg-indigo-50 border-indigo-100" :
+                          "text-slate-500 bg-slate-50 border-transparent"
+                        }`}>
+                          {doc.ragEligible !== false && isProcessing && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />}
+                          {doc.ragEligible === false ? "Không hỗ trợ RAG" :
+                            doc.processingStatus === "PROCESSED" ? "RAG Sẵn sàng" :
                             doc.processingStatus === "ANALYZING" ? "AI Phân tích" :
-                              doc.processingStatus === "PROCESSING" ? "Nạp RAG" :
-                                doc.processingStatus === "FAILED" ? "AI Thất bại" : "Chờ xử lý"}
+                            doc.processingStatus === "PROCESSING" ? "Nạp RAG" :
+                            doc.processingStatus === "ANALYZED" ? "Khả dụng RAG" :
+                            doc.processingStatus === "FAILED" ? "AI Thất bại" : "Đã tải lên"}
                         </span>
                       </td>
 

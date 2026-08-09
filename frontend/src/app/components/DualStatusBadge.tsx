@@ -4,13 +4,18 @@ import { Loader2 } from "lucide-react";
 
 export function DualStatusBadge({ 
   processing, 
-  publication 
+  publication,
+  ragEligible
 }: { 
   processing: ProcessingStatus; 
   publication: PublicationStatus;
+  ragEligible?: boolean;
 }) {
   
   const getProcessingStyle = () => {
+    if (ragEligible === false) {
+      return "text-slate-600 bg-slate-100 border-slate-200";
+    }
     switch (processing) {
       case "UPLOADED": return "text-[#6B6963] bg-[#F4F3F0]";
       case "ANALYZING": return "text-amber-700 bg-amber-50 border-amber-200";
@@ -32,13 +37,16 @@ export function DualStatusBadge({
   };
 
   const getProcessingLabel = () => {
+    if (ragEligible === false) {
+      return "Không hỗ trợ RAG";
+    }
     switch (processing) {
       case "UPLOADED": return "Đã tải lên";
       case "ANALYZING": return "Đang phân tích AI";
-      case "ANALYZED": return "Đã phân tích AI";
-      case "PROCESSING": return "Đang xử lý AI";
-      case "PROCESSED": return "Đã xử lý";
-      case "FAILED": return "Lỗi xử lý";
+      case "ANALYZED": return publication === "DRAFT" || publication === "PENDING_REVIEW" ? "Khả dụng RAG" : "Đã phân tích AI";
+      case "PROCESSING": return "Đang nạp RAG";
+      case "PROCESSED": return "RAG Sẵn sàng";
+      case "FAILED": return "Lỗi xử lý AI";
     }
   };
 
@@ -56,7 +64,7 @@ export function DualStatusBadge({
     <div className="flex flex-row items-center gap-1.5 font-mono-label text-left">
       {/* Processing Status */}
       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent whitespace-nowrap ${getProcessingStyle()}`}>
-        {(processing === "PROCESSING" || processing === "ANALYZING") && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+        {ragEligible !== false && (processing === "PROCESSING" || processing === "ANALYZING") && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
         {getProcessingLabel()}
       </span>
       

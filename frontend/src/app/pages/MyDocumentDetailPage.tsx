@@ -629,7 +629,7 @@ export function MyDocumentDetailPage({
               {doc.title}
             </h1>
             <div className="mb-4 flex flex-wrap gap-2 items-center">
-              <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} />
+              <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
               {lastUpdatedTime && (
                 <span className="text-[12px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium">
                   {lastUpdatedTime}

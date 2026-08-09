@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Document } from "../types";
 import { DocumentMetadataPanel } from "../components/DetailWidgets";
+import { DualStatusBadge } from "../components/DualStatusBadge";
 import { ConfirmDialog, RejectDialog } from "../components/Dialogs";
 import { PageLoading } from "../components/EmptyState";
 import { ArrowLeft, Check, X, Archive, Download, FileText, AlertTriangle } from "lucide-react";
@@ -189,19 +190,8 @@ export function AdminReviewDetailPage({
       <div className="max-w-[800px] mx-auto w-full flex-1">
         {/* Header Block */}
         <div className="mb-8 bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-4 font-mono-label">
-            <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-              doc.publicationStatus === "PENDING_REVIEW" ? "text-amber-700 bg-amber-50" :
-              doc.publicationStatus === "PUBLISHED" ? "text-emerald-700 bg-emerald-50" : "text-[#6B6963] bg-[#F4F3F0]"
-            }`}>
-              {doc.publicationStatus === "PENDING_REVIEW" ? "Chờ phê duyệt" :
-                doc.publicationStatus === "PUBLISHED" ? "Đã xuất bản" : doc.publicationStatus}
-            </span>
-            <span className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase font-medium rounded-md border border-transparent ${
-              isAnalysisComplete(doc.processingStatus) ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"
-            }`}>
-              {isAnalysisComplete(doc.processingStatus) ? "AI Đã phân tích" : "AI Đang phân tích"}
-            </span>
+          <div className="flex items-center gap-2 mb-4">
+            <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
           </div>
 
           <h1 className="text-[28px] font-sans-body font-semibold text-[#0E0D0B] leading-snug mb-3">

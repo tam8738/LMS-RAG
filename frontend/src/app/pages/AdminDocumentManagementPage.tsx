@@ -25,21 +25,21 @@ import { EmptyState, ErrorState, LoadingSkeleton } from "../components/EmptyStat
 const PAGE_SIZE = 12;
 
 const publicationOptions: Array<{ value: PublicationStatus | "ALL"; label: string }> = [
-  { value: "ALL", label: "Tất cả trạng thái" },
+  { value: "ALL", label: "Tất cả trạng thái xuất bản" },
   { value: "PENDING_REVIEW", label: "Chờ duyệt" },
-  { value: "PUBLISHED", label: "Đã công bố" },
+  { value: "PUBLISHED", label: "Đã xuất bản" },
   { value: "REJECTED", label: "Bị từ chối" },
   { value: "ARCHIVED", label: "Đã lưu trữ" },
 ];
 
 const processingOptions: Array<{ value: ProcessingStatus | "ALL"; label: string }> = [
-  { value: "ALL", label: "Tất cả tiến trình AI" },
-  { value: "UPLOADED", label: "Đã tải lên" },
-  { value: "ANALYZING", label: "Đang phân tích" },
+  { value: "ALL", label: "Tất cả trạng thái AI" },
+  { value: "PROCESSED", label: "RAG Sẵn sàng" },
   { value: "ANALYZED", label: "Đã phân tích" },
-  { value: "PROCESSING", label: "Đang lập chỉ mục" },
-  { value: "PROCESSED", label: "Đã lập chỉ mục" },
-  { value: "FAILED", label: "Lỗi xử lý" },
+  { value: "PROCESSING", label: "Đang nạp RAG" },
+  { value: "ANALYZING", label: "Đang phân tích AI" },
+  { value: "UPLOADED", label: "Đã tải lên" },
+  { value: "FAILED", label: "Lỗi xử lý AI" },
 ];
 
 interface CustomSelectOption<T extends string> {
@@ -367,7 +367,7 @@ export function AdminDocumentManagementPage() {
                       <p className="mt-0.5 line-clamp-1 text-[12px] text-[#AAAA9F]">{doc.topic || "Chưa có chủ đề"}</p>
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap">
-                      <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} />
+                      <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
                     </td>
                     <td className="px-5 py-4 text-[12.5px] text-[#6B6963] whitespace-nowrap">{doc.updatedAt}</td>
                     <td className="px-5 py-4 text-right whitespace-nowrap" onClick={(event) => event.stopPropagation()}>

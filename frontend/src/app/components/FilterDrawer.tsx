@@ -72,9 +72,8 @@ function CustomSelect<T extends string>({
                   onChange(option.value);
                   setIsOpen(false);
                 }}
-                className={`flex w-full items-center justify-between px-3 py-2 text-[12.5px] font-medium rounded-lg transition-colors border-none cursor-pointer ${
-                  isSelected ? "bg-[#EEF2FF] text-[#4F63D2] font-semibold" : "bg-transparent text-[#0E0D0B] hover:bg-[#F8F7F4]"
-                }`}
+                className={`flex w-full items-center justify-between px-3 py-2 text-[12.5px] font-medium rounded-lg transition-colors border-none cursor-pointer ${isSelected ? "bg-[#EEF2FF] text-[#4F63D2] font-semibold" : "bg-transparent text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                  }`}
               >
                 <span className="truncate">{option.label}</span>
                 {isSelected && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#4F63D2]" />}
@@ -303,10 +302,12 @@ export function FilterDrawer({
                   value={draftFilters.processingStatus}
                   options={[
                     { value: "", label: "Tất cả trạng thái AI" },
-                    { value: "PROCESSED", label: "AI Ready" },
-                    { value: "ANALYZING", label: "Đang phân tích" },
-                    { value: "PROCESSING", label: "Đang xử lý RAG" },
-                    { value: "FAILED", label: "Gặp lỗi xử lý" },
+                    { value: "PROCESSED", label: "RAG Sẵn sàng" },
+                    { value: "ANALYZED", label: "Đã phân tích AI" },
+                    { value: "PROCESSING", label: "Đang nạp RAG" },
+                    { value: "ANALYZING", label: "Đang phân tích AI" },
+                    { value: "UPLOADED", label: "Đã tải lên" },
+                    { value: "FAILED", label: "Lỗi xử lý AI" },
                   ]}
                   onChange={(val) => setDraftFilters(prev => ({ ...prev, processingStatus: val }))}
                 />
@@ -322,12 +323,12 @@ export function FilterDrawer({
                 <CustomSelect
                   value={draftFilters.publicationStatus}
                   options={[
-                    { value: "", label: "Tất cả trạng thái" },
-                    { value: "DRAFT", label: "Bản nháp (Draft)" },
-                    { value: "PENDING_REVIEW", label: "Chờ duyệt (Pending)" },
-                    { value: "PUBLISHED", label: "Đã xuất bản (Published)" },
-                    { value: "REJECTED", label: "Bị từ chối (Rejected)" },
-                    { value: "ARCHIVED", label: "Đã lưu trữ (Archived)" },
+                    { value: "", label: "Tất cả trạng thái xuất bản" },
+                    { value: "DRAFT", label: "Bản nháp" },
+                    { value: "PENDING_REVIEW", label: "Chờ duyệt" },
+                    { value: "PUBLISHED", label: "Đã xuất bản" },
+                    { value: "REJECTED", label: "Bị từ chối" },
+                    { value: "ARCHIVED", label: "Đã lưu trữ" },
                   ]}
                   onChange={(val) => setDraftFilters(prev => ({ ...prev, publicationStatus: val }))}
                 />

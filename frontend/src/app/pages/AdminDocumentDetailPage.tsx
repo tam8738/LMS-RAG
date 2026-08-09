@@ -180,7 +180,7 @@ export function AdminDocumentDetailPage() {
         <main className="space-y-6">
           <section className="rounded-2xl border border-[#0E0D0B]/[0.07] bg-white p-6 shadow-sm">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} />
+              <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
