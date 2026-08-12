@@ -346,11 +346,10 @@ export function PublicQuizPage() {
             <div className="flex border-b border-gray-200 space-x-6">
               <button
                 onClick={() => setActiveTab("quiz")}
-                className={`pb-3 text-[14px] font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer bg-transparent border-none ${
-                  activeTab === "quiz"
+                className={`pb-3 text-[14px] font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer bg-transparent border-none ${activeTab === "quiz"
                     ? "border-indigo-600 text-indigo-600"
                     : "border-transparent text-gray-500 hover:text-gray-900"
-                }`}
+                  }`}
               >
                 <HelpCircle className="w-4 h-4" />
                 <span>Làm bài trắc nghiệm ({questions.length} câu)</span>
@@ -358,11 +357,10 @@ export function PublicQuizPage() {
 
               <button
                 onClick={() => setActiveTab("study")}
-                className={`pb-3 text-[14px] font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer bg-transparent border-none ${
-                  activeTab === "study"
+                className={`pb-3 text-[14px] font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer bg-transparent border-none ${activeTab === "study"
                     ? "border-indigo-600 text-indigo-600"
                     : "border-transparent text-gray-500 hover:text-gray-900"
-                }`}
+                  }`}
               >
                 <BookOpen className="w-4 h-4" />
                 <span>Tóm tắt kiến thức bài học</span>
@@ -568,11 +566,10 @@ export function PublicQuizPage() {
                           <button
                             key={q.id || idx}
                             onClick={() => setActiveQuestionIndex(idx)}
-                            className={`p-3 rounded-xl border text-left text-[13px] font-medium transition-all cursor-pointer flex items-center justify-between ${
-                              activeQuestionIndex === idx
+                            className={`p-3 rounded-xl border text-left text-[13px] font-medium transition-all cursor-pointer flex items-center justify-between ${activeQuestionIndex === idx
                                 ? "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xs font-semibold"
                                 : "border-gray-100 bg-white text-gray-700 hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             <span>Câu {idx + 1}</span>
                             {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
@@ -606,16 +603,14 @@ export function PublicQuizPage() {
                             <button
                               key={opt.id}
                               onClick={() => handleSelectOption(opt.id)}
-                              className={`w-full p-4 rounded-xl border text-left text-[14.5px] transition-all cursor-pointer flex items-center justify-between ${
-                                isSelected
+                              className={`w-full p-4 rounded-xl border text-left text-[14.5px] transition-all cursor-pointer flex items-center justify-between ${isSelected
                                   ? "border-indigo-600 bg-indigo-50/90 text-indigo-950 font-bold shadow-xs"
                                   : "border-gray-200 bg-white hover:bg-gray-50 text-gray-800 font-medium"
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-3">
-                                <span className={`w-7 h-7 rounded-lg font-bold text-[13px] flex items-center justify-center flex-shrink-0 ${
-                                  isSelected ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"
-                                }`}>
+                                <span className={`w-7 h-7 rounded-lg font-bold text-[13px] flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"
+                                  }`}>
                                   {opt.id}
                                 </span>
                                 <span>{opt.text}</span>
