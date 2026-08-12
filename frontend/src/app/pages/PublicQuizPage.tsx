@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import {
   HelpCircle, BookOpen, Award, RotateCcw,
   ChevronLeft, ChevronRight, Copy, Check,
-  User, GraduationCap, Play, Printer
+  User, GraduationCap, Play, Printer,
+  Sparkles, Lightbulb, CheckCircle2, Bookmark, Quote
 } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { PageLoading } from "../components/EmptyState";
@@ -369,29 +370,178 @@ export function PublicQuizPage() {
             </div>
 
             {activeTab === "study" ? (
-              /* LESSON SUMMARY */
-              <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-xs space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <BookOpen className="w-5 h-5" />
+              /* LESSON SUMMARY & KEY CONCEPTS GUIDE */
+              <div className="space-y-6">
+                {/* 1. Overview Card */}
+                <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 shadow-xs">
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
+                            Tài liệu ôn tập chuẩn kiến thức
+                          </span>
+                        </div>
+                        <h2 className="text-[18px] sm:text-[20px] font-bold text-[#0E0D0B] mt-0.5">
+                          Tóm tắt & Cốt lõi bài học
+                        </h2>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setActiveTab("quiz")}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2 transition-all w-full sm:w-auto border-none"
+                    >
+                      <span>Làm bài Quiz ngay ({questions.length} câu)</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
+
+                  {/* General Summary / Notes */}
+                  <div className="p-5 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 rounded-2xl border border-indigo-100/80 space-y-2">
+                    <div className="flex items-center gap-2 text-indigo-900 text-[12.5px] font-bold uppercase tracking-wider">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span>Tổng quan kiến thức</span>
+                    </div>
+                    <p className="text-[14.5px] text-[#0E0D0B] leading-relaxed">
+                      {quiz.studyNotes || quiz.description || "Nội dung ôn tập được tổng hợp tự động từ bài giảng nhằm giúp sinh viên củng cố trọng tâm trước khi làm bài."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Key Concepts / Focus Points derived from questions & explanations */}
+                <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <Lightbulb className="w-4.5 h-4.5" />
+                      </div>
+                      <div>
+                        <h3 className="text-[16.5px] font-bold text-[#0E0D0B]">
+                          Trọng tâm kiến thức cốt lõi ({questions.length} chủ điểm)
+                        </h3>
+                        <p className="text-[12.5px] text-[#6B6963]">
+                          Các khái niệm, nguyên lý và phân tích then chốt cần nắm vững
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {questions.map((q, idx) => {
+                      const hasCitations = q.citations && q.citations.length > 0;
+
+                      return (
+                        <div
+                          key={q.id || idx}
+                          className="p-5 rounded-2xl border border-gray-100 bg-[#FDFDFB] hover:border-indigo-200 hover:shadow-xs transition-all flex flex-col justify-between space-y-3.5"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold uppercase tracking-wider">
+                                Chủ điểm {idx + 1}
+                              </span>
+                              {hasCitations && (
+                                <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
+                                  <Bookmark className="w-3 h-3 text-amber-600" />
+                                  Trang {q.citations[0].pageNumber || 1}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="text-[14.5px] font-bold text-[#0E0D0B] leading-snug">
+                              {q.question}
+                            </h4>
+                          </div>
+
+                          {q.explanation && (
+                            <div className="p-3.5 bg-white rounded-xl border border-gray-200/80 text-[13px] text-gray-700 space-y-1 leading-relaxed">
+                              <div className="flex items-center gap-1.5 text-indigo-700 text-[11.5px] font-bold uppercase tracking-wide">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                <span>Kiến thức cần nhớ:</span>
+                              </div>
+                              <p className="text-[13px] text-[#0E0D0B] font-medium leading-relaxed">
+                                {q.explanation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Document Citations & References (if any) */}
+                {(() => {
+                  const allCits = questions.flatMap((q, qIdx) =>
+                    (q.citations || []).map(cit => ({ ...cit, questionNumber: qIdx + 1 }))
+                  );
+                  const uniqueCits = allCits.filter((cit, idx, self) =>
+                    idx === self.findIndex(c => c.excerpt === cit.excerpt && c.pageNumber === cit.pageNumber)
+                  );
+
+                  if (uniqueCits.length === 0) return null;
+
+                  return (
+                    <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                          <Quote className="w-4.5 h-4.5" />
+                        </div>
+                        <div>
+                          <h3 className="text-[16.5px] font-bold text-[#0E0D0B]">
+                            Trích dẫn nguồn học liệu gốc ({uniqueCits.length} đoạn trích)
+                          </h3>
+                          <p className="text-[12.5px] text-[#6B6963]">
+                            Đối chiếu trực tiếp với các trang trong giáo trình/tài liệu bài giảng
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {uniqueCits.map((cit, cIdx) => (
+                          <div
+                            key={cIdx}
+                            className="p-4 bg-amber-50/40 rounded-2xl border border-amber-200/70 space-y-2 text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-md text-[11px] font-bold">
+                                Trang {cit.pageNumber || 1}
+                              </span>
+                              <span className="text-[11px] text-[#AAAA9F] font-mono-label">
+                                Liên quan Câu {cit.questionNumber}
+                              </span>
+                            </div>
+                            <p className="text-[12.5px] text-amber-950 italic leading-relaxed bg-white/70 p-2.5 rounded-xl border border-amber-200/40">
+                              "{cit.excerpt}"
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 4. Bottom CTA to Start Quiz */}
+                <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 rounded-3xl p-6 sm:p-8 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-5 shadow-lg">
                   <div>
-                    <h3 className="text-[17px] font-bold text-[#0E0D0B]">Nội dung tóm tắt & Cốt lõi bài học</h3>
-                    <p className="text-[13px] text-[#6B6963]">Nắm vững trọng tâm kiến thức trước khi làm trắc nghiệm</p>
+                    <h3 className="text-[18px] sm:text-[20px] font-bold">
+                      Bạn đã sẵn sàng kiểm tra kiến thức?
+                    </h3>
+                    <p className="text-[13.5px] text-indigo-100 mt-1">
+                      Thực hiện bài trắc nghiệm {questions.length} câu hỏi để đánh giá mức độ hiểu bài và nhận báo cáo kết quả ngay.
+                    </p>
                   </div>
-                </div>
 
-                <div className="prose max-w-none text-[14.5px] leading-relaxed text-[#0E0D0B] bg-indigo-50/40 p-6 rounded-2xl border border-indigo-100">
-                  <p>{quiz.studyNotes || quiz.description || "Nội dung ôn tập được trích xuất tự động từ hệ thống bài giảng."}</p>
-                </div>
-
-                <div className="pt-2 flex justify-end">
                   <button
                     onClick={() => setActiveTab("quiz")}
-                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm flex items-center gap-2"
+                    className="px-6 py-3.5 bg-white text-indigo-700 hover:bg-gray-50 font-bold text-[14px] rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 flex-shrink-0 shadow-md border-none"
                   >
-                    <span>Vào làm bài Quiz ngay</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <Play className="w-4 h-4 fill-indigo-700 text-indigo-700" />
+                    <span>Bắt đầu làm bài Quiz ngay</span>
                   </button>
                 </div>
               </div>
