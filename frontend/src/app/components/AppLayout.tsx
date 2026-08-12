@@ -24,6 +24,8 @@ import {
   Sparkles,
   Loader2,
   Camera,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { authService } from "../services/authService";
 import { VietnameseDateInput } from "./VietnameseDateInput";
@@ -160,6 +162,9 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   // Toast notification state
@@ -188,6 +193,9 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
 
     if (user) {
       setIsLoadingProfile(true);
@@ -806,6 +814,9 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                   setCurrentPassword("");
                   setNewPassword("");
                   setConfirmPassword("");
+                  setShowCurrentPassword(false);
+                  setShowNewPassword(false);
+                  setShowConfirmPassword(false);
                 }}
                 className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 ml-1 sm:ml-2 text-[12px] sm:text-[13px] font-bold rounded-t-xl transition-all cursor-pointer border-b-2 bg-transparent whitespace-nowrap ${profileTab === "security"
                   ? "border-indigo-600 text-indigo-600 bg-white shadow-3xs"
@@ -1035,14 +1046,24 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         <Lock className="w-3.5 h-3.5 text-slate-400" />
                         Mật khẩu hiện tại
                       </label>
-                      <input
-                        type="password"
-                        value={currentPassword}
-                        onChange={e => setCurrentPassword(e.target.value)}
-                        autoComplete="new-password"
-                        placeholder="••••••••"
-                        className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={e => setCurrentPassword(e.target.value)}
+                          autoComplete="new-password"
+                          placeholder="••••••••"
+                          className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl pl-3.5 pr-10 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(prev => !prev)}
+                          className="absolute right-3 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+                          title={showCurrentPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     <div>
@@ -1050,14 +1071,24 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         <Lock className="w-3.5 h-3.5 text-slate-400" />
                         Mật khẩu mới
                       </label>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        autoComplete="new-password"
-                        placeholder="Tối thiểu 8 ký tự"
-                        className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          autoComplete="new-password"
+                          placeholder="Tối thiểu 8 ký tự"
+                          className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl pl-3.5 pr-10 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(prev => !prev)}
+                          className="absolute right-3 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+                          title={showNewPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     <div>
@@ -1065,14 +1096,24 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                         <Lock className="w-3.5 h-3.5 text-slate-400" />
                         Xác nhận mật khẩu mới
                       </label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                        autoComplete="new-password"
-                        placeholder="••••••••"
-                        className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl px-3.5 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          autoComplete="new-password"
+                          placeholder="••••••••"
+                          className="w-full h-10 sm:h-10.5 border border-slate-200 rounded-xl pl-3.5 pr-10 text-[13.5px] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all bg-white font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(prev => !prev)}
+                          className="absolute right-3 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+                          title={showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
