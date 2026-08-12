@@ -474,15 +474,15 @@ export function MyDocumentsPage({
       ) : docs.length > 0 ? (
         <div className="bg-white border border-[#0E0D0B]/[0.06] rounded-2xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse min-w-[800px] font-sans">
+            <table className="w-full text-left border-collapse min-w-[880px] font-sans">
               <thead>
                 <tr className="bg-[#F8F7F4]/55 border-b border-[#0E0D0B]/[0.06]">
-                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Tên học liệu</th>
-                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Môn học</th>
-                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Trạng thái AI</th>
-                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Xuất bản</th>
-                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider">Cập nhật</th>
-                  <th className="px-6 py-4.5 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider text-right">Thao tác</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider whitespace-nowrap">Tên học liệu</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider whitespace-nowrap">Môn học</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider whitespace-nowrap">Trạng thái AI</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider whitespace-nowrap">Xuất bản</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider whitespace-nowrap">Cập nhật</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-[#6B6963] uppercase tracking-wider text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#0E0D0B]/[0.05]">
@@ -498,21 +498,21 @@ export function MyDocumentsPage({
                       className="hover:bg-[#FDFDFB] transition-colors cursor-pointer group"
                     >
                       {/* Document Details column */}
-                      <td className="px-6 py-4 min-w-[280px]">
-                        <div className="flex items-start gap-3.5">
+                      <td className="px-5 py-4 max-w-[280px]">
+                        <div className="flex items-start gap-3">
                           <div className="w-9 h-9 rounded-lg bg-[#F4F3F0] flex items-center justify-center flex-shrink-0 text-[#6B6963] group-hover:bg-[#4F63D2]/10 group-hover:text-[#4F63D2] transition-colors">
                             <FileText className="w-4.5 h-4.5" />
                           </div>
                           <div className="min-w-0">
-                            <span className="font-semibold text-[#0E0D0B] text-[14.5px] line-clamp-1 group-hover:text-[#4F63D2] transition-colors">
+                            <span className="font-semibold text-[#0E0D0B] text-[14px] truncate block group-hover:text-[#4F63D2] transition-colors">
                               {doc.title}
                             </span>
                             {doc.publicationStatus === "REJECTED" && doc.rejectReason ? (
-                              <span className="text-[12px] text-red-650 font-medium line-clamp-1 mt-0.5 flex items-center gap-1">
+                              <span className="text-[12px] text-red-650 font-medium truncate block mt-0.5">
                                 ⚠️ Lý do từ chối: {doc.rejectReason}
                               </span>
                             ) : (
-                              <span className="text-[12px] text-[#AAAA9F] line-clamp-1 mt-0.5">
+                              <span className="text-[12px] text-[#AAAA9F] truncate block mt-0.5">
                                 {doc.description || "Không có mô tả."}
                               </span>
                             )}
@@ -521,15 +521,15 @@ export function MyDocumentsPage({
                       </td>
 
                       {/* Subject column */}
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11.5px] font-semibold text-[#6B6963] bg-[#F4F3F0] uppercase tracking-wide">
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11.5px] font-semibold text-[#6B6963] bg-[#F4F3F0] uppercase tracking-wide whitespace-nowrap">
                           {doc.subject}
                         </span>
                       </td>
 
                       {/* AI Status column */}
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md border ${
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11.5px] font-medium rounded-md border whitespace-nowrap ${
                           doc.ragEligible === false ? "text-slate-600 bg-slate-100 border-slate-200" :
                           doc.processingStatus === "PROCESSED" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
                           isProcessing ? "text-amber-700 bg-amber-50 border-amber-100" :
@@ -537,7 +537,7 @@ export function MyDocumentsPage({
                           doc.processingStatus === "ANALYZED" ? "text-indigo-700 bg-indigo-50 border-indigo-100" :
                           "text-slate-500 bg-slate-50 border-transparent"
                         }`}>
-                          {doc.ragEligible !== false && isProcessing && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />}
+                          {doc.ragEligible !== false && isProcessing && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse flex-shrink-0" />}
                           {doc.ragEligible === false ? "Không hỗ trợ RAG" :
                             doc.processingStatus === "PROCESSED" ? "RAG Sẵn sàng" :
                             doc.processingStatus === "ANALYZING" ? "AI Phân tích" :
@@ -548,24 +548,25 @@ export function MyDocumentsPage({
                       </td>
 
                       {/* Publication Status column */}
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-md border ${doc.publicationStatus === "PUBLISHED" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
-                            doc.publicationStatus === "PENDING_REVIEW" ? "text-amber-700 bg-amber-50 border-amber-100" :
-                              doc.publicationStatus === "REJECTED" ? "text-red-700 bg-red-50 border-red-100" : "text-[#6B6963] bg-[#F4F3F0] border-transparent"
-                          }`}>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-1 text-[11.5px] font-semibold rounded-md border whitespace-nowrap ${
+                          doc.publicationStatus === "PUBLISHED" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
+                          doc.publicationStatus === "PENDING_REVIEW" ? "text-amber-700 bg-amber-50 border-amber-100" :
+                          doc.publicationStatus === "REJECTED" ? "text-red-700 bg-red-50 border-red-100" : "text-[#6B6963] bg-[#F4F3F0] border-transparent"
+                        }`}>
                           {doc.publicationStatus === "PUBLISHED" ? "Đã xuất bản" :
                             doc.publicationStatus === "PENDING_REVIEW" ? "Chờ duyệt" :
-                              doc.publicationStatus === "REJECTED" ? "Từ chối" : "Bản nháp"}
+                            doc.publicationStatus === "REJECTED" ? "Từ chối" : "Bản nháp"}
                         </span>
                       </td>
 
                       {/* Date updated column */}
-                      <td className="px-6 py-4 text-[13px] text-[#6B6963] whitespace-nowrap">
+                      <td className="px-5 py-4 text-[13px] text-[#6B6963] whitespace-nowrap">
                         {doc.updatedAt}
                       </td>
 
                       {/* Action Menu column */}
-                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-5 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <MyDocumentActionMenu
                           document={doc}
                           onView={onNavigateDetail}

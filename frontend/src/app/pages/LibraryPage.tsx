@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { libraryDetailPath } from "../routes";
 import { LibraryDocument, LibraryQuery, User } from "../types";
@@ -84,10 +84,14 @@ function SubjectShowcaseRow({
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
 
   // ResizeObserver to dynamically check carousel width
   useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
     if (!viewportRef.current) return;
     const observer = new ResizeObserver((entries) => {
       for (let entry of entries) {
@@ -95,11 +99,6 @@ function SubjectShowcaseRow({
       }
     });
     observer.observe(viewportRef.current);
-
-    // Check mobile breakpoint
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    handleResize();
-    window.addEventListener("resize", handleResize);
 
     return () => {
       observer.disconnect();
@@ -140,16 +139,16 @@ function SubjectShowcaseRow({
   };
 
   return (
-    <div className="space-y-4 text-left">
+    <div className="space-y-4 text-left w-full min-w-0 overflow-hidden">
       {/* Row Header */}
       {isAiReadyRow ? (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3 mb-2 text-left">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3 mb-2 text-left w-full min-w-0">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
                 <Sparkles className="w-4.5 h-4.5" />
               </div>
-              <h3 className="text-[19px] font-bold text-slate-900 tracking-tight font-heading">
+              <h3 className="text-[17px] sm:text-[19px] font-bold text-slate-900 tracking-tight font-heading">
                 Sẵn sàng hỏi đáp AI
               </h3>
               <span className="text-[12px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
@@ -163,7 +162,7 @@ function SubjectShowcaseRow({
 
           {/* Carousel Navigation Controls */}
           {!isMobile && maxIndex > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={handlePrev}
                 disabled={currentIndex === 0}
@@ -184,14 +183,14 @@ function SubjectShowcaseRow({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.04] pb-2">
-          <div className="flex items-center gap-2 border-l-3 border-[#0E0D0B] pl-3">
-            <h3 className="text-[17px] font-extrabold text-[#0E0D0B] tracking-tight">{subjectName}</h3>
-            <span className="text-[11.5px] text-[#AAAA9F] font-bold">({docs.length} tài liệu)</span>
+        <div className="flex items-center justify-between border-b border-[#0E0D0B]/[0.04] pb-2 w-full min-w-0">
+          <div className="flex items-center gap-2 border-l-3 border-[#0E0D0B] pl-3 min-w-0">
+            <h3 className="text-[16px] sm:text-[17px] font-extrabold text-[#0E0D0B] tracking-tight truncate">{subjectName}</h3>
+            <span className="text-[11.5px] text-[#AAAA9F] font-bold flex-shrink-0">({docs.length})</span>
           </div>
 
           {!isMobile && maxIndex > 0 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={handlePrev}
                 disabled={currentIndex === 0}
@@ -214,11 +213,11 @@ function SubjectShowcaseRow({
       )}
 
       {/* Desktop/Tablet side-by-side versus Mobile stacked layout */}
-      <div className="flex flex-col md:flex-row gap-5 items-stretch relative">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch relative w-full min-w-0">
 
         {/* Fixed Subject Lead Card (Only for standard rows on desktop/tablet, hidden on mobile) */}
         {!isAiReadyRow && (
-          <div className="hidden md:block">
+          <div className="hidden md:block flex-shrink-0">
             <SubjectLeadCard
               subjectName={subjectName}
               docCount={docs.length}
@@ -231,16 +230,16 @@ function SubjectShowcaseRow({
         {/* Viewport wrapper */}
         <div
           ref={viewportRef}
-          className={`flex-1 overflow-hidden py-1 ${isMobile ? "overflow-x-auto snap-x scroll-smooth scrollbar-hide flex gap-5 pb-3 w-full" : ""}`}
+          className="w-full min-w-0 flex-1 overflow-x-auto snap-x scroll-smooth scrollbar-hide py-1"
         >
           <div
-            className={`flex gap-5 transition-transform duration-300 ease-out`}
+            className="flex gap-4 sm:gap-5 transition-transform duration-300 ease-out"
             style={isMobile ? undefined : { transform: `translateX(-${currentIndex * 300}px)` }}
           >
             {docs.map(doc => (
               <div
                 key={doc.id}
-                className={`w-[280px] flex-shrink-0 ${isMobile ? "snap-start" : ""}`}
+                className="w-[260px] sm:w-[280px] flex-shrink-0 snap-start"
               >
                 <DocumentCard
                   document={doc}
@@ -284,6 +283,7 @@ export function LibraryPage({
 
   // Search and Advanced Filters
   const [searchVal, setSearchVal] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -322,19 +322,36 @@ export function LibraryPage({
 
   const handleSearchChange = (value: string) => {
     setSearchVal(value);
+  };
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    preserveScrollPosition();
+    setPage(0);
+    setAppliedSearch(searchVal.trim());
+  };
+
+  const handleClearSearch = () => {
+    preserveScrollPosition();
+    setSearchVal("");
+    setAppliedSearch("");
     setPage(0);
   };
 
-  const handleSearchSubmit = () => {
-    setDebouncedQuery({
-      page: 0,
-      size,
-      q: searchVal.trim(),
-      subject: advancedFilters.subject,
-      topic: advancedFilters.topic,
-      chapter: "",
-      tags: "",
+  const handleResetAllFilters = () => {
+    preserveScrollPosition();
+    setSearchVal("");
+    setAppliedSearch("");
+    setSelectedSubject("");
+    setAdvancedFilters({
+      subject: "",
+      topic: "",
+      author: "",
+      fileType: "",
+      publicationStatus: "",
+      processingStatus: "",
     });
+    setPage(0);
   };
 
   const preserveScrollPosition = () => {
@@ -375,34 +392,18 @@ export function LibraryPage({
     setAdvancedFilters(prev => ({ ...prev, subject: selectedSubject }));
   }, [selectedSubject]);
 
-  // Debounced query parameters
-  const [debouncedQuery, setDebouncedQuery] = useState<LibraryQuery>({
-    page: 0,
-    size: 100,
-    q: "",
-    subject: "",
-    topic: "",
+  // Active query parameters (only executed on search submit or filter selection, not keystroke debounce)
+  const activeQuery: LibraryQuery = useMemo(() => ({
+    page,
+    size,
+    q: appliedSearch,
+    subject: advancedFilters.subject,
+    topic: advancedFilters.topic,
     chapter: "",
     tags: "",
-  });
+  }), [page, size, appliedSearch, advancedFilters.subject, advancedFilters.topic]);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedQuery({
-        page,
-        size,
-        q: searchVal.trim(),
-        subject: advancedFilters.subject,
-        topic: advancedFilters.topic,
-        chapter: "",
-        tags: "",
-      });
-    }, 450);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchVal, advancedFilters.subject, advancedFilters.topic, page, size]);
-
-  const isFilteringOrSearching = !!debouncedQuery.q || !!selectedSubject || activeFiltersCount > 0;
+  const isFilteringOrSearching = !!appliedSearch || !!selectedSubject || activeFiltersCount > 0;
 
   // Fetch unique subjects & unfiltered AI Ready recommendation list on mount
   useEffect(() => {
@@ -430,7 +431,7 @@ export function LibraryPage({
     setLoading(true);
     setError("");
     try {
-      const result = await libraryService.getLibrary(debouncedQuery);
+      const result = await libraryService.getLibrary(activeQuery);
 
       // Clientside filtering for author filter
       let filtered = result.documents;
@@ -452,7 +453,7 @@ export function LibraryPage({
 
   useEffect(() => {
     fetchLibrary();
-  }, [debouncedQuery, advancedFilters.author]);
+  }, [activeQuery, advancedFilters.author]);
 
   // Reset page when category chip or search value changes
   const handleCategorySelect = (subject: string) => {
@@ -491,7 +492,7 @@ export function LibraryPage({
   });
 
   return (
-    <div className="w-full text-left font-sans space-y-12 pb-16">
+    <div className="w-full max-w-full overflow-x-hidden text-left font-sans space-y-8 sm:space-y-12 pb-16 min-w-0">
 
       {downloadError && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 animate-[fade-in_150ms_ease-out]">
@@ -513,7 +514,7 @@ export function LibraryPage({
 
       {/* 2. Sẵn sàng hỏi đáp AI (Chỉ hiển thị khi KHÔNG tìm kiếm / lọc) */}
       {user && !loading && !isFilteringOrSearching && aiReadyDocs.length > 0 && (
-        <div id="ai-ready-shelf" className="my-8 sm:my-10 animate-fadeIn">
+        <div id="ai-ready-shelf" className="my-8 sm:my-10 animate-fadeIn w-full min-w-0 overflow-hidden">
           <SubjectShowcaseRow
             subjectName="Sẵn sàng hỏi đáp AI"
             docs={aiReadyDocs}
@@ -530,30 +531,30 @@ export function LibraryPage({
       ) : error ? (
         <ErrorState error={error} onRetry={fetchLibrary} />
       ) : documents.length > 0 ? (
-        <div className="space-y-12 animate-fadeIn">
+        <div className="space-y-8 sm:space-y-12 animate-fadeIn w-full min-w-0">
 
           {/* Section: Kết quả tìm kiếm / Tất cả tài liệu */}
-          <div id="all-documents-section" className="space-y-6 text-left pt-4">
+          <div id="all-documents-section" className="space-y-5 sm:space-y-6 text-left pt-4 w-full min-w-0">
 
             {/* Section Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#0E0D0B]/[0.06] pb-3.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-[18px] font-bold text-[#0E0D0B] tracking-tight">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#0E0D0B]/[0.06] pb-3.5 w-full min-w-0">
+              <div className="flex items-center justify-between w-full sm:w-auto min-w-0">
+                <div className="min-w-0 pr-2">
+                  <h2 className="text-[17px] sm:text-[18px] font-bold text-[#0E0D0B] tracking-tight truncate">
                     {isFilteringOrSearching
-                      ? (debouncedQuery.q ? `Kết quả tìm kiếm cho "${debouncedQuery.q}"` : "Kết quả tìm kiếm")
+                      ? (appliedSearch ? `Kết quả tìm kiếm cho "${appliedSearch}"` : "Kết quả tìm kiếm")
                       : "Tất cả tài liệu"}
                   </h2>
-                  <p className="text-[12.5px] text-[#AAAA9F] font-semibold">Hiển thị {totalElements} kết quả được phân loại theo chuyên mục</p>
+                  <p className="text-[12px] sm:text-[12.5px] text-[#AAAA9F] font-semibold truncate">Hiển thị {totalElements} kết quả được phân loại theo chuyên mục</p>
                 </div>
 
                 {/* Mobile Search Icon Button & Filter Button container when not expanded */}
-                <div className="flex items-center gap-2 sm:hidden">
+                <div className="flex items-center gap-2 sm:hidden flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsMobileSearchOpen((prev) => !prev)}
                     className={`h-9 w-9 flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
-                      isMobileSearchOpen || searchVal
+                      isMobileSearchOpen || appliedSearch
                         ? "bg-[#4F63D2]/10 border-[#4F63D2]/30 text-[#4F63D2]"
                         : "bg-white border-[#0E0D0B]/[0.12] text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
                     }`}
@@ -578,26 +579,41 @@ export function LibraryPage({
               </div>
 
               {/* Desktop Toolbar Controls */}
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="relative w-64">
-                  <Search className="w-4 h-4 text-[#AAAA9F] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchVal}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Tìm tài liệu, môn học..."
-                    className="w-full h-9 px-3 pl-9 pr-7 bg-white border border-[#0E0D0B]/[0.10] rounded-xl text-[12.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10 transition-all shadow-xs"
-                  />
-                  {searchVal && (
-                    <button
-                      onClick={() => handleSearchChange("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+              <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                <form
+                  onSubmit={handleSearchSubmit}
+                  className="flex items-center gap-2"
+                >
+                  <div className="relative w-64 lg:w-72">
+                    <Search className="w-4 h-4 text-[#AAAA9F] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchVal}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Tìm tài liệu, môn học..."
+                      className="w-full h-9 px-3 pl-9 pr-7 bg-white border border-[#0E0D0B]/[0.10] rounded-xl text-[12.5px] text-[#0E0D0B] placeholder:text-[#AAAA9F] focus:outline-none focus:border-[#4F63D2] focus:ring-4 focus:ring-[#4F63D2]/10 transition-all shadow-xs"
+                    />
+                    {searchVal && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer"
+                        title="Xóa ô tìm kiếm"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="h-9 px-3.5 bg-[#4F63D2] hover:bg-[#3D50B8] text-white text-[12.5px] font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer border-none flex-shrink-0"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Tìm kiếm</span>
+                  </button>
+                </form>
 
                 <button
                   type="button"
@@ -615,33 +631,56 @@ export function LibraryPage({
 
               {/* Mobile Expandable Search Bar (when icon clicked) */}
               {isMobileSearchOpen && (
-                <div className="relative w-full sm:hidden animate-fadeIn">
-                  <Search className="w-4 h-4 text-[#4F63D2] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchVal}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Nhập tên tài liệu, môn học hoặc giảng viên..."
-                    autoFocus
-                    className="w-full h-10 pl-9 pr-9 bg-white border border-[#4F63D2]/50 rounded-xl text-[13px] text-[#0E0D0B] placeholder:text-[#AAAA9F] outline-none ring-4 ring-[#4F63D2]/10 shadow-sm"
-                  />
+                <form
+                  onSubmit={handleSearchSubmit}
+                  className="flex items-center gap-2 w-full sm:hidden animate-fadeIn"
+                >
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-[#4F63D2] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchVal}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Nhập tên tài liệu, môn học..."
+                      autoFocus
+                      className="w-full h-10 pl-9 pr-8 bg-white border border-[#4F63D2]/50 rounded-xl text-[13px] text-[#0E0D0B] placeholder:text-[#AAAA9F] outline-none ring-4 ring-[#4F63D2]/10 shadow-sm"
+                    />
+                    {searchVal && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer p-1"
+                        title="Xóa ô tìm kiếm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="h-10 px-3.5 bg-[#4F63D2] hover:bg-[#3D50B8] text-white text-[12.5px] font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer border-none flex-shrink-0"
+                  >
+                    <span>Tìm</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      handleSearchChange("");
+                      if (!searchVal && appliedSearch) {
+                        handleClearSearch();
+                      }
                       setIsMobileSearchOpen(false);
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer p-1"
+                    className="h-10 px-2.5 text-gray-500 hover:text-gray-800 text-[12.5px] font-medium rounded-xl border border-[#0E0D0B]/[0.10] bg-white cursor-pointer flex-shrink-0"
                   >
-                    <X className="w-4 h-4" />
+                    Đóng
                   </button>
-                </div>
+                </form>
               )}
             </div>
 
             {/* Subject Chips for Filtering */}
-            <div className="overflow-x-auto scrollbar-hide pb-1">
+            <div className="overflow-x-auto scrollbar-hide pb-1 w-full max-w-full min-w-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleCategorySelect("")}
@@ -671,9 +710,22 @@ export function LibraryPage({
             </div>
 
             {/* Active Filters Display */}
-            {activeFiltersCount > 0 && (
+            {(activeFiltersCount > 0 || !!appliedSearch) && (
               <div className="flex flex-wrap gap-2 items-center text-left">
                 <span className="text-[12px] text-[#AAAA9F] mr-1">Bộ lọc đang áp dụng:</span>
+                {appliedSearch && (
+                  <span className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-lg bg-[#EEF2FF] text-[#4F63D2] text-[12.5px] font-medium border border-[#4F63D2]/20">
+                    <span>Từ khóa: "{appliedSearch}"</span>
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="p-0.5 rounded-full hover:bg-[#E0E7FF] text-[#4F63D2] hover:text-[#3730A3] cursor-pointer border-none bg-transparent"
+                      title="Xóa từ khóa tìm kiếm"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
                 {Object.entries(advancedFilters).map(([key, val]) => {
                   if (!val || key === "publicationStatus" || key === "fileType" || key === "processingStatus") return null;
                   return (
@@ -683,12 +735,14 @@ export function LibraryPage({
                     >
                       {val}
                       <button
+                        type="button"
                         onClick={() => {
                           preserveScrollPosition();
                           setAdvancedFilters(prev => ({ ...prev, [key]: "" }));
                           if (key === "subject") setSelectedSubject("");
                         }}
                         className="p-0.5 rounded-full hover:bg-[#ECEAE4] text-[#AAAA9F] hover:text-[#0E0D0B] cursor-pointer border-none bg-transparent"
+                        title={`Xóa bộ lọc ${val}`}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -696,18 +750,8 @@ export function LibraryPage({
                   );
                 })}
                 <button
-                  onClick={() => {
-                    preserveScrollPosition();
-                    setAdvancedFilters({
-                      subject: "",
-                      topic: "",
-                      author: "",
-                      fileType: "",
-                      publicationStatus: "",
-                      processingStatus: "",
-                    });
-                    setSelectedSubject("");
-                  }}
+                  type="button"
+                  onClick={handleResetAllFilters}
                   className="text-[12px] text-[#4F63D2] hover:text-[#3D50B8] font-semibold cursor-pointer border-none bg-transparent ml-2"
                 >
                   Xóa tất cả bộ lọc
@@ -742,19 +786,8 @@ export function LibraryPage({
             description="Hãy thử thay đổi từ khóa hoặc bộ lọc tìm kiếm nâng cao."
             action={
               <button
-                onClick={() => {
-                  setSearchVal("");
-                  setSelectedSubject("");
-                  setAdvancedFilters({
-                    subject: "",
-                    topic: "",
-                    author: "",
-                    fileType: "",
-                    publicationStatus: "",
-                    processingStatus: "",
-                  });
-                  setPage(0);
-                }}
+                type="button"
+                onClick={handleResetAllFilters}
                 className="h-10 px-5 text-[13px] font-semibold text-[#4F63D2] hover:bg-[#4F63D2]/10 rounded-xl transition-colors border-none bg-transparent cursor-pointer"
               >
                 Xóa bộ lọc tìm kiếm

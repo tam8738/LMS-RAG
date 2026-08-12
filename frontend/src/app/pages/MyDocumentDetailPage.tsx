@@ -11,6 +11,7 @@ import { ROUTES } from "../routes";
 import { GenerateQuizModal } from "../components/GenerateQuizModal";
 import { QuizEditorModal } from "../components/QuizEditorModal";
 import { QuizPreviewModal } from "../components/QuizPreviewModal";
+import { PublishSuccessModal } from "../components/PublishSuccessModal";
 import { QuizResponse } from "../services/quizService";
 import {
   isAnalysisInProgress,
@@ -90,6 +91,10 @@ export function MyDocumentDetailPage({
   const [isQuizGenerateOpen, setIsQuizGenerateOpen] = useState(false);
   const [activeQuizForEdit, setActiveQuizForEdit] = useState<QuizResponse | null>(null);
   const [activeQuizForPreview, setActiveQuizForPreview] = useState<QuizResponse | null>(null);
+  const [publishedQuizForShare, setPublishedQuizForShare] = useState<QuizResponse | null>(null);
+
+  // Mobile View Tab state
+  const [mobileTab, setMobileTab] = useState<"metadata" | "ai">("metadata");
 
   const handleDownload = async () => {
     if (!doc) return;
@@ -478,24 +483,24 @@ export function MyDocumentDetailPage({
   const isMutatingActive = isSubmitting || isSavingMetadata || isUploading || isDeleting;
 
   return (
-    <div className="w-full flex flex-col h-[calc(100vh-100px)] text-left">
+    <div className="w-full flex flex-col min-h-0 lg:h-[calc(100vh-100px)] text-left pb-10 sm:pb-0 font-sans">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
         <button
           onClick={handleBack}
           disabled={isMutatingActive}
-          className="flex items-center gap-1.5 text-[13.5px] font-medium text-[#6B6963] hover:text-[#0E0D0B] transition-colors w-fit border-none bg-transparent cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 text-[13px] sm:text-[13.5px] font-medium text-[#6B6963] hover:text-[#0E0D0B] transition-colors w-fit border-none bg-transparent cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Trở về danh sách
         </button>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Quiz Action */}
           {ragEligible && (
             <button
               onClick={() => setIsQuizGenerateOpen(true)}
               disabled={isMutatingActive}
-              className="h-8.5 px-3.5 flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed shadow-xs"
+              className="h-8 sm:h-8.5 px-3 sm:px-3.5 flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-[12px] sm:text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed shadow-xs"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Tạo Quiz AI
             </button>
@@ -506,7 +511,7 @@ export function MyDocumentDetailPage({
             <button
               onClick={handleReplaceClick}
               disabled={isMutatingActive}
-              className="h-8.5 px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
+              className="h-8 sm:h-8.5 px-3 sm:px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[12px] sm:text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
             >
               <Replace className="w-3.5 h-3.5 text-[#6B6963]" /> Thay file
             </button>
@@ -515,7 +520,7 @@ export function MyDocumentDetailPage({
             <button
               onClick={handleEditClick}
               disabled={isMutatingActive}
-              className="h-8.5 px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
+              className="h-8 sm:h-8.5 px-3 sm:px-3.5 flex items-center gap-1.5 bg-white border border-[#0E0D0B]/[0.12] text-[#0E0D0B] hover:bg-[#F8F7F4] text-[12px] sm:text-[13px] font-semibold rounded-xl transition-all cursor-pointer font-action disabled:opacity-55 disabled:cursor-not-allowed"
             >
               <Edit2 className="w-3.5 h-3.5 text-[#6B6963]" /> Sửa thông tin
             </button>
@@ -526,7 +531,7 @@ export function MyDocumentDetailPage({
             <button
               onClick={handleRetryProcessingClick}
               disabled={isMutatingActive}
-              className="h-8.5 px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-8 sm:h-8.5 px-3.5 sm:px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[12px] sm:text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Thử xử lý lại AI
             </button>
@@ -535,7 +540,7 @@ export function MyDocumentDetailPage({
             <button
               onClick={() => setIsConfirmOpen(true)}
               disabled={isMutatingActive}
-              className="h-8.5 px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-8 sm:h-8.5 px-3.5 sm:px-4 flex items-center gap-1.5 bg-[#0E0D0B] text-white hover:bg-[#1C1A17] text-[12px] sm:text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
@@ -551,7 +556,7 @@ export function MyDocumentDetailPage({
             </button>
           )}
           {pStatus === "PENDING_REVIEW" && (
-            <span className="inline-flex items-center gap-1.5 h-8.5 px-3 text-[13px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl">
+            <span className="inline-flex items-center gap-1.5 h-8 sm:h-8.5 px-2.5 sm:px-3 text-[12px] sm:text-[13px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl">
               <Clock className="w-3.5 h-3.5 text-amber-650 animate-pulse" />
               Đang chờ kiểm duyệt
             </span>
@@ -562,7 +567,7 @@ export function MyDocumentDetailPage({
             <button
               onClick={handleDeleteClick}
               disabled={isMutatingActive}
-              className="h-8.5 px-3 flex items-center justify-center bg-white border border-red-200 text-red-655 rounded-xl hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed font-action"
+              className="h-8 sm:h-8.5 px-2.5 sm:px-3 flex items-center justify-center bg-white border border-red-200 text-red-655 rounded-xl hover:bg-red-50 transition-colors ml-auto sm:ml-0 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed font-action"
               title="Xóa tài liệu"
             >
               <Trash2 className="w-4 h-4" />
@@ -618,17 +623,49 @@ export function MyDocumentDetailPage({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+      {/* Mobile View Tab Switcher (Only visible on < lg screens) */}
+      <div className="flex lg:hidden items-center p-1 bg-[#F4F3F0] rounded-2xl border border-[#0E0D0B]/[0.08] mb-3.5 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileTab("metadata")}
+          className={`flex-1 py-2 text-center text-[12px] font-bold rounded-xl transition-all border-none cursor-pointer font-action ${
+            mobileTab === "metadata"
+              ? "bg-white text-[#0E0D0B] shadow-xs"
+              : "text-[#6B6963] hover:text-[#0E0D0B]"
+          }`}
+        >
+          📄 Thông tin học liệu
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("ai")}
+          className={`flex-1 py-2 text-center text-[12px] font-bold rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-1.5 font-action ${
+            mobileTab === "ai"
+              ? "bg-white text-[#4F63D2] shadow-xs"
+              : "text-[#6B6963] hover:text-[#0E0D0B]"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#4F63D2]" />
+          <span>Hỏi đáp AI Workspace</span>
+          {ragEligible && (
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          )}
+        </button>
+      </div>
 
-        {/* Left Column: Info & Timeline */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4.5 overflow-y-auto pr-1 scrollbar-hide">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 flex-1 min-h-0">
+
+        {/* Left Column: Info & Timeline - Visible on mobile when mobileTab === 'metadata', always visible on lg */}
+        <div className={`lg:col-span-5 xl:col-span-4 flex-col gap-4 sm:gap-4.5 lg:overflow-y-auto pr-0 lg:pr-1 scrollbar-hide ${
+          mobileTab === "metadata" ? "flex" : "hidden lg:flex"
+        }`}>
 
           {/* 1. Document Summary */}
-          <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 shadow-premium text-left flex-shrink-0">
-            <h1 className="text-[24px] font-sans-body font-semibold text-[#0E0D0B] leading-snug mb-3">
+          <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-5 sm:p-6 shadow-premium text-left flex-shrink-0">
+            <h1 className="text-[20px] sm:text-[24px] font-sans-body font-semibold text-[#0E0D0B] leading-snug mb-2 sm:mb-3">
               {doc.title}
             </h1>
-            <div className="mb-4 flex flex-wrap gap-2 items-center">
+            <div className="mb-3 sm:mb-4 flex flex-wrap gap-2 items-center">
               <DualStatusBadge processing={doc.processingStatus} publication={doc.publicationStatus} ragEligible={doc.ragEligible} />
               {lastUpdatedTime && (
                 <span className="text-[12px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium">
@@ -636,47 +673,47 @@ export function MyDocumentDetailPage({
                 </span>
               )}
             </div>
-            <p className="text-[14.5px] text-[#6B6963] leading-relaxed font-sans">
+            <p className="text-[13.5px] sm:text-[14.5px] text-[#6B6963] leading-relaxed font-sans">
               {doc.description || "Chưa có mô tả tài liệu."}
             </p>
           </div>
 
           {/* 2. File Information Card */}
-          <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-6 text-left shadow-premium flex-shrink-0">
-            <h3 className="text-[17px] font-semibold text-[#0E0D0B] mb-4 font-sans-body">Tệp tài liệu gốc</h3>
+          <div className="bg-white border border-[rgba(14,13,11,0.07)] rounded-2xl p-5 sm:p-6 text-left shadow-premium flex-shrink-0">
+            <h3 className="text-[16px] sm:text-[17px] font-semibold text-[#0E0D0B] mb-3.5 sm:mb-4 font-sans-body">Tệp tài liệu gốc</h3>
             <div className="space-y-3.5">
               <div>
-                <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Tên file gốc</p>
-                <p className="text-[14.5px] text-[#0E0D0B] font-medium break-all">{doc.originalFilename || "source.pdf"}</p>
+                <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Tên file gốc</p>
+                <p className="text-[13.5px] sm:text-[14.5px] text-[#0E0D0B] font-medium break-all">{doc.originalFilename || "source.pdf"}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Định dạng & Dung lượng</p>
-                  <p className="text-[14px] text-[#0E0D0B] font-medium">{doc.fileType} · {doc.fileSize}</p>
+                  <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Định dạng & Dung lượng</p>
+                  <p className="text-[13px] sm:text-[14px] text-[#0E0D0B] font-medium">{doc.fileType} · {doc.fileSize}</p>
                 </div>
                 <div>
-                  <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Phiên bản tải lên</p>
-                  <p className="text-[14px] text-[#0E0D0B] font-medium font-mono">Bản v{doc.fileVersion || 1}</p>
+                  <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Phiên bản tải lên</p>
+                  <p className="text-[13px] sm:text-[14px] text-[#0E0D0B] font-medium font-mono">Bản v{doc.fileVersion || 1}</p>
                 </div>
               </div>
               <div>
-                <p className="text-[11.5px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Cập nhật lần cuối</p>
-                <p className="text-[14px] text-[#0E0D0B] font-medium">{doc.updatedAt}</p>
+                <p className="text-[11px] font-mono-label text-[#AAAA9F] uppercase tracking-widest mb-0.5">Cập nhật lần cuối</p>
+                <p className="text-[13px] sm:text-[14px] text-[#0E0D0B] font-medium">{doc.updatedAt}</p>
               </div>
 
-              {/* File Information Actions: compact, side by side */}
-              <div className="flex gap-3 pt-2">
+              {/* File Information Actions: compact */}
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-2">
                 <button
                   onClick={handlePreview}
                   disabled={isPreviewing}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-9.5 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs border-none cursor-pointer font-action disabled:opacity-50"
                 >
                   {isPreviewing ? "Đang tải..." : "Xem nội dung"}
                 </button>
                 <button
                   onClick={handleDownload}
                   disabled={isMutatingActive}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-9.5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action disabled:opacity-50"
                 >
                   <Download className="w-3.5 h-3.5 text-[#6B6963]" />
                   Tải file gốc
@@ -701,8 +738,10 @@ export function MyDocumentDetailPage({
           )}
         </div>
 
-        {/* Right Column: RAG Chat */}
-        <div className="lg:col-span-7 xl:col-span-8 h-[520px] min-h-0 lg:h-full">
+        {/* Right Column: RAG Chat - Visible on mobile when mobileTab === 'ai', always visible on lg */}
+        <div className={`lg:col-span-7 xl:col-span-8 flex-1 flex flex-col min-h-0 ${
+          mobileTab === "ai" ? "block w-full" : "hidden lg:flex"
+        }`}>
           <RagChatPanel
             document={doc}
             isEligible={ragEligible}
@@ -1034,6 +1073,9 @@ export function MyDocumentDetailPage({
             setActiveQuizForEdit(null);
             setActiveQuizForPreview(quizToPreview);
           }}
+          onPublishSuccess={pubQuiz => {
+            setPublishedQuizForShare(pubQuiz);
+          }}
         />
       )}
 
@@ -1041,6 +1083,13 @@ export function MyDocumentDetailPage({
         <QuizPreviewModal
           quiz={activeQuizForPreview}
           onClose={() => setActiveQuizForPreview(null)}
+        />
+      )}
+
+      {publishedQuizForShare && (
+        <PublishSuccessModal
+          quiz={publishedQuizForShare}
+          onClose={() => setPublishedQuizForShare(null)}
         />
       )}
     </div>

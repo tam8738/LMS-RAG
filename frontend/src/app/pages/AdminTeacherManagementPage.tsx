@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import {
   Users, Search, Filter, Plus, FileSpreadsheet, MoreVertical,
   Edit3, Key, ShieldAlert, CheckCircle2, X, Upload, RefreshCw,
-  ChevronLeft, ChevronRight, AlertCircle, Building2, Calendar, Mail, Phone
+  ChevronLeft, ChevronRight, AlertCircle, Building2, Calendar, Mail, Phone,
+  ChevronDown, Check
 } from "lucide-react";
 import {
   teacherAdminService,
@@ -15,6 +16,87 @@ import {
 import { PageLoading, EmptyState } from "../components/EmptyState";
 import { VietnameseDateInput } from "../components/VietnameseDateInput";
 import { formatIsoToVietnameseDate, parseVietnameseDateToIso } from "../utils/formatDate";
+
+interface CustomSelectOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+function CustomSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  disabled = false,
+}: {
+  value: T;
+  options: CustomSelectOption<T>[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((opt) => opt.value === value) || options[0];
+  const selectedLabel = selectedOption ? selectedOption.label : "";
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-[13.5px] font-medium text-[#0E0D0B] outline-none transition-all flex items-center justify-between gap-1.5 font-sans ${
+          disabled
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : "cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+        } ${isOpen ? "border-indigo-500 ring-4 ring-indigo-500/10" : ""}`}
+      >
+        <span className="truncate text-left">{selectedLabel}</span>
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[#AAAA9F] transition-transform duration-200 ${isOpen ? "rotate-180 text-indigo-600" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-[150] max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-[0_10px_30px_rgba(14,13,11,0.12)] text-left font-sans animate-fadeIn">
+          {options.map((option) => {
+            const isSelected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`flex w-full items-center justify-between px-3 py-2 text-[13px] font-medium rounded-lg transition-colors border-none cursor-pointer ${
+                  isSelected ? "bg-indigo-50 text-indigo-600 font-semibold" : "bg-transparent text-[#0E0D0B] hover:bg-[#F8F7F4]"
+                }`}
+              >
+                <span className="truncate">{option.label}</span>
+                {isSelected && <Check className="h-3.5 w-3.5 flex-shrink-0 text-indigo-600" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const GENDER_OPTIONS: CustomSelectOption<"MALE" | "FEMALE" | "OTHER">[] = [
+  { value: "MALE", label: "Nam" },
+  { value: "FEMALE", label: "Nữ" },
+  { value: "OTHER", label: "Khác" },
+];
 
 export function AdminTeacherManagementPage() {
   const [teachers, setTeachers] = useState<TeacherResponse[]>([]);
@@ -750,15 +832,11 @@ function CreateTeacherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Giới tính
               </label>
-              <select
+              <CustomSelect
                 value={gender}
-                onChange={e => setGender(e.target.value as any)}
-                className="w-full h-10 border border-gray-200 rounded-xl px-3 text-[13.5px] focus:outline-none focus:border-indigo-500 bg-white"
-              >
-                <option value="MALE">Nam</option>
-                <option value="FEMALE">Nữ</option>
-                <option value="OTHER">Khác</option>
-              </select>
+                options={GENDER_OPTIONS}
+                onChange={(val) => setGender(val)}
+              />
             </div>
           </div>
 
@@ -899,15 +977,11 @@ function EditTeacherModal({ teacher, onClose, onSuccess }: { teacher: TeacherRes
               <label className="block text-[11.5px] font-semibold text-[#6B6963] uppercase tracking-wider mb-1">
                 Giới tính
               </label>
-              <select
+              <CustomSelect
                 value={gender}
-                onChange={e => setGender(e.target.value as any)}
-                className="w-full h-10 border border-gray-200 rounded-xl px-3 text-[13.5px] focus:outline-none focus:border-indigo-500 bg-white"
-              >
-                <option value="MALE">Nam</option>
-                <option value="FEMALE">Nữ</option>
-                <option value="OTHER">Khác</option>
-              </select>
+                options={GENDER_OPTIONS}
+                onChange={(val) => setGender(val)}
+              />
             </div>
           </div>
 

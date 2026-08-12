@@ -337,16 +337,16 @@ export function QuizManagementPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-[rgba(14,13,11,0.07)] shadow-xs min-h-[300px] pb-8">
           <div className="overflow-x-auto overflow-y-visible min-h-[300px]">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[760px] text-left border-collapse">
               <thead>
-                <tr className="bg-[#F8F7F4]/70 border-b border-[rgba(14,13,11,0.06)] text-[12px] font-semibold uppercase tracking-wider text-[#6B6963]">
-                  <th className="py-3.5 px-5">Mã Quiz</th>
-                  <th className="py-3.5 px-5">Tiêu đề Quiz</th>
-                  <th className="py-3.5 px-5">Số câu hỏi</th>
-                  <th className="py-3.5 px-5">Ngôn ngữ</th>
-                  <th className="py-3.5 px-5">Trạng thái</th>
-                  <th className="py-3.5 px-5">Ngày tạo</th>
-                  <th className="py-3.5 px-5 text-right">Thao tác</th>
+                <tr className="bg-[#F8F7F4]/70 border-b border-[rgba(14,13,11,0.06)] text-[12px] font-semibold uppercase tracking-wider text-[#6B6963] whitespace-nowrap">
+                  <th className="py-3.5 px-5 whitespace-nowrap">Mã Quiz</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Tiêu đề Quiz</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Số câu hỏi</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Ngôn ngữ</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Trạng thái</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Ngày tạo</th>
+                  <th className="py-3.5 px-5 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(14,13,11,0.05)] text-[13px]">
@@ -357,32 +357,32 @@ export function QuizManagementPage() {
                   return (
                     <tr key={quizItem.id} className="hover:bg-[#F8F7F4]/40 transition-colors group">
                       {/* Mã Quiz */}
-                      <td className="py-3.5 px-5 font-mono-label text-[12.5px] font-semibold text-indigo-700">
+                      <td className="py-3.5 px-5 font-mono-label text-[12.5px] font-semibold text-indigo-700 whitespace-nowrap">
                         QUIZ-#{quizItem.id}
                       </td>
 
                       {/* Tiêu đề & mô tả */}
-                      <td className="py-3.5 px-5">
-                        <p className="font-semibold text-[#0E0D0B] text-[13.5px] leading-tight">{quizItem.title}</p>
+                      <td className="py-3.5 px-5 max-w-[280px]">
+                        <p className="font-semibold text-[#0E0D0B] text-[13.5px] leading-tight truncate">{quizItem.title}</p>
                         {quizItem.description && (
-                          <p className="text-[12px] text-[#6B6963] truncate max-w-xs mt-0.5">{quizItem.description}</p>
+                          <p className="text-[12px] text-[#6B6963] truncate mt-0.5">{quizItem.description}</p>
                         )}
                       </td>
 
                       {/* Số câu */}
-                      <td className="py-3.5 px-5 text-[#0E0D0B] font-medium">
+                      <td className="py-3.5 px-5 text-[#0E0D0B] font-medium whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[12px] font-bold">
                           {quizItem.questions ? quizItem.questions.length : quizItem.questionCount} câu
                         </span>
                       </td>
 
                       {/* Ngôn ngữ */}
-                      <td className="py-3.5 px-5 text-[#6B6963]">
+                      <td className="py-3.5 px-5 text-[#6B6963] whitespace-nowrap">
                         {quizItem.language === "vi" ? "🇻🇳 Tiếng Việt" : "🇬🇧 Tiếng Anh"}
                       </td>
 
                       {/* Trạng thái */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border ${isPublished ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
                           }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isPublished ? "bg-emerald-500" : "bg-amber-500"}`} />
@@ -391,12 +391,12 @@ export function QuizManagementPage() {
                       </td>
 
                       {/* Ngày tạo */}
-                      <td className="py-3.5 px-5 text-[#6B6963] text-[12.5px]">
+                      <td className="py-3.5 px-5 text-[#6B6963] text-[12.5px] whitespace-nowrap">
                         {quizItem.createdAt ? new Date(quizItem.createdAt).toLocaleDateString("vi-VN") : "Hôm nay"}
                       </td>
 
                       {/* Thao tác */}
-                      <td className="py-3.5 px-5 text-right relative">
+                      <td className="py-3.5 px-5 text-right relative whitespace-nowrap">
                         <button
                           onMouseDown={e => e.stopPropagation()}
                           onClick={e => toggleActionMenu(e, quizItem.id)}

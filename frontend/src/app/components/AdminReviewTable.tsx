@@ -13,15 +13,15 @@ export function AdminReviewTable({
   return (
     <div className="bg-white border border-[rgba(14,13,11,0.08)] rounded-2xl overflow-hidden shadow-sm text-left">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[800px]">
+        <table className="w-full text-left border-collapse min-w-[850px]">
           <thead>
             <tr className="border-b border-[rgba(14,13,11,0.06)] bg-[#F8F7F4]/50">
-              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium">Tài liệu chờ duyệt</th>
-              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-48">Môn học</th>
-              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-40">Người gửi</th>
-              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-36">Tiến trình AI</th>
-              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium w-32">Ngày gửi</th>
-              <th className="px-4 py-3 w-12"></th>
+              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium whitespace-nowrap">Tài liệu chờ duyệt</th>
+              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium whitespace-nowrap">Môn học</th>
+              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium whitespace-nowrap">Người gửi</th>
+              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium whitespace-nowrap">Tiến trình AI</th>
+              <th className="px-5 py-3 text-[12px] font-mono-label text-[#AAAA9F] uppercase tracking-widest font-medium whitespace-nowrap">Ngày gửi</th>
+              <th className="px-4 py-3 w-12 whitespace-nowrap"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[rgba(14,13,11,0.04)]">
@@ -31,25 +31,25 @@ export function AdminReviewTable({
                 onClick={() => onRowClick(doc.id)}
                 className="hover:bg-[#F8F7F4]/80 transition-colors cursor-pointer group"
               >
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 max-w-[280px]">
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <FileText className="w-3.5 h-3.5 text-amber-600" />
                     </div>
-                    <div>
-                      <p className="text-[15.5px] font-medium text-[#0E0D0B] mb-0.5 line-clamp-1 group-hover:text-[#4F63D2] transition-colors">{doc.title}</p>
-                      <p className="text-[12px] text-[#AAAA9F]">{doc.fileType} · {doc.fileSize}</p>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-medium text-[#0E0D0B] mb-0.5 truncate group-hover:text-[#4F63D2] transition-colors">{doc.title}</p>
+                      <p className="text-[12px] text-[#AAAA9F] whitespace-nowrap">{doc.fileType} · {doc.fileSize}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-5 py-4 align-top pt-5 text-[13.5px] text-[#6B6963] truncate">
+                <td className="px-5 py-4 align-middle text-[13.5px] text-[#6B6963] whitespace-nowrap">
                   {doc.subject}
                 </td>
-                <td className="px-5 py-4 align-top pt-5 text-[13.5px] text-[#0E0D0B] font-medium truncate">
+                <td className="px-5 py-4 align-middle text-[13.5px] text-[#0E0D0B] font-medium whitespace-nowrap">
                   {doc.authorName}
                 </td>
-                <td className="px-5 py-4 align-top pt-5">
-                   <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md border ${
+                <td className="px-5 py-4 align-middle whitespace-nowrap">
+                   <span className={`inline-flex items-center px-2.5 py-1 text-[11.5px] font-medium rounded-md border whitespace-nowrap ${
                     doc.processingStatus === "ANALYZED" && doc.ragEligible === false ? "text-amber-800 bg-amber-50 border-amber-200" :
                     isAnalysisInProgress(doc.processingStatus) ? "text-amber-700 bg-amber-50 border-transparent" :
                     isAnalysisComplete(doc.processingStatus) ? "text-emerald-700 bg-emerald-50 border-transparent" :
@@ -61,10 +61,10 @@ export function AdminReviewTable({
                      isProcessingFailed(doc.processingStatus) ? "Lỗi phân tích AI" : doc.processingStatus}
                   </span>
                 </td>
-                <td className="px-5 py-4 align-top pt-5 text-[12px] text-[#6B6963] font-mono-label">
+                <td className="px-5 py-4 align-middle text-[12px] text-[#6B6963] font-mono-label whitespace-nowrap">
                   {doc.updatedAt}
                 </td>
-                <td className="px-4 py-4 align-top pt-4 text-right">
+                <td className="px-4 py-4 align-middle text-right whitespace-nowrap">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[#C2BFB8] group-hover:text-[#4F63D2] group-hover:bg-[#F0F2FF] transition-all ml-auto">
                     <ChevronRight className="w-4 h-4" />
                   </div>

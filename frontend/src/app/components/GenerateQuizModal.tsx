@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Sparkles, BookOpen, Globe, Sliders, CheckCircle2, AlertCircle, Loader2, Shuffle } from "lucide-react";
+import { X, Sparkles, BookOpen, Globe, Sliders, CheckCircle2, AlertCircle, Loader2, Shuffle, ChevronDown, Check, FileText } from "lucide-react";
 import { quizService, QuizResponse } from "../services/quizService";
 import { libraryService } from "../services/libraryService";
 import { LibraryDocument } from "../types";
@@ -20,6 +20,115 @@ function clampQuestionCount(value: number): number {
     return MIN_QUIZ_QUESTION_COUNT;
   }
   return Math.max(MIN_QUIZ_QUESTION_COUNT, Math.min(MAX_QUIZ_QUESTION_COUNT, value));
+}
+
+function DocumentSelectDropdown({
+  documents,
+  selectedDocId,
+  onSelect,
+}: {
+  documents: LibraryDocument[];
+  selectedDocId?: number;
+  onSelect: (docId: number) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedDoc = documents.find(d => d.id === selectedDocId) || documents[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(prev => !prev)}
+        className={`w-full min-h-[44px] sm:h-11 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-[13.5px] text-[#0E0D0B] font-medium transition-all flex items-center justify-between gap-2.5 cursor-pointer focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 ${isOpen ? "border-indigo-500 ring-4 ring-indigo-500/10" : "hover:border-gray-300"
+          }`}
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+          <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+            <FileText className="w-3.5 h-3.5" />
+          </div>
+          <span className="truncate font-semibold text-[#0E0D0B] text-[13.5px]">
+            {selectedDoc ? selectedDoc.title : "Chọn tài liệu..."}
+          </span>
+          {selectedDoc?.pageCount ? (
+            <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md flex-shrink-0">
+              {selectedDoc.pageCount} trang
+            </span>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180 text-indigo-600" : ""
+            }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-[150] max-h-60 overflow-y-auto rounded-2xl border border-gray-200/90 bg-white p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)] text-left font-sans animate-fadeIn">
+          {documents.map(doc => {
+            const isSelected = doc.id === selectedDocId;
+            return (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => {
+                  onSelect(doc.id);
+                  setIsOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-2.5 px-3 py-2.5 text-[13px] rounded-xl transition-all border-none cursor-pointer mb-0.5 last:mb-0 ${isSelected
+                    ? "bg-indigo-50 text-indigo-700 font-semibold"
+                    : "bg-transparent text-slate-800 hover:bg-slate-50 font-medium"
+                  }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isSelected
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "bg-gray-100 text-gray-500"
+                      }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] leading-snug">{doc.title}</p>
+                    {doc.subject && (
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                        {doc.subject}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {doc.pageCount ? (
+                    <span
+                      className={`text-[11px] font-mono px-2 py-0.5 rounded-md ${isSelected
+                          ? "bg-indigo-100/80 text-indigo-700 font-bold"
+                          : "bg-gray-100 text-gray-500 font-medium"
+                        }`}
+                    >
+                      {doc.pageCount} trang
+                    </span>
+                  ) : null}
+                  {isSelected && <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: GenerateQuizModalProps) {
@@ -165,7 +274,7 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
                 <span>Tài liệu nguồn (Đã lập chỉ mục AI)</span>
               </label>
               {loadingDocs ? (
-                <div className="h-10 border border-gray-200 rounded-xl bg-gray-50 animate-pulse flex items-center px-3.5 text-[13px] text-gray-400">
+                <div className="h-11 border border-gray-200 rounded-xl bg-gray-50 animate-pulse flex items-center px-3.5 text-[13px] text-gray-400">
                   Đang tải danh sách tài liệu...
                 </div>
               ) : documents.length === 0 ? (
@@ -173,18 +282,11 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
                   ⚠️ Chưa có tài liệu nào hỗ trợ AI (đã được xuất bản & lập chỉ mục RAG) trong Thư viện để sinh Quiz.
                 </div>
               ) : (
-                <select
-                  value={selectedDocId || ""}
-                  onChange={e => setSelectedDocId(Number(e.target.value))}
-                  required
-                  className="w-full h-10 border border-gray-200 rounded-xl px-3.5 text-[13.5px] text-[#0E0D0B] bg-white focus:outline-none focus:border-indigo-500 font-medium"
-                >
-                  {documents.map(doc => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.title} ({doc.pageCount ? `${doc.pageCount} trang` : "Tài liệu"})
-                    </option>
-                  ))}
-                </select>
+                <DocumentSelectDropdown
+                  documents={documents}
+                  selectedDocId={selectedDocId}
+                  onSelect={(docId) => setSelectedDocId(docId)}
+                />
               )}
             </div>
 
@@ -230,11 +332,10 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
                       key={num}
                       type="button"
                       onClick={() => setQuestionCount(num)}
-                      className={`px-2 py-0.5 rounded-md text-[11.5px] font-semibold transition-all cursor-pointer border ${
-                        questionCount === num
+                      className={`px-2 py-0.5 rounded-md text-[11.5px] font-semibold transition-all cursor-pointer border ${questionCount === num
                           ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
                           : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       {num} câu
                     </button>
@@ -253,22 +354,20 @@ export function GenerateQuizModal({ initialDocumentId, onClose, onSuccess }: Gen
                 <button
                   type="button"
                   onClick={() => setLanguage("vi")}
-                  className={`h-10 rounded-xl border text-[13px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    language === "vi"
+                  className={`h-10 rounded-xl border text-[13px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${language === "vi"
                       ? "border-indigo-600 bg-indigo-50 text-indigo-700 shadow-xs"
                       : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <span>🇻🇳 Tiếng Việt</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setLanguage("en")}
-                  className={`h-10 rounded-xl border text-[13px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    language === "en"
+                  className={`h-10 rounded-xl border text-[13px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${language === "en"
                       ? "border-indigo-600 bg-indigo-50 text-indigo-700 shadow-xs"
                       : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <span>🇬🇧 Tiếng Anh</span>
                 </button>

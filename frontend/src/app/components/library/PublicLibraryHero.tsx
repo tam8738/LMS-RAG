@@ -111,54 +111,54 @@ export function PublicLibraryHero({
       `}</style>
 
       {/* Main Agromind-style 2-Column Hero Container */}
-      <div className="relative rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/80 bg-gradient-to-br from-[#F8F7F4] via-white to-[#F1F5F9]/60 shadow-premium overflow-hidden min-h-[540px] lg:min-h-[600px] flex items-center">
+      <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-8 lg:p-12 border border-slate-200/80 bg-gradient-to-br from-[#F8F7F4] via-white to-[#F1F5F9]/60 shadow-premium overflow-hidden min-h-[500px] lg:min-h-[600px] flex items-center w-full min-w-0">
 
         {/* Ambient Background Blobs */}
         <div className="absolute -left-28 -top-28 w-96 h-96 bg-indigo-500/[0.07] rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -right-28 -bottom-28 w-96 h-96 bg-violet-500/[0.06] rounded-full blur-3xl pointer-events-none" />
 
-        <div className="w-full grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-center gap-10 xl:gap-14 relative z-10">
+        <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-center gap-8 lg:gap-10 xl:gap-14 relative z-10">
 
           {/* LEFT COLUMN: Content & Actions mapped by User Role */}
-          <div className="space-y-6 text-left">
+          <div className="space-y-5 sm:space-y-6 text-left min-w-0 w-full">
 
             {/* Top Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-[11px] sm:text-[12px] font-bold tracking-wider uppercase shadow-xs">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-[10.5px] sm:text-[12px] font-bold tracking-wider uppercase shadow-xs max-w-full">
               {isTeacher ? (
                 <>
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
-                  <span>WORKSPACE DÀNH CHO GIẢNG VIÊN</span>
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-300 flex-shrink-0" />
+                  <span className="truncate">WORKSPACE DÀNH CHO GIẢNG VIÊN</span>
                 </>
               ) : isAdmin ? (
                 <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>QUẢN TRỊ VIÊN HỆ THỐNG</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span className="truncate">QUẢN TRỊ VIÊN HỆ THỐNG</span>
                 </>
               ) : (
                 <>
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-300" />
-                  <span>THƯ VIỆN HỌC LIỆU CÔNG NGHỆ THÔNG TIN</span>
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-300 flex-shrink-0" />
+                  <span className="truncate">THƯ VIỆN HỌC LIỆU CÔNG NGHỆ THÔNG TIN</span>
                 </>
               )}
             </div>
 
             {/* H1 Heading */}
             {isTeacher ? (
-              <h1 className="text-[32px] sm:text-[40px] lg:text-[44px] font-extrabold text-slate-900 tracking-tight leading-[1.15] font-raleway">
-                Quản lý tài liệu hiệu quả  <br className="hidden sm:inline" />
+              <h1 className="text-[24px] sm:text-[36px] lg:text-[44px] font-extrabold text-slate-900 tracking-tight leading-[1.2] font-raleway break-words">
+                Quản lý tài liệu hiệu quả <br className="hidden sm:inline" />
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
                   Khai thác tri thức cùng AI
                 </span>
               </h1>
             ) : isAdmin ? (
-              <h1 className="text-[32px] sm:text-[40px] lg:text-[44px] font-extrabold text-slate-900 tracking-tight leading-[1.15] font-raleway">
+              <h1 className="text-[24px] sm:text-[36px] lg:text-[44px] font-extrabold text-slate-900 tracking-tight leading-[1.2] font-raleway break-words">
                 Quản lý & Phê duyệt học liệu <br className="hidden sm:inline" />
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
                   Đảm bảo chất lượng tri thức
                 </span>
               </h1>
             ) : (
-              <h1 className="text-[32px] sm:text-[40px] lg:text-[44px] font-extrabold text-slate-900 tracking-tight leading-[1.15] font-raleway">
+              <h1 className="text-[24px] sm:text-[36px] lg:text-[44px] font-extrabold text-slate-900 tracking-tight leading-[1.2] font-raleway break-words">
                 Khám phá tài liệu chính thống... <br className="hidden sm:inline" />
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
                   Tiếp cận tri thức dễ dàng hơn
@@ -168,27 +168,27 @@ export function PublicLibraryHero({
 
             {/* Description Paragraph */}
             {isTeacher ? (
-              <p className="text-[14.5px] sm:text-[15.5px] text-slate-600 max-w-xl leading-relaxed font-sans font-normal">
+              <p className="text-[13.5px] sm:text-[15.5px] text-slate-600 max-w-xl leading-relaxed font-sans font-normal">
                 Tải lên, theo dõi và xuất bản tài liệu giảng dạy; đồng thời sử dụng RAG AI để tra cứu và hỏi đáp trên các học liệu đã sẵn sàng.
               </p>
             ) : isAdmin ? (
-              <p className="text-[14.5px] sm:text-[15.5px] text-slate-600 max-w-xl leading-relaxed font-sans font-normal">
+              <p className="text-[13.5px] sm:text-[15.5px] text-slate-600 max-w-xl leading-relaxed font-sans font-normal">
                 Thẩm định tài liệu giảng dạy từ các giảng viên, quản lý người dùng và theo dõi hoạt động RAG AI trên toàn bộ hệ thống.
               </p>
             ) : (
-              <p className="text-[14.5px] sm:text-[15.5px] text-slate-600 max-w-xl leading-relaxed font-sans font-normal">
+              <p className="text-[13.5px] sm:text-[15.5px] text-slate-600 max-w-xl leading-relaxed font-sans font-normal">
                 EduRAG là hệ thống quản lý tài liệu Công nghệ thông tin được giảng viên xây dựng, kiểm duyệt và ứng dụng RAG AI hỗ trợ giảng dạy.
               </p>
             )}
 
             {/* CTA Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full">
               {isTeacher ? (
                 <>
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.UPLOAD)}
-                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] sm:text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto whitespace-nowrap"
+                    className="h-11 sm:h-12 px-5 sm:px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13px] sm:text-[14px] font-bold rounded-xl sm:rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto"
                   >
                     <Upload className="w-4.5 h-4.5 text-indigo-300 flex-shrink-0" />
                     <span>Tải tài liệu mới</span>
@@ -197,7 +197,7 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.MY_DOCUMENTS)}
-                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13.5px] sm:text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto whitespace-nowrap"
+                    className="h-11 sm:h-12 px-5 sm:px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13px] sm:text-[14px] font-semibold rounded-xl sm:rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto"
                   >
                     <FolderKanban className="w-4.5 h-4.5 text-slate-400 flex-shrink-0" />
                     <span>Quản lý tài liệu của tôi</span>
@@ -208,7 +208,7 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.ADMIN_REVIEWS)}
-                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] sm:text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto whitespace-nowrap"
+                    className="h-11 sm:h-12 px-5 sm:px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13px] sm:text-[14px] font-bold rounded-xl sm:rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto"
                   >
                     <ShieldCheck className="w-4.5 h-4.5 text-emerald-400 flex-shrink-0" />
                     <span>Duyệt tài liệu ngay</span>
@@ -217,7 +217,7 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={() => navigate(ROUTES.ADMIN_TEACHERS)}
-                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13.5px] sm:text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto whitespace-nowrap"
+                    className="h-11 sm:h-12 px-5 sm:px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13px] sm:text-[14px] font-semibold rounded-xl sm:rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto"
                   >
                     <UserCheck className="w-4.5 h-4.5 text-slate-400 flex-shrink-0" />
                     <span>Quản lý Giảng viên</span>
@@ -228,7 +228,7 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={onExplore}
-                    className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13.5px] sm:text-[14px] font-bold rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto whitespace-nowrap"
+                    className="h-11 sm:h-12 px-5 sm:px-6 bg-slate-900 hover:bg-slate-800 text-white text-[13px] sm:text-[14px] font-bold rounded-xl sm:rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer border-none font-action group w-full sm:w-auto"
                   >
                     <span>Khám phá thư viện</span>
                     <ArrowRight className="w-4.5 h-4.5 text-indigo-300 group-hover:translate-x-1 transition-transform flex-shrink-0" />
@@ -237,7 +237,7 @@ export function PublicLibraryHero({
                   <button
                     type="button"
                     onClick={() => setIsProcessOpen(true)}
-                    className="h-12 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13.5px] sm:text-[14px] font-semibold rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto whitespace-nowrap"
+                    className="h-11 sm:h-12 px-5 sm:px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[13px] sm:text-[14px] font-semibold rounded-xl sm:rounded-2xl transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer font-action w-full sm:w-auto"
                   >
                     <span>Quy trình xuất bản</span>
                     <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -247,7 +247,7 @@ export function PublicLibraryHero({
             </div>
 
             {/* Bottom Value Badges */}
-            <div className="pt-4 border-t border-slate-200/60 flex flex-wrap items-center gap-5 text-xs text-slate-500 font-medium font-sans">
+            <div className="pt-4 border-t border-slate-200/60 flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-slate-500 font-medium font-sans">
               {isTeacher ? (
                 <>
                   <div className="flex items-center gap-1.5">
