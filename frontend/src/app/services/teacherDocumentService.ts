@@ -210,7 +210,7 @@ export const teacherDocumentService = {
    */
   async reprocessRag(documentId: number): Promise<Document> {
     const response = await apiFetch<DocumentResponseDTO>(
-      `/api/v1/documents/${documentId}/reprocess-rag`,
+      `/api/v1/my/documents/${documentId}/reprocess-rag`,
       {
         method: "POST"
       }

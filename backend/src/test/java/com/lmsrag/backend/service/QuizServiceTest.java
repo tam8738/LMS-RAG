@@ -226,7 +226,7 @@ class QuizServiceTest {
         Pageable pageable = PageRequest.of(0, 12);
         Page<Quiz> quizPage = new PageImpl<>(List.of(draftQuiz, secondQuiz), pageable, 2);
 
-        when(quizRepository.searchByCreatedBy(1L, null, null, pageable)).thenReturn(quizPage);
+        when(quizRepository.findByCreatedById(1L, pageable)).thenReturn(quizPage);
         when(quizQuestionRepository.findAllByQuizIds(List.of(100L, 101L)))
                 .thenReturn(List.of(storedQuestion, secondQuestion));
 
@@ -238,6 +238,24 @@ class QuizServiceTest {
         assertThat(response.getContent().get(1).getQuestions()).hasSize(1);
         verify(quizQuestionRepository).findAllByQuizIds(List.of(100L, 101L));
         verify(quizQuestionRepository, never()).findByQuizIdOrderByQuestionIndex(any());
+    }
+
+    @Test
+    void listMyQuizzes_withQueryAndStatus_shouldUseTypedSearchQuery() {
+        Pageable pageable = PageRequest.of(0, 12);
+        Page<Quiz> quizPage = new PageImpl<>(List.of(draftQuiz), pageable, 1);
+
+        when(quizRepository.searchByCreatedByIdAndStatusAndQuery(
+                1L, QuizStatus.DRAFT, "chuẩn hóa", pageable)).thenReturn(quizPage);
+        when(quizQuestionRepository.findAllByQuizIds(List.of(100L)))
+                .thenReturn(List.of(storedQuestion));
+
+        Page<QuizResponse> response = quizService.listMyQuizzes(
+                teacher, "  chuẩn hóa  ", QuizStatus.DRAFT, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        verify(quizRepository).searchByCreatedByIdAndStatusAndQuery(
+                1L, QuizStatus.DRAFT, "chuẩn hóa", pageable);
     }
 
     @Test

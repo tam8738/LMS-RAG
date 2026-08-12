@@ -144,12 +144,8 @@ public class QuizService {
                                             Pageable pageable) {
         Pageable boundedPageable = boundPageSize(pageable, MAX_QUIZ_PAGE_SIZE);
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        Page<Quiz> quizzes = quizRepository.searchByCreatedBy(
-                currentUser.getId(),
-                status,
-                normalizedQuery,
-                boundedPageable
-        );
+        Page<Quiz> quizzes = findMyQuizzes(
+                currentUser.getId(), status, normalizedQuery, boundedPageable);
         if (quizzes.isEmpty()) {
             return quizzes.map(quiz -> toResponse(quiz, List.of()));
         }
@@ -163,6 +159,20 @@ public class QuizService {
                 quiz,
                 questionsByQuizId.getOrDefault(quiz.getId(), List.of())
         ));
+    }
+
+    private Page<Quiz> findMyQuizzes(Long createdById,
+                                     QuizStatus status,
+                                     String query,
+                                     Pageable pageable) {
+        if (query == null) {
+            return status == null
+                    ? quizRepository.findByCreatedById(createdById, pageable)
+                    : quizRepository.findByCreatedByIdAndStatus(createdById, status, pageable);
+        }
+        return status == null
+                ? quizRepository.searchByCreatedByIdAndQuery(createdById, query, pageable)
+                : quizRepository.searchByCreatedByIdAndStatusAndQuery(createdById, status, query, pageable);
     }
 
     private Pageable boundPageSize(Pageable pageable, int maxSize) {

@@ -16,16 +16,35 @@ import java.util.Optional;
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
     @EntityGraph(attributePaths = {"document", "createdBy"})
+    Page<Quiz> findByCreatedById(Long createdById, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"document", "createdBy"})
+    Page<Quiz> findByCreatedByIdAndStatus(Long createdById, QuizStatus status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"document", "createdBy"})
     @Query("""
             SELECT quiz
             FROM Quiz quiz
             WHERE quiz.createdBy.id = :createdById
-              AND (:status IS NULL OR quiz.status = :status)
-              AND (:query IS NULL
-                   OR LOWER(quiz.title) LIKE LOWER(CONCAT('%', :query, '%'))
+              AND (LOWER(quiz.title) LIKE LOWER(CONCAT('%', :query, '%'))
                    OR LOWER(COALESCE(quiz.description, '')) LIKE LOWER(CONCAT('%', :query, '%')))
             """)
-    Page<Quiz> searchByCreatedBy(
+    Page<Quiz> searchByCreatedByIdAndQuery(
+            @Param("createdById") Long createdById,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"document", "createdBy"})
+    @Query("""
+            SELECT quiz
+            FROM Quiz quiz
+            WHERE quiz.createdBy.id = :createdById
+              AND quiz.status = :status
+              AND (LOWER(quiz.title) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(quiz.description, '')) LIKE LOWER(CONCAT('%', :query, '%')))
+            """)
+    Page<Quiz> searchByCreatedByIdAndStatusAndQuery(
             @Param("createdById") Long createdById,
             @Param("status") QuizStatus status,
             @Param("query") String query,
