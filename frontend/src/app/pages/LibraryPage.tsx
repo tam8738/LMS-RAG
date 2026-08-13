@@ -492,7 +492,7 @@ export function LibraryPage({
   });
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden text-left font-sans space-y-8 sm:space-y-12 pb-16 min-w-0">
+    <div className="w-full max-w-full overflow-x-clip text-left font-sans space-y-8 sm:space-y-12 pb-16 min-w-0">
 
       {downloadError && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-[13.5px] flex items-center gap-2 animate-[fade-in_150ms_ease-out]">

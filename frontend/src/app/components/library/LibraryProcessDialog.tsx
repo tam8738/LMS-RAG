@@ -91,10 +91,10 @@ export function LibraryProcessDialog({ isOpen, onClose }: LibraryProcessDialogPr
         <div className="px-5 py-4 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 via-white to-indigo-50/20 flex-shrink-0">
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider mb-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Quy trình quản lý học liệu chuẩn
+              <CheckCircle2 className="w-3.5 h-3.5" /> Quy trình quản lý Tài liệu chuẩn
             </div>
             <h3 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight font-heading">
-              Vòng đời xuất bản Học liệu EduRAG
+              Vòng đời xuất bản tài liệu EduRAG
             </h3>
             <p className="text-[11.5px] sm:text-sm text-slate-500 mt-0.5 font-sans leading-tight">
               4 bước khép kín đảm bảo chất lượng tri thức từ biên soạn đến tích hợp trợ lý RAG AI.

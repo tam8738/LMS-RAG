@@ -470,22 +470,43 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
     }
   }, [mobileMenuOpen]);
 
+  // Track scroll position for sticky header elevation & glassmorphism
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#F8F7F4] flex flex-col font-sans-body text-left overflow-x-hidden w-full">
+    <div className="min-h-screen bg-[#F8F7F4] flex flex-col font-sans-body text-left overflow-x-clip w-full">
       <style>{LAYOUT_STYLES}</style>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[rgba(14,13,11,0.07)] h-14 w-full">
+      {/* Modern Sticky Glassmorphism Header */}
+      <header
+        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+          isScrolled
+            ? "bg-white/80 backdrop-blur-xl backdrop-saturate-150 border-b border-slate-200/80 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.08)] h-15 sm:h-16"
+            : "bg-[#F8F7F4]/80 backdrop-blur-md border-b border-slate-200/40 h-15 sm:h-16"
+        }`}
+      >
         <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 h-full flex items-center gap-3 sm:gap-5">
           {/* Logo */}
           <button
             onClick={() => navigate(navItems[0].path)}
-            className="flex items-center gap-2 flex-shrink-0 group cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg p-0.5"
+            className="flex items-center gap-2.5 flex-shrink-0 group cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl p-1 transition-transform active:scale-95"
           >
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center group-hover:bg-indigo-100/60 transition-colors">
-              <BookOpen className="w-4.5 h-4.5 text-indigo-600" />
+            <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all">
+              <BookOpen className="w-4.5 h-4.5 text-white" />
             </div>
-            <span className="text-[#0E0D0B] text-[17px] font-bold tracking-tight font-sans-body">EduRAG</span>
+            <div className="flex flex-col text-left">
+              <span className="text-slate-900 text-[17px] font-extrabold tracking-tight leading-none font-heading">EduRAG</span>
+              <span className="text-[10px] text-slate-400 font-mono font-medium tracking-wider uppercase mt-0.5">Học liệu AI</span>
+            </div>
           </button>
 
           {/* Navigation (Desktop) */}
@@ -496,65 +517,66 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
                 <button
                   key={id}
                   onClick={() => navigate(path)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-medium transition-all duration-150 cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isActive
-                    ? "text-[#0E0D0B] bg-[#F4F3F0]"
-                    : "text-[#6B6963] hover:text-[#0E0D0B] hover:bg-[#F8F7F4]"
-                    }`}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13.5px] font-medium transition-all duration-200 cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                    isActive
+                      ? "text-indigo-600 bg-indigo-50/90 font-semibold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                  }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  {label}
+                  <Icon className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+                  <span>{label}</span>
                 </button>
               );
             })}
           </nav>
 
           {/* User Menu / Right Actions */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2.5 ml-auto">
             {user ? (
               /* Profile Dropdown */
               <div ref={profileMenuRef} className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-[#F4F3F0] transition-all cursor-pointer border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  className="flex items-center gap-2.5 pl-1.5 pr-2.5 py-1.5 rounded-xl hover:bg-slate-100/80 transition-all cursor-pointer border border-transparent hover:border-slate-200/60 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 >
                   {(avatarPreview || user.avatarUrl) ? (
                     <img
                       src={avatarPreview || user.avatarUrl}
                       alt={user.name}
-                      className="w-6.5 h-6.5 rounded-full object-cover border border-indigo-200 shadow-xs"
+                      className="w-7 h-7 rounded-full object-cover border border-indigo-200 shadow-2xs"
                     />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#4F63D2] to-[#3D50B8] flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-[12px] font-bold shadow-2xs">
                       <span className="text-white text-[11.5px] font-bold">
                         {user.name ? user.name.charAt(0).toUpperCase() : "U"}
                       </span>
                     </div>
                   )}
                   <div className="hidden sm:flex flex-col text-left">
-                    <span className="text-[13.5px] text-[#0E0D0B] font-medium leading-none">{user.name}</span>
-                    <span className="text-[11px] text-[#AAAA9F] font-mono-label mt-1 leading-none uppercase">{user.role}</span>
+                    <span className="text-[13.5px] text-slate-900 font-semibold leading-tight">{user.name}</span>
+                    <span className="text-[10.5px] text-slate-400 font-mono leading-tight uppercase mt-0.5">{user.role}</span>
                   </div>
-                  <ChevronDown className={`w-3 h-3 text-[#AAAA9F] transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${profileOpen ? "rotate-180 text-indigo-600" : ""}`} />
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 top-10 w-48 bg-white rounded-xl border border-[rgba(14,13,11,0.08)] shadow-[0_8px_32px_rgba(14,13,11,0.12)] py-1.5 z-50 text-left">
-                    <div className="px-3.5 py-2 border-b border-[rgba(14,13,11,0.04)] mb-1">
-                      <p className="text-[13.5px] font-medium text-[#0E0D0B] truncate">{user.name}</p>
-                      <p className="text-[11.5px] text-[#AAAA9F] truncate">{user.email}</p>
+                  <div className="absolute right-0 top-12 w-52 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-[0_12px_40px_rgba(15,23,42,0.14)] p-1.5 z-50 text-left animate-fadeIn">
+                    <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
+                      <p className="text-[13.5px] font-bold text-slate-900 truncate">{user.name}</p>
+                      <p className="text-[11.5px] text-slate-400 truncate">{user.email}</p>
                     </div>
                     <button
                       onClick={handleAccountClick}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-[#0E0D0B] hover:bg-[#F8F7F4] transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-[#F8F7F4]"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all border-none bg-transparent cursor-pointer text-left outline-none"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-[#6B6963]" />
+                      <UserIcon className="w-4 h-4 text-slate-400" />
                       Tài khoản
                     </button>
                     <button
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13.5px] text-red-600 hover:bg-red-50 transition-all border-none bg-transparent cursor-pointer text-left outline-none focus-visible:bg-red-50"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-red-600 hover:bg-red-50 rounded-xl transition-all border-none bg-transparent cursor-pointer text-left outline-none font-medium"
                       onClick={requestLogout}
                     >
-                      <LogOut className="w-3.5 h-3.5 text-red-500" />
+                      <LogOut className="w-4 h-4 text-red-500" />
                       Đăng xuất
                     </button>
                   </div>
@@ -563,10 +585,10 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
             ) : (
               <button
                 onClick={() => navigate(ROUTES.LOGIN)}
-                className="h-8.5 px-4 bg-[#0E0D0B] hover:bg-[#1C1A17] text-white text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer border-none font-action flex items-center gap-1.5"
+                className="h-9 sm:h-9.5 px-4.5 bg-slate-900 hover:bg-slate-800 text-white text-[13px] sm:text-[13.5px] font-bold rounded-xl transition-all duration-200 shadow-sm hover:shadow hover:scale-[1.02] active:scale-[0.98] cursor-pointer border-none font-action flex items-center gap-2"
               >
-                <UserIcon className="w-3.5 h-3.5" />
-                Đăng nhập
+                <UserIcon className="w-3.5 h-3.5 text-indigo-300" />
+                <span>Đăng nhập</span>
               </button>
             )}
 
@@ -577,7 +599,7 @@ export function AppLayout({ children, user, onLogout, onUpdateUser }: AppLayoutP
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-drawer"
               aria-label="Mở menu điều hướng"
-              className="md:hidden p-1.5 hover:bg-[#F4F3F0] rounded-lg transition-colors border-none bg-transparent cursor-pointer text-[#6B6963] hover:text-[#0E0D0B] focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+              className="md:hidden p-2 hover:bg-slate-100 rounded-xl transition-colors border-none bg-transparent cursor-pointer text-slate-600 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <Menu className="w-5 h-5" />
             </button>

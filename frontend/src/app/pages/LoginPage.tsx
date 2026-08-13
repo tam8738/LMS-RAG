@@ -122,16 +122,16 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         <div className="my-auto relative z-10 flex flex-col gap-6">
           <div className="inline-flex self-start items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-2">
             <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs text-indigo-300 font-medium">Hệ thống quản lý học liệu tích hợp AI & RAG</span>
+            <span className="text-xs text-indigo-300 font-medium">Hệ thống quản lý tài liệu tích hợp AI & RAG</span>
           </div>
 
           <div>
             <h1 className="text-white font-bold leading-tight tracking-tight mb-4 font-raleway" style={{ fontSize: "2.5rem", lineHeight: 1.2 }}>
               Nâng tầm giảng dạy <br />
-              <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">và quản lý học liệu bằng AI</span>
+              <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">và quản lý tài liệu bằng AI</span>
             </h1>
             <p className="text-slate-400 max-w-lg leading-relaxed font-sans-body text-[14px]" style={{ lineHeight: 1.5 }}>
-              Hỗ trợ giảng viên quản lý, phân tích và xuất bản học liệu; đồng thời khai thác RAG AI để tóm tắt, tra cứu và hỏi đáp dựa trên nguồn học liệu chính xác
+              Hỗ trợ giảng viên quản lý, phân tích và xuất bản tài liệu; đồng thời khai thác RAG AI để tóm tắt, tra cứu và hỏi đáp dựa trên nguồn tài liệu chính xác
             </p>
           </div>
 
@@ -180,7 +180,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
 
         {/* Bottom Footer */}
         <div className="flex justify-between items-center text-slate-500 text-xs relative z-10 border-t border-slate-900 pt-6">
-          <span>© 2026 EduRAG PTIT.</span>
+          <span>© 2026 EduRAG PTIT</span>
         </div>
       </div>
 
