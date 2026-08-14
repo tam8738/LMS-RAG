@@ -10,7 +10,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.core.io.FileSystemResource;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -18,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
 class StorageServiceTest {
+
+    @TempDir
+    Path tempDirectory;
 
     @Mock
     private StorageProperties storageProperties;
@@ -88,5 +96,19 @@ class StorageServiceTest {
     @Test
     void getFileExtension_shouldReturnLowerCaseExtension() {
         assertThat(storageService.getFileExtension("document.DOCX")).isEqualTo("docx");
+    }
+
+    @Test
+    void loadFileAsResource_shouldReturnRepeatableFileResourceWithActualLength() throws Exception {
+        Path file = tempDirectory.resolve("documents/42/v1/source.pdf");
+        Files.createDirectories(file.getParent());
+        Files.write(file, "0123456789".getBytes());
+        org.mockito.Mockito.when(storageProperties.getUploadRoot()).thenReturn(tempDirectory.toString());
+
+        StorageService.StoredFile storedFile = storageService.loadFileAsResource("documents/42/v1/source.pdf");
+
+        assertThat(storedFile.resource()).isInstanceOf(FileSystemResource.class);
+        assertThat(storedFile.contentLength()).isEqualTo(10);
+        assertThat(storedFile.resource().getInputStream().readAllBytes()).isEqualTo("0123456789".getBytes());
     }
 }

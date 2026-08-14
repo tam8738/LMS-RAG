@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { User } from "./types";
 import { getDefaultRouteForRole, isRouteAllowedForRole } from "./navigation";
@@ -20,6 +20,10 @@ import { AdminTeacherManagementPage } from "./pages/AdminTeacherManagementPage";
 import { QuizManagementPage } from "./pages/QuizManagementPage";
 import { PublicQuizPage } from "./pages/PublicQuizPage";
 import { AlertTriangle, Home } from "lucide-react";
+
+const DocumentPreviewPage = lazy(() =>
+  import("./pages/DocumentPreviewPage").then((module) => ({ default: module.DocumentPreviewPage })),
+);
 
 // Global Styles setup
 const GLOBAL_STYLES = `
@@ -142,15 +146,6 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  if (authLoading) {
-    return (
-      <>
-        <style>{GLOBAL_STYLES}</style>
-        <PageLoading />
-      </>
-    );
-  }
-
   return (
     <BrowserRouter>
       <style>{GLOBAL_STYLES}</style>
@@ -159,7 +154,9 @@ export default function App() {
         <Route
           path={ROUTES.LOGIN}
           element={
-            currentUser ? (
+            authLoading ? (
+              <PageLoading />
+            ) : currentUser ? (
               <Navigate to={getDefaultRouteForRole(currentUser.role)} replace />
             ) : (
               <LoginPage onLogin={handleLogin} />
@@ -171,7 +168,9 @@ export default function App() {
         <Route
           path={ROUTES.HOME}
           element={
-            currentUser ? (
+            authLoading ? (
+              <PageLoading />
+            ) : currentUser ? (
               <Navigate to={getDefaultRouteForRole(currentUser.role)} replace />
             ) : (
               <Navigate to={ROUTES.LIBRARY} replace />
@@ -233,6 +232,16 @@ export default function App() {
 
         {/* Public Student Quiz Route (accessible via shareable link) */}
         <Route path={ROUTES.PUBLIC_QUIZ} element={<PublicQuizPage />} />
+
+        {/* Standalone viewer: public documents work anonymously; private documents reuse the JWT header. */}
+        <Route
+          path={ROUTES.DOCUMENT_PREVIEW}
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <DocumentPreviewPage />
+            </Suspense>
+          }
+        />
 
         <Route
           path={ROUTES.ADMIN_DOCUMENTS}
