@@ -226,27 +226,29 @@ export const teacherDocumentService = {
     if (!previewTab) {
       throw new Error("Trình duyệt đã chặn cửa sổ Pop-up. Vui lòng cấp quyền mở Pop-up và thử lại.");
     }
-    previewTab.opener = null;
 
     try {
-      previewTab.document.write(`
-        <!DOCTYPE html>
-        <html lang="vi">
-          <head>
-            <meta charset="utf-8" />
-            <title>Đang tải tài liệu...</title>
-            <style>
-              body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #F8F7F4; color: #0E0D0B; }
-              .loader { text-align: center; }
-            </style>
-          </head>
-          <body>
-            <div class="loader">
-              <p style="font-size: 15px; font-weight: 500;">Đang tải nội dung tài liệu, vui lòng chờ...</p>
-            </div>
-          </body>
-        </html>
-      `);
+      try {
+        previewTab.document.title = "Đang tải tài liệu...";
+        previewTab.document.body.style.margin = "0";
+        previewTab.document.body.style.fontFamily = "system-ui, -apple-system, sans-serif";
+        previewTab.document.body.style.display = "flex";
+        previewTab.document.body.style.alignItems = "center";
+        previewTab.document.body.style.justifyContent = "center";
+        previewTab.document.body.style.height = "100vh";
+        previewTab.document.body.style.background = "#F8F7F4";
+        previewTab.document.body.style.color = "#0E0D0B";
+        previewTab.document.body.innerHTML = `
+          <div style="text-align: center;">
+            <div style="width: 36px; height: 36px; border: 3px solid #E2E8F0; border-top-color: #0E0D0B; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px auto;"></div>
+            <p style="font-size: 15px; font-weight: 600; margin: 0 0 6px 0;">Đang mở nội dung tài liệu...</p>
+            <p style="font-size: 13px; color: #6B6963; margin: 0;">Vui lòng chờ trong giây lát</p>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+          </div>
+        `;
+      } catch (e) {
+        // If initial DOM manipulation is restricted
+      }
 
       const token = localStorage.getItem("token");
       const headers = new Headers();
@@ -257,13 +259,14 @@ export const teacherDocumentService = {
         method: "GET",
         headers,
       });
+
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem("token");
           window.dispatchEvent(new Event("auth-unauthorized"));
           throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         }
-        let errorMsg = `Lỗi hệ thống (${response.status})`;
+        let errorMsg = `Không thể tải tài liệu (Mã lỗi ${response.status})`;
         try {
           const errJson = await response.json();
           errorMsg = errJson.error?.message || errJson.message || errorMsg;
@@ -302,65 +305,55 @@ export const teacherDocumentService = {
       const url = window.URL.createObjectURL(blob);
 
       if (isDocx) {
-        previewTab.document.open();
-        previewTab.document.write(`
-          <!DOCTYPE html>
-          <html lang="vi">
-            <head>
-              <meta charset="utf-8" />
-              <title>${detectedFilename}</title>
-              <style>
-                body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #F8F7F4; color: #0E0D0B; }
-                .card { background: #ffffff; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center; max-width: 480px; width: 90%; border: 1px solid rgba(14,13,11,0.08); }
-                .icon { width: 56px; height: 56px; background: #EEF2FF; color: #4F63D2; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 20px auto; }
-                h2 { font-size: 19px; font-weight: 600; margin: 0 0 10px 0; color: #0E0D0B; }
-                p { font-size: 14px; color: #6B6963; line-height: 1.6; margin: 0 0 20px 0; }
-                .filename { font-family: ui-monospace, monospace; font-size: 12.5px; background: #F4F3F0; padding: 6px 12px; border-radius: 8px; color: #0E0D0B; word-break: break-all; margin-bottom: 24px; display: inline-block; font-weight: 500; }
-                .actions { display: flex; gap: 10px; justify-content: center; }
-                .btn { display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 18px; background: #0E0D0B; color: #fff; text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
-                .btn-secondary { background: #F4F3F0; color: #0E0D0B; }
-                .btn-secondary:hover { background: #ECEAE4; }
-                .btn:hover { background: #1C1A17; }
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <div class="icon">📝</div>
-                <h2>Tài liệu Microsoft Word</h2>
-                <div class="filename">${detectedFilename}</div>
-                <p>Trình duyệt web không hỗ trợ xem trực tuyến trực tiếp định dạng tệp Word. File đã được tự động tải xuống thiết bị của bạn.</p>
-                <div class="actions">
-                  <button class="btn" onclick="triggerDownload()">Tải lại tệp</button>
-                  <button class="btn btn-secondary" onclick="window.close()">Đóng cửa sổ</button>
-                </div>
+        previewTab.document.title = detectedFilename || "Tài liệu Microsoft Word";
+        previewTab.document.body.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #F8F7F4; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="background: #ffffff; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center; max-width: 480px; width: 90%; border: 1px solid rgba(14,13,11,0.08);">
+              <div style="width: 56px; height: 56px; background: #EEF2FF; color: #4F63D2; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 20px auto;">📝</div>
+              <h2 style="font-size: 19px; font-weight: 600; margin: 0 0 10px 0; color: #0E0D0B;">Tài liệu Microsoft Word</h2>
+              <div style="font-family: ui-monospace, monospace; font-size: 12.5px; background: #F4F3F0; padding: 6px 12px; border-radius: 8px; color: #0E0D0B; word-break: break-all; margin-bottom: 24px; display: inline-block; font-weight: 500;">${detectedFilename}</div>
+              <p style="font-size: 14px; color: #6B6963; line-height: 1.6; margin: 0 0 20px 0;">Trình duyệt web không hỗ trợ xem trực tuyến trực tiếp định dạng tệp Word. File đã được tự động tải xuống thiết bị của bạn.</p>
+              <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-re-download" style="height: 38px; padding: 0 18px; background: #0E0D0B; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;">Tải lại tệp</button>
+                <button id="btn-close-win" style="height: 38px; padding: 0 18px; background: #F4F3F0; color: #0E0D0B; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;">Đóng cửa sổ</button>
               </div>
-              <script>
-                function triggerDownload() {
-                  const a = document.createElement('a');
-                  a.href = '${url}';
-                  a.download = ${JSON.stringify(detectedFilename)};
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                }
-                triggerDownload();
-              </script>
-            </body>
-          </html>
-        `);
-        previewTab.document.close();
+            </div>
+          </div>
+        `;
+        const a = previewTab.document.createElement("a");
+        a.href = url;
+        a.download = detectedFilename || "document.docx";
+        previewTab.document.body.appendChild(a);
+        a.click();
+        previewTab.document.getElementById("btn-re-download")?.addEventListener("click", () => a.click());
+        previewTab.document.getElementById("btn-close-win")?.addEventListener("click", () => previewTab.close());
         return;
       }
 
       if (blob.type.startsWith("text/")) {
         blob = new Blob([blob], { type: `${blob.type};charset=utf-8` });
       }
-      previewTab.location.href = url;
+
+      previewTab.location.replace(url);
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
-      }, 10000);
-    } catch (error) {
-      previewTab.close();
+      }, 60000);
+    } catch (error: any) {
+      try {
+        previewTab.document.title = "Lỗi tải tài liệu";
+        previewTab.document.body.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #F8F7F4; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="background: #ffffff; padding: 36px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center; max-width: 440px; width: 90%; border: 1px solid #FEE2E2;">
+              <div style="width: 52px; height: 52px; background: #FEF2F2; color: #DC2626; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px auto;">⚠️</div>
+              <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 8px 0; color: #991B1B;">Không thể mở tài liệu</h2>
+              <p style="font-size: 13.5px; color: #7F1D1D; line-height: 1.5; margin: 0 0 20px 0;">${error?.message || "Đã xảy ra lỗi khi tải nội dung tệp từ máy chủ."}</p>
+              <button onclick="window.close()" style="height: 38px; padding: 0 20px; background: #0E0D0B; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;">Đóng cửa sổ</button>
+            </div>
+          </div>
+        `;
+      } catch (domErr) {
+        previewTab.close();
+      }
       throw error;
     }
   },
