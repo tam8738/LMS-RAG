@@ -24,7 +24,8 @@ Khi tài liệu và code không thống nhất, cần ưu tiên kiểm tra code 
 10. `13_RAG_CHAT_HISTORY_RESUME_PLAN.md`: lưu lịch sử hỏi đáp, resume chat và clear history.
 11. `BE09_TEACHER_MANAGEMENT_DESIGN.md`: contract đã triển khai cho API Admin quản lý tài khoản Teacher.
 12. `15_QUIZ_API_BACKEND_SPEC.md`: contract quiz generate/list/get/update/delete draft/publish và public quiz link.
-13. `../PROJECT_PROGRESS_REPORT.md`: báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn.
+13. `17_BACKEND_API_FUNCTIONAL_REFERENCE.md`: mô tả chức năng chi tiết cho từng API backend theo source code hiện tại.
+14. `../PROJECT_PROGRESS_REPORT.md`: báo cáo tiến độ tổng hợp để gửi giáo viên hướng dẫn.
 
 ## 3. Quyết định đã khóa
 

@@ -23,10 +23,6 @@ services:
       # Database password
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 
-    ports:
-      # Port máy thật : Port container
-      - "${DB_PORT}:5432"
-
     volumes:
       # Lưu dữ liệu PostgreSQL
       # Xóa container không làm mất database
