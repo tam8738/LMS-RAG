@@ -12,6 +12,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Cung cấp các thao tác truy cập dữ liệu cho quiz và quyền sở hữu tương ứng.
+ */
 @Repository
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
 

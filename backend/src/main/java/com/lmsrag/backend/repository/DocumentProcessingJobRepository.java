@@ -8,6 +8,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Cung cấp các thao tác truy cập dữ liệu cho tác vụ xử lý tài liệu.
+ */
 @Repository
 public interface DocumentProcessingJobRepository extends JpaRepository<DocumentProcessingJob, Long> {
 

@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+/**
+ * Đồng bộ kết quả lập chỉ mục từ AI Service vào trạng thái tài liệu và tác vụ.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

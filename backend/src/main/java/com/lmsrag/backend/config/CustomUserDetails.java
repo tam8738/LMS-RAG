@@ -11,6 +11,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Chuyển thông tin người dùng trong hệ thống sang mô hình xác thực của Spring Security.
+ */
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 

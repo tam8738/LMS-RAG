@@ -10,6 +10,10 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
+/**
+ * Các trường quản trị viên được phép cập nhật trên tài khoản giảng viên.
+ */
+
 public record TeacherUpdateRequest(
         @Size(min = 2, max = 100, message = "Họ tên phải có từ 2 đến 100 ký tự")
         @Pattern(regexp = "(?s).*\\p{IsLatin}.*", message = "Họ tên phải chứa chữ cái Latin")

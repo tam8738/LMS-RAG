@@ -21,6 +21,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Set;
 
+/**
+ * Xác thực access token từ mỗi HTTP request và thiết lập ngữ cảnh bảo mật tương ứng.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

@@ -8,6 +8,10 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
+/**
+ * Các trường người dùng được phép thay đổi trong hồ sơ cá nhân.
+ */
+
 public record ProfileUpdateRequest(
         @Size(min = 2, max = 100, message = "Họ tên phải có từ 2 đến 100 ký tự")
         @Pattern(regexp = "(?s).*\\p{IsLatin}.*", message = "Họ tên phải chứa chữ cái Latin")

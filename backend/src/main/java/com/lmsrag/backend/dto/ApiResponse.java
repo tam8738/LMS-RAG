@@ -45,7 +45,7 @@ public class ApiResponse<T> {
     private ErrorInfo error;
 
     // =========================================================
-    // ===== Success factory methods =====
+    // ===== Hàm tạo phản hồi thành công =====
     // =========================================================
 
     /** Thành công, chỉ trả data */
@@ -85,7 +85,7 @@ public class ApiResponse<T> {
     }
 
     // =========================================================
-    // ===== Error factory methods =====
+    // ===== Hàm tạo phản hồi lỗi =====
     // =========================================================
 
     /** Lỗi đơn giản, không có chi tiết theo field (vd: lỗi nghiệp vụ từ AppException) */
@@ -112,7 +112,7 @@ public class ApiResponse<T> {
     }
 
     // =========================================================
-    // ===== Nested types =====
+    // ===== Kiểu dữ liệu lồng nhau =====
     // =========================================================
 
     /** Thông tin phân trang đính kèm response danh sách */

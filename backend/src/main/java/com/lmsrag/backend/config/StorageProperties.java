@@ -5,6 +5,9 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Ánh xạ cấu hình thư mục và giới hạn lưu trữ tài liệu.
+ */
 @Getter
 @Setter
 @Configuration

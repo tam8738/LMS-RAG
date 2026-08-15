@@ -3,6 +3,10 @@ package com.lmsrag.backend.dto.request.profile;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Mật khẩu hiện tại và mật khẩu mới của yêu cầu đổi mật khẩu.
+ */
+
 public record ChangePasswordRequest(
         @NotBlank(message = "Mật khẩu hiện tại không được để trống")
         @Size(max = 72, message = "Mật khẩu hiện tại tối đa 72 ký tự")

@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+/**
+ * Gửi email thông tin tài khoản sau khi giao dịch tạo giảng viên hoàn tất.
+ */
 @Slf4j
 @Component
 public class TeacherAccountNotificationListener {

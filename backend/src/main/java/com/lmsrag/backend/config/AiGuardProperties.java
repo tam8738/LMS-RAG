@@ -7,22 +7,24 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
-/** Limits expensive, synchronous calls from Backend to the AI service. */
+/**
+ * Khai báo các giới hạn bảo vệ cho những lời gọi đồng bộ và tốn tài nguyên đến AI Service.
+ */
 @Getter
 @Setter
 @Configuration
 @ConfigurationProperties(prefix = "app.ai-guard")
 public class AiGuardProperties {
 
-    /** Maximum accepted AI requests per user during one fixed window. */
+    /** Số yêu cầu AI tối đa của mỗi người dùng trong một cửa sổ thời gian cố định. */
     private int requestsPerWindow = 10;
 
-    /** Length of the per-user rate-limit window. */
+    /** Độ dài cửa sổ giới hạn tần suất áp dụng riêng cho từng người dùng. */
     private Duration window = Duration.ofMinutes(1);
 
-    /** Maximum AI calls allowed to execute concurrently in this Backend instance. */
+    /** Số lời gọi AI tối đa được chạy đồng thời trên Backend instance hiện tại. */
     private int maxConcurrentRequests = 2;
 
-    /** How long a request may wait for a bulkhead permit; zero means fail fast. */
+    /** Thời gian chờ quyền thực thi; giá trị bằng không sẽ từ chối ngay khi hết chỗ. */
     private Duration bulkheadWait = Duration.ZERO;
 }

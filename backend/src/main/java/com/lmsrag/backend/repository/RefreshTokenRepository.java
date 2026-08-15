@@ -11,6 +11,10 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Optional;
 
+/**
+ * Cung cấp các thao tác truy cập và thu hồi refresh token.
+ */
+
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

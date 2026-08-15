@@ -4,6 +4,9 @@ import lombok.Builder;
 
 import java.util.List;
 
+/**
+ * Mô hình phản hồi phân trang dùng thống nhất cho các API quản trị.
+ */
 @Builder
 public record PageResponse<T>(
         List<T> items,

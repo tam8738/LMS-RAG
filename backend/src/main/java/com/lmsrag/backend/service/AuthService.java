@@ -17,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
+/**
+ * Xử lý đăng nhập, phát hành token và kết thúc phiên xác thực.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -17,8 +17,7 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
- * Per-user fixed-window rate limiter plus an instance-wide semaphore bulkhead.
- * The implementation is deliberately in-memory because the current deployment has one Backend instance.
+ * Giới hạn tần suất theo người dùng và số lời gọi AI đồng thời trên một Backend instance.
  */
 @Slf4j
 @Component

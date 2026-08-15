@@ -5,6 +5,9 @@ import lombok.Builder;
 
 import java.util.List;
 
+/**
+ * Tổng hợp kết quả của thao tác tạo nhiều tài khoản giảng viên.
+ */
 @Builder
 @Schema(description = "Kết quả tạo hàng loạt tài khoản giảng viên")
 public record TeacherBatchCreateResponse(

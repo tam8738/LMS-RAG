@@ -5,6 +5,9 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Ánh xạ cấu hình kết nối, thời gian chờ và endpoint của AI Service.
+ */
 @Getter
 @Setter
 @Configuration
@@ -19,7 +22,7 @@ public class AiServiceProperties {
     private String baseUrl = "http://localhost:8000";
 
     /**
-     * Shared internal key để Backend gọi các internal API của AI Service.
+     * Khóa nội bộ dùng chung để Backend gọi các API riêng của AI Service.
      */
     private String internalApiKey;
 }

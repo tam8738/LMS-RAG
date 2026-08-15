@@ -9,6 +9,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 
+/**
+ * Thực thể theo dõi một tác vụ AI chạy nền trên tài liệu.
+ */
 @Entity
 @Table(name = "document_processing_jobs")
 @Getter

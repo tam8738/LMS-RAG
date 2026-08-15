@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * Lý do quản trị viên từ chối tài liệu trong bước kiểm duyệt.
+ */
 @Data
 public class RejectReviewRequest {
 

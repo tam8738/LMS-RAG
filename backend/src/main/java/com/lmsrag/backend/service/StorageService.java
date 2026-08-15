@@ -18,6 +18,9 @@ import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * Quản lý việc kiểm tra, lưu, đọc và xóa tệp tài liệu trên hệ thống tệp.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

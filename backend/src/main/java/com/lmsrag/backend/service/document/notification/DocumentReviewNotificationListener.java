@@ -18,6 +18,9 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Gửi thông báo kết quả kiểm duyệt sau khi giao dịch tài liệu hoàn tất.
+ */
 @Slf4j
 @Component
 public class DocumentReviewNotificationListener {

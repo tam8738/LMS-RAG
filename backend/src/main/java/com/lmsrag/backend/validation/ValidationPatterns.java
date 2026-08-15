@@ -1,6 +1,8 @@
 package com.lmsrag.backend.validation;
 
-/** Shared regular expressions used by API request DTOs. */
+/**
+ * Tập hợp biểu thức chính quy dùng chung để xác thực dữ liệu đầu vào API.
+ */
 public final class ValidationPatterns {
 
     public static final String NON_BLANK_IF_PRESENT = "(?s).*\\S.*";

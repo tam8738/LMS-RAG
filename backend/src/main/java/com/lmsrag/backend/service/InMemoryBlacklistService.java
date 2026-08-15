@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Lưu tạm các access token đã bị thu hồi cho đến khi chúng hết hạn.
+ */
 @Service
 public class InMemoryBlacklistService {
 

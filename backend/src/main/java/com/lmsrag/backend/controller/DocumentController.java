@@ -41,6 +41,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Cung cấp API để giảng viên tải lên, cập nhật và quản lý tài liệu của mình.
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1")

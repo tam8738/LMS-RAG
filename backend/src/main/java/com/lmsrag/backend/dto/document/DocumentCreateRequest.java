@@ -7,6 +7,9 @@ import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Metadata đi kèm yêu cầu tải một tài liệu mới lên hệ thống.
+ */
 @Data
 public class DocumentCreateRequest {
 

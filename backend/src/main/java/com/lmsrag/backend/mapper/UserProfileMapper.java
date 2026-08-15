@@ -3,6 +3,10 @@ package com.lmsrag.backend.mapper;
 import com.lmsrag.backend.dto.response.profile.UserProfileResponse;
 import com.lmsrag.backend.entity.User;
 
+/**
+ * Chuyển đổi thực thể người dùng sang mô hình hồ sơ cá nhân.
+ */
+
 public final class UserProfileMapper {
 
     private UserProfileMapper() {

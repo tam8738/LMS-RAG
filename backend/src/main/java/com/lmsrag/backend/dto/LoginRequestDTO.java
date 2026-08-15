@@ -6,6 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * Dữ liệu đăng nhập do người dùng gửi đến hệ thống.
+ */
 @Data
 @Schema(description = "Thông tin đăng nhập")
 public class LoginRequestDTO {

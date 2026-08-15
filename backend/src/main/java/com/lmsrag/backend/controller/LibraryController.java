@@ -15,6 +15,9 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Cung cấp API tra cứu và đọc các tài liệu đã được công bố trong thư viện.
+ */
 @RestController
 @RequestMapping("/api/v1/library")
 @RequiredArgsConstructor

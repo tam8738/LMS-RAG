@@ -8,6 +8,10 @@ import com.lmsrag.backend.enums.UserStatus;
 
 import java.util.Locale;
 
+/**
+ * Chuyển đổi dữ liệu giữa yêu cầu quản trị, thực thể và phản hồi giảng viên.
+ */
+
 public class TeacherMapper {
 
     public static TeacherResponse toResponse(User user) {

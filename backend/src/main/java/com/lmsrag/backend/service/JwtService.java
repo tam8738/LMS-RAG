@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+/**
+ * Phát hành, giải mã và kiểm tra tính hợp lệ của JSON Web Token.
+ */
 @Service
 public class JwtService {
 
