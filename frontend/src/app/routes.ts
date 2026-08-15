@@ -8,6 +8,7 @@ export const ROUTES = {
   UPLOAD: "/upload",
   QUIZZES: "/quizzes",
   PUBLIC_QUIZ: "/quiz/public/:quizId",
+  DOCUMENT_PREVIEW: "/documents/:documentId/preview",
   ADMIN_DOCUMENTS: "/admin/documents",
   ADMIN_DOCUMENT_DETAIL: "/admin/documents/:documentId",
   ADMIN_REVIEWS: "/admin/reviews",
@@ -21,3 +22,4 @@ export const adminDocumentDetailPath = (id: number | string) => `/admin/document
 export const adminReviewDetailPath = (id: number | string) => `/admin/reviews/${id}`;
 export const quizDetailPath = (id: number | string) => `/quizzes/${id}`;
 export const publicQuizPath = (id: number | string) => `/quiz/public/${id}`;
+export const documentPreviewPath = (id: number | string) => `/documents/${id}/preview`;

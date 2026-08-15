@@ -6,13 +6,12 @@ import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +31,9 @@ public class StorageService {
             "text/plain",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
+
+    public record StoredFile(Resource resource, long contentLength) {
+    }
 
     /**
      * Lưu file upload vào storage theo cấu trúc documents/{documentId}/{version}/source.{extension}
@@ -88,15 +90,14 @@ public class StorageService {
      *
      * @throws AppException nếu file không tồn tại hoặc không đọc được
      */
-    public Resource loadFileAsResource(String storageKey) {
+    public StoredFile loadFileAsResource(String storageKey) {
         Path path = resolvePath(storageKey);
-        if (!Files.exists(path)) {
+        if (!Files.isRegularFile(path) || !Files.isReadable(path)) {
             log.error("[STORAGE] File not found | storageKey={} | path={}", storageKey, path);
             throw new AppException(ErrorCode.FILE_STORE_FAILED);
         }
         try {
-            InputStream inputStream = Files.newInputStream(path);
-            return new InputStreamResource(inputStream);
+            return new StoredFile(new FileSystemResource(path), Files.size(path));
         } catch (IOException e) {
             log.error("[STORAGE] Failed to read file | storageKey={} | error={}", storageKey, e.getMessage(), e);
             throw new AppException(ErrorCode.FILE_STORE_FAILED);

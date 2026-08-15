@@ -284,13 +284,15 @@ export function LibraryDocumentDetailPage({
                 >
                   {isPreviewing ? "Đang tải..." : "Xem nội dung"}
                 </button>
-                <button
-                  onClick={handleDownload}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Tải file gốc
-                </button>
+                {user && (
+                  <button
+                    onClick={handleDownload}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Tải file gốc
+                  </button>
+                )}
               </div>
 
               {user?.role === "admin" && (
@@ -351,13 +353,15 @@ export function LibraryDocumentDetailPage({
                 >
                   {isPreviewing ? "Đang tải..." : "Xem nội dung trực tuyến"}
                 </button>
-                <button
-                  onClick={handleDownload}
-                  className="w-full sm:w-auto h-10 px-5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] sm:text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Tải file gốc
-                </button>
+                {user && (
+                  <button
+                    onClick={handleDownload}
+                    className="w-full sm:w-auto h-10 px-5 bg-white border border-[#0E0D0B]/[0.12] hover:bg-[#F8F7F4] text-[#0E0D0B] text-[13px] sm:text-[13.5px] font-semibold rounded-xl transition-all shadow-xs cursor-pointer font-action flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Tải file gốc
+                  </button>
+                )}
               </div>
             </div>
           )}

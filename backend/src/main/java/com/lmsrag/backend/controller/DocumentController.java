@@ -11,6 +11,7 @@ import com.lmsrag.backend.dto.document.DocumentFilterRequest;
 import com.lmsrag.backend.exception.AppException;
 import com.lmsrag.backend.exception.ErrorCode;
 import com.lmsrag.backend.service.DocumentService;
+import com.lmsrag.backend.util.ByteRangeResource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.ConstraintViolation;
@@ -25,12 +26,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRange;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -173,22 +181,16 @@ public class DocumentController {
                     """
     )
     @GetMapping("/documents/{documentId}/content")
-    public ResponseEntity<Resource> getDocumentContent(
+    public ResponseEntity<?> getDocumentContent(
             @PathVariable Long documentId,
+            @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         DocumentService.DocumentContent content = documentService.getDocumentContent(
                 documentId,
                 userDetails != null ? userDetails.getUser() : null);
 
-        MediaType mediaType = content.mimeType() != null
-                ? MediaType.parseMediaType(content.mimeType())
-                : MediaType.APPLICATION_OCTET_STREAM;
-
-        return ResponseEntity.ok()
-                .contentType(mediaType)
-                .header("Content-Disposition", "inline; filename=\"" + content.filename() + "\"")
-                .body(content.resource());
+        return buildFileResponse(content, false, rangeHeader);
     }
 
     @Operation(
@@ -201,20 +203,67 @@ public class DocumentController {
                     """
     )
     @GetMapping("/documents/{documentId}/download")
-    public ResponseEntity<Resource> downloadDocument(
+    public ResponseEntity<?> downloadDocument(
             @PathVariable Long documentId,
+            @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         DocumentService.DocumentContent content = documentService.getDocumentDownload(
                 documentId, userDetails.getUser());
 
+        return buildFileResponse(content, true, rangeHeader);
+    }
+
+    private ResponseEntity<?> buildFileResponse(
+            DocumentService.DocumentContent content,
+            boolean attachment,
+            String rangeHeader) {
         MediaType mediaType = content.mimeType() != null
                 ? MediaType.parseMediaType(content.mimeType())
                 : MediaType.APPLICATION_OCTET_STREAM;
+        ContentDisposition disposition = attachment
+                ? ContentDisposition.attachment().filename(content.filename(), StandardCharsets.UTF_8).build()
+                : ContentDisposition.inline().filename(content.filename(), StandardCharsets.UTF_8).build();
 
-        return ResponseEntity.ok()
-                .contentType(mediaType)
-                .header("Content-Disposition", "attachment; filename=\"" + content.filename() + "\"")
-                .body(content.resource());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(mediaType);
+        headers.setContentDisposition(disposition);
+        headers.set(HttpHeaders.ACCEPT_RANGES, "bytes");
+
+        if (!StringUtils.hasText(rangeHeader)) {
+            headers.setContentLength(content.contentLength());
+            return new ResponseEntity<>(content.resource(), headers, HttpStatus.OK);
+        }
+
+        try {
+            List<HttpRange> ranges = HttpRange.parseRanges(rangeHeader);
+            if (ranges.size() != 1) {
+                return rangeNotSatisfiable(headers, content.contentLength());
+            }
+
+            HttpRange range = ranges.getFirst();
+            long start = range.getRangeStart(content.contentLength());
+            long end = range.getRangeEnd(content.contentLength());
+            if (start < 0 || start >= content.contentLength() || end < start) {
+                return rangeNotSatisfiable(headers, content.contentLength());
+            }
+
+            long rangeLength = end - start + 1;
+            Resource region = new ByteRangeResource(content.resource(), start, rangeLength);
+            headers.set(HttpHeaders.CONTENT_RANGE,
+                    "bytes %d-%d/%d".formatted(start, end, content.contentLength()));
+            headers.setContentLength(rangeLength);
+            return new ResponseEntity<>(region, headers, HttpStatus.PARTIAL_CONTENT);
+        } catch (IllegalArgumentException exception) {
+            log.debug("Invalid document byte range | range={} | size={}",
+                    rangeHeader, content.contentLength());
+            return rangeNotSatisfiable(headers, content.contentLength());
+        }
+    }
+
+    private ResponseEntity<Void> rangeNotSatisfiable(HttpHeaders headers, long contentLength) {
+        headers.set(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength);
+        headers.setContentLength(0);
+        return new ResponseEntity<>(null, headers, HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
     }
 }

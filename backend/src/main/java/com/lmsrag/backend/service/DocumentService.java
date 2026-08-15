@@ -835,7 +835,7 @@ public class DocumentService {
         return DocumentMapper.toResponse(document);
     }
 
-    public record DocumentContent(Resource resource, String filename, String mimeType) {
+    public record DocumentContent(Resource resource, String filename, String mimeType, long contentLength) {
     }
 
     /**
@@ -863,8 +863,13 @@ public class DocumentService {
                 currentUser != null ? currentUser.getId() : "anonymous",
                 document.getPublicationStatus());
 
-        Resource resource = storageService.loadFileAsResource(document.getStorageKey());
-        return new DocumentContent(resource, document.getOriginalFilename(), document.getMimeType());
+        StorageService.StoredFile storedFile = storageService.loadFileAsResource(document.getStorageKey());
+        return new DocumentContent(
+                storedFile.resource(),
+                document.getOriginalFilename(),
+                document.getMimeType(),
+                storedFile.contentLength()
+        );
     }
 
     /**
@@ -890,8 +895,13 @@ public class DocumentService {
         log.info("[DOWNLOAD] Download document | documentId={} | userId={} | role={} | publicationStatus={}",
                 documentId, currentUser.getId(), currentUser.getRole(), document.getPublicationStatus());
 
-        Resource resource = storageService.loadFileAsResource(document.getStorageKey());
-        return new DocumentContent(resource, document.getOriginalFilename(), document.getMimeType());
+        StorageService.StoredFile storedFile = storageService.loadFileAsResource(document.getStorageKey());
+        return new DocumentContent(
+                storedFile.resource(),
+                document.getOriginalFilename(),
+                document.getMimeType(),
+                storedFile.contentLength()
+        );
     }
 
     private boolean canViewDocumentContent(Document document, User currentUser) {

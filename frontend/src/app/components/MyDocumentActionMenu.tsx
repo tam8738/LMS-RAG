@@ -141,8 +141,8 @@ export function MyDocumentActionMenu({
           setOpen(!open);
         }}
         className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${disabled
-            ? "text-[#C2BFB8]/50 cursor-not-allowed bg-transparent border-none"
-            : "text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] cursor-pointer border-none bg-transparent"
+          ? "text-[#C2BFB8]/50 cursor-not-allowed bg-transparent border-none"
+          : "text-[#C2BFB8] hover:text-[#0E0D0B] hover:bg-[#F4F3F0] cursor-pointer border-none bg-transparent"
           }`}
         aria-haspopup="true"
         aria-expanded={open}

@@ -38,7 +38,7 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:4200}")
     private String allowedOrigins;
 
-    @Value("${cors.allowed-methods:GET,POST,PUT,PATCH,DELETE,OPTIONS}")
+    @Value("${cors.allowed-methods:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS}")
     private String allowedMethods;
 
     @Value("${cors.allowed-headers:*}")
@@ -72,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/library/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/content").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/v1/documents/*/content").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/download").hasAnyRole("TEACHER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/quiz/public/*").permitAll()
                         .requestMatchers("/api/v1/quiz/**").hasRole("TEACHER")
@@ -117,7 +118,12 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(origins.stream().map(String::trim).toList());
         configuration.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
         configuration.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
-        configuration.setExposedHeaders(List.of("Content-Disposition"));
+        configuration.setExposedHeaders(List.of(
+                "Content-Disposition",
+                "Content-Length",
+                "Accept-Ranges",
+                "Content-Range"
+        ));
         configuration.setAllowCredentials(allowCredentials);
         configuration.setMaxAge(3600L);
 
