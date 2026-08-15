@@ -21,7 +21,9 @@ GlobalWorkerOptions.workerSrc = `${pdfWorkerUrl}?v=20260815-mime-fix`;
 
 type PreviewKind = "loading" | "pdf" | "text" | "download" | "error";
 
-const RANGE_CHUNK_SIZE = 64 * 1024;
+// A larger range substantially reduces JWT/database/filesystem round trips on
+// high-latency server connections while still avoiding a full-file download.
+const RANGE_CHUNK_SIZE = 512 * 1024;
 
 function authHeaders(): Record<string, string> | undefined {
   const token = localStorage.getItem("token");
@@ -99,32 +101,51 @@ export function DocumentPreviewPage() {
   // - For Public Library documents: logging out allows continued reading as guest (only download permission is revoked).
   // - For Private/Teacher Draft documents: logging out immediately locks the screen to protect confidentiality.
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      const currentToken = localStorage.getItem("token");
-      setCanRequestDownload(Boolean(currentToken));
+    let expiryTimer: number | undefined;
+    let checking = false;
 
-      // Check if current token has expired
-      if (currentToken) {
-        try {
-          const payload = JSON.parse(atob(currentToken.split(".")[1]));
-          if (payload.exp && payload.exp * 1000 < Date.now()) {
-            localStorage.removeItem("token");
-            window.dispatchEvent(new Event("auth-unauthorized"));
-            setCanRequestDownload(false);
-          }
-        } catch {
-          // Ignore malformed token
-        }
+    const clearExpiryTimer = () => {
+      if (expiryTimer !== undefined) {
+        window.clearTimeout(expiryTimer);
+        expiryTimer = undefined;
       }
+    };
 
-      // If no token exists (or user just logged out):
-      if (!localStorage.getItem("token")) {
-        // If already confirmed as a public document, keep reading without interruption
+    const checkAuthStatus = async () => {
+      if (checking) return;
+      checking = true;
+      clearExpiryTimer();
+
+      try {
+        const currentToken = localStorage.getItem("token");
+        setCanRequestDownload(Boolean(currentToken));
+
+        if (currentToken) {
+          try {
+            const payload = JSON.parse(atob(currentToken.split(".")[1]));
+            const expiresAt = typeof payload.exp === "number" ? payload.exp * 1000 : null;
+
+            if (expiresAt && expiresAt > Date.now()) {
+              const delay = Math.min(expiresAt - Date.now() + 100, 2_147_000_000);
+              expiryTimer = window.setTimeout(() => void checkAuthStatus(), delay);
+              return;
+            }
+
+            if (!expiresAt) return;
+          } catch {
+            // Let the Backend reject malformed tokens on the next API request.
+            return;
+          }
+
+          localStorage.removeItem("token");
+          setCanRequestDownload(false);
+          window.dispatchEvent(new Event("auth-unauthorized"));
+        }
+
         if (isPublicRef.current === true) {
           return;
         }
 
-        // Test if the document is publicly accessible without token (e.g. Published in Library)
         try {
           const checkRes = await fetch(contentUrl, { method: "HEAD" });
           if (checkRes.ok) {
@@ -139,13 +160,17 @@ export function DocumentPreviewPage() {
         setIsSessionExpired(true);
         setPdf(null);
         setTextContent("");
+      } finally {
+        checking = false;
       }
     };
 
-    // 1. Periodic polling every 2.5 seconds
-    const timer = setInterval(checkAuthStatus, 2500);
+    // Schedule one precise expiration check instead of polling the server.
+    if (localStorage.getItem("token")) {
+      void checkAuthStatus();
+    }
 
-    // 2. Immediate detection when logout happens in another tab
+    // Immediate detection when logout happens in another tab.
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "token" || e.key === null) {
         void checkAuthStatus();
@@ -153,20 +178,20 @@ export function DocumentPreviewPage() {
     };
     window.addEventListener("storage", handleStorageChange);
 
-    // 3. Check immediately when tab gains focus
+    // Recheck when the preview regains focus.
     const handleFocus = () => {
       void checkAuthStatus();
     };
     window.addEventListener("focus", handleFocus);
 
-    // 4. Custom unauthorized event
+    // Same-tab logout and Backend 401 notification.
     const handleUnauthorized = () => {
       void checkAuthStatus();
     };
     window.addEventListener("auth-unauthorized", handleUnauthorized);
 
     return () => {
-      clearInterval(timer);
+      clearExpiryTimer();
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("auth-unauthorized", handleUnauthorized);
@@ -186,14 +211,16 @@ export function DocumentPreviewPage() {
 
     const loadPreview = async () => {
       try {
+        const headHeaders = authHeaders();
         const headResponse = await fetch(contentUrl, {
           method: "HEAD",
-          headers: authHeaders(),
+          headers: headHeaders,
           signal: abortController.signal,
         });
         if (!headResponse.ok) {
           throw new Error(await responseError(headResponse));
         }
+        if (!headHeaders) isPublicRef.current = true;
 
         const detectedFilename = extractFilename(headResponse.headers.get("Content-Disposition"));
         const contentType = (headResponse.headers.get("Content-Type") || "").toLowerCase();
@@ -463,7 +490,9 @@ function PdfPageCanvas({
           observer.disconnect();
         }
       },
-      { rootMargin: "1000px 0px" },
+      // Keep the next page close enough for smooth scrolling without rendering
+      // several high-resolution canvases during the initial page load.
+      { rootMargin: "300px 0px" },
     );
     observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -486,7 +515,9 @@ function PdfPageCanvas({
         const availableWidth = Math.max(280, Math.min(viewportWidth - 32, 1080));
         const fittedScale = availableWidth / baseViewport.width;
         const viewport = page.getViewport({ scale: fittedScale * zoom });
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        // Capping the backing canvas prevents weak/high-DPI devices from
+        // rendering multi-megapixel pages that are not visibly sharper.
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         if (!context) throw new Error("Trình duyệt không hỗ trợ canvas để hiển thị PDF.");
