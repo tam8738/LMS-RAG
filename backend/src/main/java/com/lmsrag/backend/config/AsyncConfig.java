@@ -7,6 +7,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
+/**
+ * Cấu hình bộ thực thi dành cho các tác vụ AI chạy bất đồng bộ.
+ */
 @EnableAsync
 @Configuration
 public class AsyncConfig {
@@ -28,7 +31,7 @@ public class AsyncConfig {
         return executor;
     }
 
-    /** Bounds fire-and-forget analyze/index calls to avoid unbounded resource use. */
+    /** Giới hạn tác vụ phân tích và lập chỉ mục nền để tránh sử dụng tài nguyên không kiểm soát. */
     @Bean(name = AI_TASK_EXECUTOR)
     public Executor aiTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

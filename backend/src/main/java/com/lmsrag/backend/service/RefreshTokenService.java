@@ -20,6 +20,9 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 
+/**
+ * Quản lý vòng đời refresh token và luân chuyển token đăng nhập.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

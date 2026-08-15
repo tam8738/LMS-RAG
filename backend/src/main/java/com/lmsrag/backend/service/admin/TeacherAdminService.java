@@ -9,6 +9,10 @@ import com.lmsrag.backend.dto.response.admin.teacher.TeacherBatchCreateResponse;
 import com.lmsrag.backend.dto.response.admin.teacher.TeacherResetPasswordResponse;
 import com.lmsrag.backend.dto.response.admin.teacher.TeacherResponse;
 
+/**
+ * Định nghĩa các ca sử dụng quản trị dành cho tài khoản giảng viên.
+ */
+
 public interface TeacherAdminService {
 
     PageResponse<TeacherResponse> searchTeachers(TeacherSearchRequest request);

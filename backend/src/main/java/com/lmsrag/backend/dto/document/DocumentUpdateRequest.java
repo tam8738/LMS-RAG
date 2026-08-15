@@ -8,6 +8,9 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * Các trường metadata được phép cập nhật trên một tài liệu.
+ */
 @Data
 public class DocumentUpdateRequest {
 

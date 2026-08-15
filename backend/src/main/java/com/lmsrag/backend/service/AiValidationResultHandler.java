@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+/**
+ * Đồng bộ kết quả phân tích từ AI Service vào tài liệu và tác vụ tương ứng.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

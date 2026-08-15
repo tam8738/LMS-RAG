@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 
+/**
+ * Đóng gói thao tác ghi tài khoản giảng viên để bảo đảm ranh giới giao dịch.
+ */
 @Component
 @RequiredArgsConstructor
 public class TeacherAccountWriter {

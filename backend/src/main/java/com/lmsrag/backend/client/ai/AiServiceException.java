@@ -2,6 +2,9 @@ package com.lmsrag.backend.client.ai;
 
 import lombok.Getter;
 
+/**
+ * Biểu diễn lỗi kỹ thuật phát sinh khi Backend giao tiếp với AI Service.
+ */
 @Getter
 public class AiServiceException extends RuntimeException {
 

@@ -7,6 +7,9 @@ import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Kiểm soát thời điểm chạy migration Flyway sau khi nguồn dữ liệu đã sẵn sàng.
+ */
 @Configuration
 public class FlywayConfig {
 

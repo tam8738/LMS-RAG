@@ -9,6 +9,9 @@ import lombok.Data;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Thông tin tài liệu được trả về cho client sau khi áp dụng quyền truy cập.
+ */
 @Data
 @Builder
 public class DocumentResponse {

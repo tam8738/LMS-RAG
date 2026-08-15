@@ -11,6 +11,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Cung cấp truy vấn tài liệu theo quyền sở hữu, trạng thái và bộ lọc nghiệp vụ.
+ */
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, Long> {
 
@@ -26,8 +29,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     // Lấy tài liệu PUBLISHED theo ID
     Optional<Document> findByIdAndPublicationStatus(Long id, PublicationStatus status);
 
-    // Library filter with full-text search and metadata filters.
-    // Native query is used to leverage PostgreSQL ILIKE and jsonb @> operator.
+    // Truy vấn native tận dụng ILIKE và toán tử jsonb @> của PostgreSQL để tìm kiếm
+    // toàn văn kết hợp với các bộ lọc metadata trong thư viện.
     @Query(value = """
         SELECT * FROM documents d
         WHERE d.publication_status = :status

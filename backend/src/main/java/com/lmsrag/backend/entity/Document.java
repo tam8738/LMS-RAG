@@ -14,6 +14,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Thực thể lưu metadata, vị trí tệp và trạng thái xử lý của một tài liệu.
+ */
 @Entity
 @Table(name = "documents")
 @Getter

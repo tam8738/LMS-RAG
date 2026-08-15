@@ -80,7 +80,7 @@ public class RagConversationService {
         return mapToConversationResponse(conversation, document, messages);
     }
 
-    /** Keeps the legacy response compatible while preventing an unbounded history query. */
+    /** Giữ tương thích với phản hồi cũ nhưng vẫn giới hạn số tin nhắn lịch sử được truy vấn. */
     private List<RagMessage> loadRecentMessages(RagConversation conversation) {
         if (conversation.getMessageCount() == null || conversation.getMessageCount() == 0) {
             return List.of();
@@ -158,7 +158,7 @@ public class RagConversationService {
                     () -> aiServiceClient.answerQuestionSync(aiRequest)
             );
         } catch (AppException e) {
-            // Preserve 429/503 decisions made by AiRequestGuard.
+            // Giữ nguyên quyết định 429/503 đã được AiRequestGuard xác lập.
             throw e;
         } catch (Exception e) {
             log.error("[RAG_CONV] AI Service gọI thất bại | conversationId={} | error={}",

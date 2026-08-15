@@ -8,6 +8,9 @@ import lombok.Builder;
 
 import java.util.Locale;
 
+/**
+ * Các tiêu chí tìm kiếm, lọc và phân trang danh sách giảng viên.
+ */
 @Builder
 public record TeacherSearchRequest(
         @Size(max = 200, message = "Từ khóa tìm kiếm tối đa 200 ký tự") String keyword,

@@ -7,6 +7,9 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
+/**
+ * Danh sách tài khoản giảng viên cần tạo trong một yêu cầu hàng loạt.
+ */
 @Schema(description = "Dữ liệu tạo hàng loạt tài khoản giảng viên")
 public record TeacherBatchCreateRequest(
         @Schema(description = "Danh sách giảng viên cần tạo, tối đa 200 phần tử")

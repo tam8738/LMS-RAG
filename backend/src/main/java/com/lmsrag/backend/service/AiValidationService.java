@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletionException;
 
+/**
+ * Điều phối việc phân tích, kiểm tra tài liệu bất đồng bộ sau khi tải lên.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

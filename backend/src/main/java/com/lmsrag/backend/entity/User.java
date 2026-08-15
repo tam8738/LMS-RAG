@@ -11,6 +11,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 
+/**
+ * Thực thể tài khoản dùng chung cho quản trị viên, giảng viên và học viên.
+ */
 @Entity
 @Table(name = "users")
 @Getter

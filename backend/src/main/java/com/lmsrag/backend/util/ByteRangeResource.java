@@ -8,8 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Repeatable view over a bounded byte range of another resource.
- * Each call opens a fresh source stream and stops at {@code count} bytes.
+ * Cung cấp vùng byte có thể đọc lặp lại từ một tài nguyên để phục vụ HTTP Range.
  */
 public final class ByteRangeResource extends AbstractResource {
 

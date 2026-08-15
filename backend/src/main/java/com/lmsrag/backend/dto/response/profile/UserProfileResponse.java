@@ -8,6 +8,9 @@ import lombok.Builder;
 import java.time.Instant;
 import java.time.LocalDate;
 
+/**
+ * Thông tin hồ sơ của người dùng đang đăng nhập.
+ */
 @Builder
 public record UserProfileResponse(
         Long id,

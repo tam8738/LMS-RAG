@@ -30,7 +30,9 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import java.util.ArrayList;
 import java.util.List;
 
-/** Converts controller and service exceptions to the common API response envelope. */
+/**
+ * Chuyển đổi lỗi từ controller và service sang envelope phản hồi API thống nhất.
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -50,7 +52,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
-    /** Handles invalid JSON request bodies and invalid multipart DTOs bound by Spring. */
+    /** Xử lý JSON body không hợp lệ và multipart DTO không thể binding bởi Spring. */
     @ExceptionHandler(BindException.class)
     public ResponseEntity<ApiResponse<Object>> handleBindingException(
             BindException exception,
@@ -63,7 +65,7 @@ public class GlobalExceptionHandler {
         return invalidInput(details, request);
     }
 
-    /** Handles constraints declared directly on controller method parameters. */
+    /** Xử lý ràng buộc được khai báo trực tiếp trên tham số của controller. */
     @ExceptionHandler(HandlerMethodValidationException.class)
     public ResponseEntity<ApiResponse<Object>> handleMethodValidationException(
             HandlerMethodValidationException exception,
@@ -92,7 +94,7 @@ public class GlobalExceptionHandler {
         return invalidInput(details, request);
     }
 
-    /** Handles manually validated DTOs such as JSON metadata in multipart requests. */
+    /** Xử lý DTO được xác thực thủ công, chẳng hạn JSON metadata trong multipart request. */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Object>> handleConstraintViolationException(
             ConstraintViolationException exception,

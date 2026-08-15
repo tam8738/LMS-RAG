@@ -3,6 +3,10 @@ package com.lmsrag.backend.dto.ai;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.lmsrag.backend.entity.Document;
 
+/**
+ * Hợp đồng dữ liệu gửi sang AI Service để lập chỉ mục một tài liệu.
+ */
+
 public record AiIndexDocumentRequest(
         @JsonProperty("document_id") Long documentId,
         @JsonProperty("storage_key") String storageKey,

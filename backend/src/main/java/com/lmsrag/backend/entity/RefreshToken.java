@@ -19,6 +19,9 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
+/**
+ * Thực thể lưu refresh token và vòng đời của phiên đăng nhập.
+ */
 @Entity
 @Table(
         name = "refresh_tokens",

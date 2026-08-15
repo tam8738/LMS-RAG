@@ -25,6 +25,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
+/**
+ * Kiểm tra quyền tài liệu và điều phối yêu cầu hỏi đáp sang AI Service.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

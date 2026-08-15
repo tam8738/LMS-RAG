@@ -7,13 +7,17 @@ import com.lmsrag.backend.entity.User;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * Chuyển đổi thực thể tài liệu sang mô hình phản hồi API.
+ */
+
 public class DocumentMapper {
 
     public static DocumentResponse toResponse(Document document) {
         return toResponse(document, User::getName);
     }
 
-    /** Maps list results using names loaded in one batch, avoiding lazy User N+1 queries. */
+    /** Ánh xạ danh sách bằng dữ liệu tên đã nạp theo lô để tránh truy vấn N+1 trên lazy User. */
     public static DocumentResponse toResponse(Document document, Map<Long, String> userNamesById) {
         return toResponse(document, user -> userNamesById.get(user.getId()));
     }

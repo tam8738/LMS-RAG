@@ -1,5 +1,9 @@
 package com.lmsrag.backend.enums;
 
+/**
+ * Các trạng thái xử lý của tài liệu trong chuỗi tác vụ AI.
+ */
+
 public enum AiProcessingStatus {
 
     /**

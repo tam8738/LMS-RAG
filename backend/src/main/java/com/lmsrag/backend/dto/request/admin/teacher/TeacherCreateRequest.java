@@ -14,6 +14,9 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
+/**
+ * Thông tin quản trị viên cung cấp khi tạo tài khoản giảng viên.
+ */
 @Schema(description = "Dữ liệu tạo tài khoản giảng viên")
 public record TeacherCreateRequest(
         @Schema(description = "Họ và tên đầy đủ", example = "Trương Mỹ Tâm")

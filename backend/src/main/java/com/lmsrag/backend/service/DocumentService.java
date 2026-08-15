@@ -40,6 +40,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Điều phối nghiệp vụ tải lên, kiểm duyệt, công bố và lưu trữ tài liệu.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -740,8 +743,8 @@ public class DocumentService {
     }
 
     /**
-     * Loads all uploader/reviewer names for one page in a single query, then maps without
-     * initializing one lazy User proxy per document.
+     * Nạp tên người tải lên và người duyệt trong một truy vấn cho cả trang, nhờ đó tránh
+     * khởi tạo riêng một lazy User proxy trên từng tài liệu.
      */
     private Page<DocumentResponse> mapDocumentPage(Page<Document> documents) {
         if (documents.isEmpty()) {
@@ -767,7 +770,7 @@ public class DocumentService {
         if (isBlank(tags)) {
             return null;
         }
-        // Accept comma-separated tags, e.g. "database,normalization" -> '["database","normalization"]'
+        // Chuyển chuỗi tag phân tách bằng dấu phẩy sang mảng JSON dùng cho truy vấn PostgreSQL.
         String[] parts = tags.split(",");
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < parts.length; i++) {

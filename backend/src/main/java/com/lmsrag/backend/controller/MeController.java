@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Cung cấp API quản lý hồ sơ và mật khẩu của người dùng đang đăng nhập.
+ */
 @RestController
 @RequestMapping("/api/v1/me")
 @RequiredArgsConstructor

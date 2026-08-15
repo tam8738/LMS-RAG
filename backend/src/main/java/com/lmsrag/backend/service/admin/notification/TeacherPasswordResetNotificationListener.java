@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+/**
+ * Gửi email mật khẩu tạm sau khi giao dịch đặt lại mật khẩu hoàn tất.
+ */
 @Slf4j
 @Component
 public class TeacherPasswordResetNotificationListener {

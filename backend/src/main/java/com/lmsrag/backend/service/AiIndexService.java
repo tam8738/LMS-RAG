@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletionException;
 
+/**
+ * Điều phối việc lập chỉ mục RAG bất đồng bộ cho tài liệu đã được duyệt.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

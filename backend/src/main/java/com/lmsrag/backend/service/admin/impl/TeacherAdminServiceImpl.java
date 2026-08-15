@@ -35,6 +35,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Hiện thực các nghiệp vụ tìm kiếm, tạo, cập nhật và khóa tài khoản giảng viên.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

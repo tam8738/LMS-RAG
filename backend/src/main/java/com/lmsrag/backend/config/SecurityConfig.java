@@ -26,6 +26,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Định nghĩa chuỗi lọc, phân quyền endpoint và các thành phần xác thực của ứng dụng.
+ */
 @Slf4j
 @Configuration
 @RequiredArgsConstructor

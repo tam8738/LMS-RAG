@@ -9,6 +9,9 @@ import lombok.Builder;
 import java.time.Instant;
 import java.time.LocalDate;
 
+/**
+ * Thông tin tài khoản giảng viên được trả về cho giao diện quản trị.
+ */
 @Builder
 @Schema(description = "Thông tin tài khoản giảng viên")
 public record TeacherResponse(

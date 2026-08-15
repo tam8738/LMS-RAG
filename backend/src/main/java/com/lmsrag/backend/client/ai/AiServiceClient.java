@@ -28,6 +28,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
+/**
+ * Cổng giao tiếp HTTP giữa Backend và AI Service, bao gồm ánh xạ lỗi và chính sách gọi lại.
+ */
 @Slf4j
 @Component
 public class AiServiceClient {
@@ -51,17 +54,17 @@ public class AiServiceClient {
         this.aiTaskExecutor = aiTaskExecutor;
     }
 
-    /** Runs document analysis on the bounded AI executor. */
+    /** Chạy tác vụ phân tích tài liệu trên bộ thực thi AI có giới hạn. */
     public CompletableFuture<AiAnalyzeDocumentResult> analyzeDocumentAsync(Document document) {
         return submitAsync(() -> sendAnalyzeRequest(document));
     }
 
-    /** Runs document indexing on the bounded AI executor. */
+    /** Chạy tác vụ lập chỉ mục tài liệu trên bộ thực thi AI có giới hạn. */
     public CompletableFuture<AiIndexDocumentResult> indexDocumentAsync(Document document) {
         return submitAsync(() -> sendIndexRequest(document));
     }
 
-    /** Synchronous variant retained for retry/test callers. */
+    /** Biến thể đồng bộ dành cho luồng gọi lại và kiểm thử. */
     public AiAnalyzeDocumentResult analyzeDocumentSync(Document document) {
         requireInternalKey();
         return sendAnalyzeRequest(document);
@@ -121,7 +124,7 @@ public class AiServiceClient {
         return response.getData();
     }
 
-    /** Calls answer-question synchronously because the frontend waits for its response. */
+    /** Gọi hỏi đáp đồng bộ vì frontend cần chờ kết quả để phản hồi người dùng. */
     public AiAnswerQuestionResult answerQuestionSync(AiAnswerQuestionRequest request) {
         log.info("[AI] Sending answer-question | documentIds={} | question={}",
                 request.documentIds(), request.question());
@@ -166,7 +169,7 @@ public class AiServiceClient {
         return response.getData();
     }
 
-    /** Generates a quiz synchronously after Backend authorization checks. */
+    /** Sinh quiz đồng bộ sau khi Backend hoàn tất kiểm tra quyền truy cập. */
     public AiGenerateQuizResult generateQuizSync(AiGenerateQuizRequest request) {
         log.info("[AI] Sending generate-quiz | documentIds={} | questionCount={} | language={}",
                 request.documentIds(), request.questionCount(), request.language());
