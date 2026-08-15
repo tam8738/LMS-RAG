@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Download,
   FileText,
   LoaderCircle,
+  Lock,
+  LogIn,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { ROUTES } from "../routes";
 
 // Keep a deployment revision in the URL so browsers do not reuse worker
 // response metadata cached before Nginx learned the .mjs MIME type.
@@ -59,6 +62,7 @@ async function responseError(response: Response): Promise<string> {
 }
 
 export function DocumentPreviewPage() {
+  const navigate = useNavigate();
   const params = useParams<{ documentId: string }>();
   const documentId = Number(params.documentId);
   const contentUrl = useMemo(
@@ -69,8 +73,12 @@ export function DocumentPreviewPage() {
     () => `/api/v1/documents/${documentId}/download`,
     [documentId],
   );
-  const canRequestDownload = Boolean(localStorage.getItem("token"));
+  const [canRequestDownload, setCanRequestDownload] = useState(
+    Boolean(localStorage.getItem("token")),
+  );
+  const isPublicRef = useRef<boolean | null>(null);
 
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
   const [kind, setKind] = useState<PreviewKind>("loading");
   const [filename, setFilename] = useState("document");
   const [error, setError] = useState("");
@@ -86,6 +94,84 @@ export function DocumentPreviewPage() {
     window.addEventListener("resize", updateViewportWidth);
     return () => window.removeEventListener("resize", updateViewportWidth);
   }, []);
+
+  // Monitor authentication state:
+  // - For Public Library documents: logging out allows continued reading as guest (only download permission is revoked).
+  // - For Private/Teacher Draft documents: logging out immediately locks the screen to protect confidentiality.
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const currentToken = localStorage.getItem("token");
+      setCanRequestDownload(Boolean(currentToken));
+
+      // Check if current token has expired
+      if (currentToken) {
+        try {
+          const payload = JSON.parse(atob(currentToken.split(".")[1]));
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            localStorage.removeItem("token");
+            window.dispatchEvent(new Event("auth-unauthorized"));
+            setCanRequestDownload(false);
+          }
+        } catch {
+          // Ignore malformed token
+        }
+      }
+
+      // If no token exists (or user just logged out):
+      if (!localStorage.getItem("token")) {
+        // If already confirmed as a public document, keep reading without interruption
+        if (isPublicRef.current === true) {
+          return;
+        }
+
+        // Test if the document is publicly accessible without token (e.g. Published in Library)
+        try {
+          const checkRes = await fetch(contentUrl, { method: "HEAD" });
+          if (checkRes.ok) {
+            isPublicRef.current = true;
+            return;
+          }
+        } catch {
+          // Network or server error
+        }
+
+        // Document is private/unauthorized for anonymous viewers -> Lock screen
+        setIsSessionExpired(true);
+        setPdf(null);
+        setTextContent("");
+      }
+    };
+
+    // 1. Periodic polling every 2.5 seconds
+    const timer = setInterval(checkAuthStatus, 2500);
+
+    // 2. Immediate detection when logout happens in another tab
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "token" || e.key === null) {
+        void checkAuthStatus();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // 3. Check immediately when tab gains focus
+    const handleFocus = () => {
+      void checkAuthStatus();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // 4. Custom unauthorized event
+    const handleUnauthorized = () => {
+      void checkAuthStatus();
+    };
+    window.addEventListener("auth-unauthorized", handleUnauthorized);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("auth-unauthorized", handleUnauthorized);
+    };
+  }, [contentUrl]);
 
   useEffect(() => {
     if (!Number.isSafeInteger(documentId) || documentId <= 0) {
@@ -127,7 +213,7 @@ export function DocumentPreviewPage() {
             disableStream: true,
             disableAutoFetch: true,
           });
-          loadingTask.onProgress = ({ loaded, total }) => {
+          loadingTask.onProgress = ({ loaded, total }: { loaded: number; total: number }) => {
             setProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
           };
           loadedPdf = await loadingTask.promise;
@@ -190,6 +276,39 @@ export function DocumentPreviewPage() {
       setDownloadLoading(false);
     }
   };
+
+  if (isSessionExpired) {
+    return (
+      <PreviewShell filename={filename}>
+        <div className="flex min-h-[75vh] flex-col items-center justify-center px-6 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 shadow-sm border border-amber-200">
+            <Lock className="h-7 w-7" />
+          </div>
+          <h1 className="text-[20px] font-bold text-slate-900">Phiên làm việc đã kết thúc</h1>
+          <p className="mt-2.5 max-w-md text-[14px] leading-6 text-slate-600">
+            Bạn đã đăng xuất hoặc phiên đăng nhập đã hết hạn. Để bảo mật tài liệu vui lòng đăng nhập lại để tiếp tục xem.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                navigate(ROUTES.LOGIN, { state: { from: window.location } });
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-[13.5px] font-semibold text-white transition-colors hover:bg-slate-800 shadow-sm cursor-pointer border-none"
+            >
+              <LogIn className="h-4 w-4" />
+              Đăng nhập lại
+            </button>
+            <button
+              onClick={() => window.close()}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[13.5px] font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+            >
+              Đóng cửa sổ
+            </button>
+          </div>
+        </div>
+      </PreviewShell>
+    );
+  }
 
   if (kind === "loading" || (kind === "pdf" && !pdf)) {
     return (

@@ -287,7 +287,7 @@ export const teacherDocumentService = {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(url); // giải phóng bộ nhớ
   }
 };
 
